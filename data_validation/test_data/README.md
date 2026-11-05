@@ -1,8 +1,8 @@
-# WorkClarity synthetic dataset (119 shifts, csv)
+# WorkClarity synthetic dataset (122 shifts, csv)
 
 ## What this is
 
-This is fake data that behaves like the real WorkClarity pipeline will. It has 119 correct shifts for 20 workers across 30 schedules and three pay weeks, plus 124 rows that pretend to be what our AI extracted from those schedules. 33 of the extracted rows contain deliberate mistakes. We use it to build and test validation, earnings calculations and accuracy reports before real data exists. No real person or company is in it.
+This is fake data that behaves like the real WorkClarity pipeline will. It has 122 correct shifts for 20 workers across 31 schedules and three pay weeks, plus 128 rows that pretend to be what our AI extracted from those schedules. 33 of the extracted rows contain deliberate mistakes. We use it to build and test validation, earnings calculations and accuracy reports before real data exists. No real person or company is in it.
 
 Schedule S001 is the reference example: three shifts that must add up to 384.00. Every schedule is in csv format, following the kickoff decision to test the MVP with csv first. The files in schedule_inputs are the csv files a worker would upload, and csv_input_contract.md describes the structure we still need to agree. Image and pdf versions are kept in the earlier dataset for later testing.
 
@@ -27,28 +27,28 @@ For the meaning of every column, see data_dictionary.csv.
 | workers | 20 | One row per worker: name, home area, how they travel. | Everyone, as a lookup. Names are fake. |
 | employers | 11 | One row per company that employs workers. | Everyone, as a lookup. |
 | locations | 16 | One row per place of work. Each belongs to one employer. | Ololade, to check commute conflicts. |
-| schedules | 30 | One row per uploaded schedule file: whose it is, which pay week, which file format. | Nandila (what gets uploaded), Lavanya (which schedule is which test), Ololade. |
-| raw_shifts | 124 | What the AI extracted, one row per shift line, with deliberate mistakes. This is the table the validation layer reads. | Nandila (shape of the AI output), Ololade (input to validation). |
-| pay_rules | 18 | The pay and conflict rules we are assuming, such as pay week start and minimum travel gap. | Castro owns the values. Ololade uses them in calculations. |
+| schedules | 31 | One row per uploaded schedule file: whose it is, which pay week, which file format. | Nandila (what gets uploaded), Lavanya (which schedule is which test), Ololade. |
+| raw_shifts | 128 | What the AI extracted, one row per shift line, with deliberate mistakes. This is the table the validation layer reads. | Nandila (shape of the AI output), Ololade (input to validation). |
+| pay_rules | 22 | The pay and conflict rules we are assuming, such as pay week start and minimum travel gap. | Castro owns the values. Ololade uses them in calculations. |
 | flag_types | 6 | The six kinds of flag a worker can see, each with a plain-language message. | Castro (wording), Nandila (app display), Ololade (checks). |
 
 ### Tables that exist only for testing
 
 | Table | Rows | What one row is | Who uses it |
 | --- | ---: | --- | --- |
-| case_types | 20 | Names of the test scenarios, such as overnight, overlap, incomplete. | Lavanya, to label and add test cases. |
+| case_types | 21 | Names of the test scenarios, such as overnight, overlap, incomplete. | Lavanya, to label and add test cases. |
 | error_types | 16 | The kinds of extraction mistake we planted, with a severity and the flag the worker sees. | Nandila and Lavanya, to see what the AI gets wrong. |
-| truth_shifts | 119 | The correct shifts exactly as the schedules say, with correct hours and pay. This is the answer key. | Lavanya (format of correct answers), Ololade (accuracy checks). |
-| raw_truth_map | 124 | Links each extracted row to the correct shift it should match. An empty shift_id means the AI invented the row. | Ololade, to measure accuracy. |
+| truth_shifts | 122 | The correct shifts exactly as the schedules say, with correct hours and pay. This is the answer key. | Lavanya (format of correct answers), Ololade (accuracy checks). |
+| raw_truth_map | 128 | Links each extracted row to the correct shift it should match. An empty shift_id means the AI invented the row. | Ololade, to measure accuracy. |
 | planted_errors | 33 | Which extracted rows carry which mistake. | Ololade and Lavanya, to confirm our checks catch what we planted. |
-| expected_weekly_earnings | 31 | The correct weekly hours and gross pay for each schedule. | Ololade, to confirm earnings are calculated correctly. |
+| expected_weekly_earnings | 32 | The correct weekly hours and gross pay for each schedule. | Ololade, to confirm earnings are calculated correctly. |
 | expected_conflicts | 5 | The overlaps and tight commutes that should be found. | Ololade and Castro, to agree what counts as a conflict. |
 
 ### The one big table for reading
 
 | Table | Rows | What one row is | Who uses it |
 | --- | ---: | --- | --- |
-| shift_details | 119 | The big table: one row per correct shift with names, locations, rates, hours and pay all in one place. | Everyone, for reading and demos. |
+| shift_details | 122 | The big table: one row per correct shift with names, locations, rates, hours and pay all in one place. | Everyone, for reading and demos. |
 
 Note: schedules carries a case_type_id label, which is a test label. A real schedule would not have it.
 
@@ -94,7 +94,7 @@ In the real product the app will read finished tables like this one, so it needs
 
 ## What this means for each person
 
-**Nandila (AI extraction and implementation).** csv_input_contract.md is the csv structure I propose for the MVP test, and schedule_inputs holds 25 example csv files in that structure. raw_shifts shows the output shape I assumed for the AI step, including confirmation_status for the worker review. Please compare both with what you are building and tell me what differs. error_types lists the kinds of mistake I planted so you can see which ones your extraction should avoid.
+**Nandila (AI extraction and implementation).** csv_input_contract.md is the csv structure I propose for the MVP test, and schedule_inputs holds 31 example csv files in that structure. raw_shifts shows the output shape I assumed for the AI step, including confirmation_status for the worker review. Please compare both with what you are building and tell me what differs. error_types lists the kinds of mistake I planted so you can see which ones your extraction should avoid.
 
 **Castro (product and user experience).** pay_rules now reflects your recommendations: gross pay from confirmed hours and worker-entered rates after unpaid breaks, overtime not applied, cancelled shifts kept as records but not counted, and cancellation pay out of scope. The pay week start and the 30 minute travel gap are still my assumptions, so please confirm them. flag_types holds the six flags you listed, each with a plain-language message for the worker. Please edit the wording. expected_conflicts shows the overlaps and tight commutes the app should flag.
 
@@ -113,9 +113,9 @@ In the real product the app will read finished tables like this one, so it needs
 - worker_name lives only in workers. Shift tables use worker_id so personal details stay in one place.
 - Pay rules marked as assumptions (pay week start and the travel gap) still need the team's confirmation. Overtime is not applied in the MVP.
 - Cancelled shifts stay in the data as records. They have counts_toward_earnings set to false and a gross_earnings of 0.00, so projected earnings leave them out.
-- confirmation_status in raw_shifts shows whether the worker has confirmed what the AI read. Unconfirmed rows should be flagged and not used for earnings until confirmed.
+- confirmation_status in raw_shifts shows whether the worker has confirmed what the AI read: confirmed, unconfirmed, needs_review or rejected. Only confirmed rows count toward earnings. S031 has one needs_review row and one rejected row. The truth answer key for S031 has the three real shifts (337.50), and the module should give 225.00 until the worker corrects and confirms the needs_review shift. The rejected row has no true shift behind it and is not a planted error.
 - Hourly rates are worker-entered or worker-confirmed. They are in the test files so earnings can be tested.
-- Schedules S026 to S030 are edge cases: a shift over 16 hours or with equal start and end (S026), a negative break and a break longer than the shift (S027), two currencies in one week (S028), a confirmed shift without a rate (S029) and a location that matches nothing known (S030). The rules behind them, PR16 to PR18, are assumptions for Castro to confirm.
+- Schedules S026 to S031 are edge cases: a shift over 16 hours or with equal start and end (S026), a negative break and a break longer than the shift (S027), two currencies in one week (S028), a confirmed shift without a rate (S029), a location that matches nothing known (S030) and a shift in the review queue plus a rejected shift (S031). The rules behind them, PR16 to PR18, are assumptions for Castro to confirm.
 - expected_weekly_earnings has one row per schedule and currency. Totals are never added across currencies. incomplete_shifts counts confirmed shifts left out of gross pay because the rate is missing.
 - schema.sql creates every table with unenforced keys. It has not been run against BigQuery yet, so run it once and fix any message.
 

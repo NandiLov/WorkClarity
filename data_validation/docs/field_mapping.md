@@ -1,6 +1,6 @@
 # Field mapping: Castro's specification (v1.0) and the synthetic csv set
 
-Status: draft by Ololade, 2026-11-05. Written from a summary of Castro's Product Requirements and Acceptance Specification, so Castro should check every row against the document. Rows marked "confirm" need a decision.
+Status: draft by Ololade, 2026-11-05, updated after Castro's review the same day. Written from Castro's Product Requirements and Acceptance Specification. Rows marked "confirm" still need a decision, mostly from Nandila.
 
 ## 1. Input csv columns
 
@@ -12,8 +12,8 @@ Status: draft by Ololade, 2026-11-05. Written from a summary of Castro's Product
 | break_minutes | break_minutes | Same | None |
 | hourly_rate | hourly_rate | Same | None |
 | currency | currency | Same | None |
-| employer_name | employer_name | Same | Spec treats it as optional, this dataset treats it as required. Confirm |
-| location_text | location | Name differs | Rename one side. Confirm |
+| employer_name | employer_name | Same | Castro decided: a missing employer is a warning and the shift still counts |
+| location_text | location | Name differs | The service accepts both. Nandila's interface uses location_text. Confirm which is the standard |
 | department | department | Same | None |
 | end_date (optional) | not present | Missing here | Add it, or keep the rule that an end time earlier than the start time means the next day. Confirm |
 | not in spec | shift_status | Extra here | Keep or drop. Confirm |
@@ -23,17 +23,17 @@ Status: draft by Ololade, 2026-11-05. Written from a summary of Castro's Product
 
 | Spec code | Dataset error type | Dataset flag | Note |
 | --- | --- | --- | --- |
-| INVALID_TIME | unparseable_time, missing_end_time | missing_or_invalid | missing_end_time maps here only if a missing time counts as invalid. Confirm |
+| INVALID_TIME | unparseable_time, missing_end_time | missing_or_invalid | A missing time counts as invalid |
 | MISSING_RATE | missing_rate | missing_or_invalid | |
 | MISSING_EMPLOYER | missing_employer | missing_or_invalid | Blocking or warning is still open in the spec |
 | MISSING_LOCATION | missing_location | missing_or_invalid | |
-| INVALID_BREAK | missing_break, invalid_break (S027) | missing_or_invalid | invalid_break covers a negative break and a break longer than the shift. The rule (PR16) is an assumption |
+| INVALID_BREAK | missing_break, invalid_break (S027) | missing_or_invalid | invalid_break covers a negative break and a break as long as or longer than the shift. Rule PR16, confirmed by Castro |
 | INVALID_DURATION | invalid_duration (S026) | missing_or_invalid | One shift over 16 hours and one with equal start and end |
 | POSSIBLE_DUPLICATE | duplicate_row | duplicate | |
 | LOW_CONFIDENCE | stale_schedule_change, am_pm_error, wrong_date, hallucinated_shift | unconfirmed | Planted extraction mistakes that the worker has to review |
 | OVERLAP | overlap conflict (expected_conflicts.csv) | overlap | |
 | COMMUTE_GAP | insufficient_commute conflict (expected_conflicts.csv) | insufficient_commute | 30 minute assumption in both |
-| none | missing_date | missing_or_invalid | No matching spec code. Confirm which code applies |
+| none | missing_date | missing_or_invalid | Castro decided: a blocking error under the missing or invalid flag, with a specific reason |
 | MISSING_RATE on a confirmed shift | confirmed_missing_rate (S029) | missing_or_invalid | The shift is left out of gross pay and counted in incomplete_shifts |
 | Unknown location, unable to assess commute | unknown_location (S030) | missing_or_invalid | The commute check should say it cannot assess, not that the commute is fine |
 
@@ -42,9 +42,9 @@ Status: draft by Ololade, 2026-11-05. Written from a summary of Castro's Product
 | Spec state | Dataset field and value |
 | --- | --- |
 | extracted or draft | confirmation_status = unconfirmed |
-| needs_review | not modelled yet |
+| needs_review | confirmation_status = needs_review (S031 line 2). In the module, the tests and the csv data |
 | confirmed | confirmation_status = confirmed |
-| rejected | not modelled yet |
+| rejected | confirmation_status = rejected (S031 line 4). In the module, the tests and the csv data |
 | cancelled | shift_status = cancelled, counts_toward_earnings = false, gross_earnings = 0.00 |
 
 ## 4. Output
@@ -60,8 +60,5 @@ Status: draft by Ololade, 2026-11-05. Written from a summary of Castro's Product
 
 ## 5. What this dataset does not test yet
 
-- Rejected and needs_review states
-- A missing employer or location treated as blocking (the spec has not decided between blocking and warning)
-- A csv with an end_date column
-
-These need the open decisions on missing employer, end_date and the rejected and needs_review states before the answer keys are written.
+- A csv with an end_date column. The contract now lists it as optional and the module is tested with it, but no schedule file uses it yet
+- The location column name, waiting on Nandila's contract

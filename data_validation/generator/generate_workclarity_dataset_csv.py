@@ -81,6 +81,7 @@ case_types = [
     ("CT18", "mixed_currency", "One week with shifts in two currencies, totals kept separate"),
     ("CT19", "incomplete_earnings", "Confirmed shift without a rate, earnings shown as incomplete"),
     ("CT20", "unknown_location", "Extracted location matches no known location, commute cannot be assessed"),
+    ("CT21", "review_and_rejected", "One shift sent to the review queue and one extracted shift the worker rejected, both left out of earnings"),
 ]
 ct_id = {c[1]: c[0] for c in case_types}
 
@@ -95,8 +96,8 @@ error_types = [
     ("ET08", "wrong_date", "error", "Date shifted to the wrong day"),
     ("ET09", "duplicate_row", "warning", "Same shift extracted twice"),
     ("ET10", "hallucinated_shift", "error", "Shift that is not on the schedule"),
-    ("ET11", "missing_location", "error", "Location missing"),
-    ("ET12", "missing_employer", "error", "Employer missing"),
+    ("ET11", "missing_location", "warning", "Location missing, a warning that does not stop the shift counting"),
+    ("ET12", "missing_employer", "warning", "Employer missing, a warning that does not stop the shift counting"),
     ("ET13", "invalid_duration", "error", "Shift length is zero or longer than 16 hours"),
     ("ET14", "invalid_break", "error", "Break is negative or longer than the shift"),
     ("ET15", "confirmed_missing_rate", "error", "Worker confirmed the shift but the hourly rate is missing, so earnings are incomplete"),
@@ -107,10 +108,10 @@ et_id = {e[1]: e[0] for e in error_types}
 flag_types = [
     ("FL01", "overlap", "error", "These shifts happen at the same time. Please check which one is right."),
     ("FL02", "insufficient_commute", "warning", "You may not have enough time to get from one job to the next."),
-    ("FL03", "missing_or_invalid", "error", "Some details of this shift are missing or look wrong. Please check them."),
-    ("FL04", "duplicate", "warning", "This shift appears more than once. Please remove the extra one."),
+    ("FL03", "missing_or_invalid", "depends on the error", "Some details of this shift are missing or look wrong. Please check them."),
+    ("FL04", "duplicate", "warning", "This shift may be a duplicate. Please check it and keep only the one that is correct."),
     ("FL05", "cancelled", "info", "This shift was cancelled, so it is not counted in your estimated earnings."),
-    ("FL06", "unconfirmed", "warning", "We are not sure we read this correctly. Please confirm it."),
+    ("FL06", "unconfirmed", "warning", "This shift has not been confirmed yet. Please review it and confirm it so it counts toward your earnings."),
 ]
 et_flag = {
     "unparseable_time": "FL03", "missing_rate": "FL03", "missing_end_time": "FL03", "missing_date": "FL03",
@@ -121,24 +122,28 @@ et_flag = {
 }
 
 pay_rules = [
-    ("PR01", "pay_week_start", "monday", "Overnight shift counts in the week of its start date"),
+    ("PR01", "pay_week_start", "monday", "Default reporting week starts on Monday. This is a product default, not a universal payroll rule. An overnight shift counts in the week of its start date"),
     ("PR02", "earnings_basis", "gross", "Gross pay before tax and deductions, from worker-confirmed hours and rates"),
     ("PR03", "breaks", "unpaid", "break_minutes is deducted from paid hours"),
     ("PR04", "overtime_enabled", "false", "Overtime not applied in the MVP: every hour is paid at the standard rate. Weekly output also shows an overtime figure for comparison"),
     ("PR05", "overtime_threshold_hours", str(OT_THRESHOLD), "Weekly hours above this are overtime when enabled"),
     ("PR06", "overtime_multiplier", str(OT_MULT), "Rate multiplier for overtime hours when enabled"),
     ("PR07", "max_shift_hours", "16", "Longer shifts are flagged as invalid duration"),
-    ("PR08", "min_commute_gap_minutes", str(MIN_GAP), "Minimum gap between shifts at different locations"),
+    ("PR08", "min_commute_gap_minutes", str(MIN_GAP), "Initial commute gap warning between shifts at different locations. This is a product default, not a universal travel time rule"),
     ("PR09", "weekend_pay_type", "weekend", "Saturday and Sunday shifts are labelled weekend"),
     ("PR10", "rounding", "2", "Round money to 2 decimal places"),
     ("PR11", "rate_source", "worker_entered", "Hourly rate is entered or confirmed by the worker"),
     ("PR12", "cancelled_shifts", "excluded_from_projected_earnings", "Cancelled shifts that were not worked are kept as records but not counted"),
     ("PR13", "cancellation_compensation", "out_of_scope", "Any pay for cancelled shifts needs separate rules and is outside the initial scope"),
     ("PR14", "test_input_format", "csv", "The MVP is tested with csv input first"),
-    ("PR15", "second_mvp_format", "tbd", "The brief requires two formats, the second is still to be agreed"),
-    ("PR16", "valid_break", "zero_to_shift_length", "Assumption: break_minutes must be zero or more and shorter than the shift, otherwise the shift is flagged as invalid"),
+    ("PR15", "second_mvp_format", "pdf", "PDF is the planned second input format after csv. Images are deferred"),
+    ("PR16", "valid_break", "nonnegative_and_shorter_than_shift", "break_minutes must be zero or more and shorter than the shift duration, otherwise the shift is flagged as invalid"),
     ("PR17", "currency_totals", "separate_per_currency", "Weekly totals are kept per currency and never added across currencies"),
-    ("PR18", "missing_rate_confirmed", "earnings_incomplete", "A confirmed shift without a rate is left out of gross pay and counted as incomplete"),
+    ("PR18", "missing_rate_confirmed", "earnings_incomplete", "A confirmed shift without a rate stays visible but is left out of gross pay and counted as incomplete"),
+    ("PR19", "missing_employer_or_location", "warning_not_blocking", "A missing employer or location is a warning and does not stop the shift counting, as long as the essential shift details are valid. A missing or unknown location means the commute check is unavailable, not passed"),
+    ("PR20", "missing_date", "blocking_error", "A missing date is a blocking validation error under the missing or invalid flag, with a specific missing date reason"),
+    ("PR21", "needs_review_and_rejected", "excluded_from_earnings", "needs_review shifts show in the review queue and are left out of final earnings until corrected and confirmed. Rejected shifts are kept for traceability but left out of the active schedule and earnings"),
+    ("PR22", "earnings_source", "validated_worker_confirmed", "Earnings are calculated from validated, worker-confirmed shift data, including the worker's corrections. The original csv stays available for traceability and comparison"),
 ]
 
 # ------------------------------------------------------------------ schedules
@@ -174,6 +179,7 @@ sched_defs = [
     ("S028", "W008", "csv_text", "mixed_currency", "Two USD shifts and two EUR shifts in one week", 1),
     ("S029", "W009", "csv_text", "incomplete_earnings", "Confirmed shift without a rate", 1),
     ("S030", "W010", "csv_text", "unknown_location", "Second shift location matches no known location", 1),
+    ("S031", "W011", "csv_text", "review_and_rejected", "One shift in the review queue and one rejected extracted shift", 1),
 ]
 sched_defs = [(a, b, "csv_text", d, e, f) for (a, b, c, d, e, f) in sched_defs]
 sched = {s[0]: s for s in sched_defs}
@@ -255,7 +261,7 @@ days("S025", [D(9), D(10), D(11), D(12)], "08:00", "16:00", 30, 18.00, "Hotel Fr
 add("S025", D(15), "22:00", "06:00", 0, 18.00, "Hotel Front")
 
 # week of Nov 16 (5 edge case schedules, 19 shifts)
-NEW_SIDS = {"S026", "S027", "S028", "S029", "S030"}
+NEW_SIDS = {"S026", "S027", "S028", "S029", "S030", "S031"}
 days("S026", [D(d) for d in range(16, 20)], "09:00", "17:00", 30, 15.00, "Store A")
 days("S027", [D(d) for d in range(16, 20)], "09:00", "17:00", 30, 15.00, "Store A")
 add("S028", D(16), "10:00", "18:00", 30, 13.50, "Mall Kiosk")
@@ -266,6 +272,7 @@ days("S029", [D(d) for d in range(16, 20)], "08:00", "16:00", 30, 15.00, "Packin
 add("S030", D(16), "07:00", "12:00", 0, 15.00, "Hospital Annex")
 add("S030", D(16), "12:15", "17:00", 0, 15.00, "Hospital Annex")
 add("S030", D(17), "07:00", "15:00", 30, 15.00, "Hospital Annex")
+days("S031", [D(d) for d in range(16, 19)], "08:00", "16:00", 30, 15.00, "Cafe Downtown")
 INCOMPLETE = {"S029-02"}
 
 
@@ -339,7 +346,7 @@ overrides = {
     ("S008", 1): (dict(start_time="05:00"), "am_pm_error"),
     ("S008", 2): (dict(start_time="01:00"), "am_pm_error"),
     ("S012", 3): (dict(break_minutes=None), "missing_break"),
-    ("S016", 3): (dict(shift_date=D(12)), "wrong_date"),
+    ("S016", 3): (dict(shift_date=D(14)), "wrong_date"),
     ("S017", 4): (dict(start_time="9am"), "unparseable_time"),
     ("S019", 2): (dict(end_time=None), "missing_end_time"),
     ("S019", 4): (dict(shift_date=None), "missing_date"),
@@ -453,6 +460,25 @@ for t in truth:
     key = (t["schedule_id"], t["line_no"])
     over, etype = overrides.get(key, ({}, None))
     new_raw(t, over, etype, csv_line(t))
+
+# S031: line 2 is sent to the review queue (the true shift, not yet confirmed by the worker) and a fourth extracted
+# line overlapping line 3 is rejected by the worker (no true shift behind it). They are worker states, not planted errors.
+_s031 = {t["line_no"]: t for t in truth if t["schedule_id"] == "S031"}
+for _r in raw:
+    if _r["schedule_id"] == "S031":
+        _r["confirmation_status"] = "needs_review" if _r["line_no"] == 2 else "confirmed"
+        if _r["line_no"] == 2:
+            _r["extraction_confidence"] = 0.62
+_sch31 = [x for x in schedules if x["schedule_id"] == "S031"][0]
+rid += 1
+_loc = loc_by_name["Cafe Downtown"]
+raw.append(dict(raw_id=f"R{rid:03d}", schedule_id="S031", line_no=4, worker_id="W011", shift_date=D(18),
+                start_time="10:00", end_time="14:00", break_minutes=0, hourly_rate=15.0, location_text="Cafe Downtown",
+                source_format="csv_text", file_name=_sch31["file_name"], source_line=None,
+                employer_name=emp_name[_loc[1]], department=dept_by_loc["Cafe Downtown"], currency="USD",
+                stated_hours=None, shift_status="scheduled", extraction_method="ai", extraction_version="v0",
+                extraction_confidence=0.55, confirmation_status="rejected", extracted_at=_sch31["uploaded_at"][:-2] + "30"))
+map_rows.append(dict(raw_id=f"R{rid:03d}", shift_id=None))
 
 # ------------------------------------------------------------------ expected weekly earnings and conflicts
 weekly = {}
@@ -689,7 +715,7 @@ rd.append("Small tables are best for storing data, but they are tiring to read, 
 rd.append("Think of the small tables as the filing cabinet and shift_details as the summary sheet on your desk. Rebuild the sheet from the cabinet whenever the cabinet changes. Never edit the sheet by hand.\n")
 rd.append("In the real product the app will read finished tables like this one, so it needs simple queries and no joins, while the pipeline keeps writing to the small tables.\n")
 rd.append("## What this means for each person\n")
-rd.append("**Nandila (AI extraction and implementation).** csv_input_contract.md is the csv structure I propose for the MVP test, and schedule_inputs holds 25 example csv files in that structure. raw_shifts shows the output shape I assumed for the AI step, including confirmation_status for the worker review. Please compare both with what you are building and tell me what differs. error_types lists the kinds of mistake I planted so you can see which ones your extraction should avoid.\n")
+rd.append("**Nandila (AI extraction and implementation).** csv_input_contract.md is the csv structure I propose for the MVP test, and schedule_inputs holds 31 example csv files in that structure. raw_shifts shows the output shape I assumed for the AI step, including confirmation_status for the worker review. Please compare both with what you are building and tell me what differs. error_types lists the kinds of mistake I planted so you can see which ones your extraction should avoid.\n")
 rd.append("**Castro (product and user experience).** pay_rules now reflects your recommendations: gross pay from confirmed hours and worker-entered rates after unpaid breaks, overtime not applied, cancelled shifts kept as records but not counted, and cancellation pay out of scope. The pay week start and the 30 minute travel gap are still my assumptions, so please confirm them. flag_types holds the six flags you listed, each with a plain-language message for the worker. Please edit the wording. expected_conflicts shows the overlaps and tight commutes the app should flag.\n")
 rd.append("**Lavanya (testing).** truth_shifts is the format of the correct answers, and case_types lists the scenarios we cover: overnight, overlap, commute, incomplete, schedule change, ambiguous time, duplicate, invented shift, week boundary, multiple rates, overtime, cancelled shifts and missing employer or location. Add your own test schedules as csv files like the ones in schedule_inputs, with the correct answers in the truth_shifts format and a case type for each. planted_errors shows which extracted rows are wrong and how.\n")
 rd.append("**Ololade (data validation and earnings).** The small tables load into BigQuery, validation reads raw_shifts, and the expected tables let me confirm that every check and calculation is right. The accuracy report compares raw_shifts with truth_shifts.\n")
@@ -702,9 +728,9 @@ rd.append("- About 1 in 8 location texts, 1 in 10 employer names and 1 in 12 cur
 rd.append("- worker_name lives only in workers. Shift tables use worker_id so personal details stay in one place.")
 rd.append("- Pay rules marked as assumptions (pay week start and the travel gap) still need the team's confirmation. Overtime is not applied in the MVP.")
 rd.append("- Cancelled shifts stay in the data as records. They have counts_toward_earnings set to false and a gross_earnings of 0.00, so projected earnings leave them out.")
-rd.append("- confirmation_status in raw_shifts shows whether the worker has confirmed what the AI read. Unconfirmed rows should be flagged and not used for earnings until confirmed.")
+rd.append("- confirmation_status in raw_shifts shows whether the worker has confirmed what the AI read: confirmed, unconfirmed, needs_review or rejected. Only confirmed rows count toward earnings. S031 has one needs_review row and one rejected row. The truth answer key for S031 has the three real shifts (337.50), and the module should give 225.00 until the worker corrects and confirms the needs_review shift. The rejected row has no true shift behind it and is not a planted error.")
 rd.append("- Hourly rates are worker-entered or worker-confirmed. They are in the test files so earnings can be tested.")
-rd.append("- Schedules S026 to S030 are edge cases: a shift over 16 hours or with equal start and end (S026), a negative break and a break longer than the shift (S027), two currencies in one week (S028), a confirmed shift without a rate (S029) and a location that matches nothing known (S030). The rules behind them, PR16 to PR18, are assumptions for Castro to confirm.")
+rd.append("- Schedules S026 to S031 are edge cases: a shift over 16 hours or with equal start and end (S026), a negative break and a break longer than the shift (S027), two currencies in one week (S028), a confirmed shift without a rate (S029), a location that matches nothing known (S030) and a shift in the review queue plus a rejected shift (S031). The rules behind them, PR16 to PR18, are assumptions for Castro to confirm.")
 rd.append("- expected_weekly_earnings has one row per schedule and currency. Totals are never added across currencies. incomplete_shifts counts confirmed shifts left out of gross pay because the rate is missing.")
 rd.append("- schema.sql creates every table with unenforced keys. It has not been run against BigQuery yet, so run it once and fix any message.\n")
 rd.append("## Load into BigQuery (optional)\n")
@@ -783,7 +809,7 @@ col_desc = {
     "conflict_type": "overlap or commute_conflict",
     "counts_toward_earnings": "false for cancelled shifts, which are kept as records but not counted in projected earnings",
     "cancelled_shifts": "Number of cancelled shifts in the week, not counted in pay",
-    "confirmation_status": "confirmed if the worker has confirmed what the AI read, otherwise unconfirmed",
+    "confirmation_status": "confirmed, unconfirmed, needs_review (in the review queue) or rejected (kept for traceability, not in the schedule or earnings)",
     "flag_type_id": "ID of the flag shown to the worker",
     "flag_name": "Name of the flag: overlap, insufficient_commute, missing_or_invalid, duplicate, cancelled or unconfirmed",
     "worker_message": "Plain-language message shown to the worker",
@@ -851,7 +877,7 @@ CONTRACT = """# CSV input contract (draft for the MVP test)
 
 Status: proposed by Ololade. Nandila and Castro to confirm or change.
 
-One csv file is one worker's schedule for one pay week. The first row is the header, the file is UTF-8 and the separator is a comma. See csv_upload_template.csv for a working example and the schedule_inputs folder for 30 more.
+One csv file is one worker's schedule for one pay week. The first row is the header, the file is UTF-8 and the separator is a comma. See csv_upload_template.csv for a working example and the schedule_inputs folder for 31 more.
 
 ## Columns
 
