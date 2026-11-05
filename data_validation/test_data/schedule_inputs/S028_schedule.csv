@@ -1,0 +1,5 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-16,10:00,18:00,30,Kiosk Co,Mall Kiosk,sales floor,13.50,USD,scheduled,8.0
+2026-11-17,10:00,18:00,30,Kiosk Co,Mall Kiosk,sales floor,13.50,USD,scheduled,8.0
+2026-11-18,10:00,18:00,30,Kiosk Co,Mall Kiosk,sales floor,12.00,EUR,scheduled,8.0
+2026-11-19,10:00,18:00,30,Kiosk Co,Mall Kiosk,sales floor,12.00,EUR,scheduled,8.0

@@ -1,0 +1,6 @@
+conflict_id,worker_id,shift_a_id,shift_b_id,conflict_type,gap_minutes
+C001,W004,S004-01,S004-02,overlap,
+C002,W005,S005-01,S005-02,commute_conflict,10
+C003,W016,S017-01,S017-02,overlap,
+C004,W017,S018-01,S018-02,commute_conflict,15
+C005,W017,S018-03,S018-04,commute_conflict,20

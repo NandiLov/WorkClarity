@@ -1,0 +1,120 @@
+shift_id,schedule_id,worker_id,employer_id,location_id,case_type_id,worker_name,employer_name,location_name,department,shift_date,start_time,end_time,ends_next_day,break_minutes,hourly_rate,currency,pay_type,shift_status,counts_toward_earnings,paid_hours,gross_earnings,case_type
+S001-01,S001,W001,E01,L01,CT01,Ada Okoye,BrightMart,Store A,sales floor,2026-11-03,08:00,16:00,false,0,15.0,USD,regular,scheduled,true,8.0,120.0,reference_overnight
+S001-02,S001,W001,E01,L01,CT01,Ada Okoye,BrightMart,Store A,sales floor,2026-11-04,09:00,17:00,false,0,15.0,USD,regular,scheduled,true,8.0,120.0,reference_overnight
+S001-03,S001,W001,E02,L02,CT01,Ada Okoye,SwiftLogistics,Warehouse B,dispatch,2026-11-05,22:00,06:00,true,0,18.0,USD,regular,scheduled,true,8.0,144.0,reference_overnight
+S002-01,S002,W002,E03,L03,CT02,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-02,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,clean_week
+S002-02,S002,W002,E03,L03,CT02,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-03,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,clean_week
+S002-03,S002,W002,E03,L03,CT02,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-04,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,clean_week
+S002-04,S002,W002,E03,L03,CT02,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-05,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,clean_week
+S002-05,S002,W002,E03,L03,CT02,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-06,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,clean_week
+S003-01,S003,W003,E02,L04,CT03,Chloe Nguyen,SwiftLogistics,Night Warehouse,dispatch,2026-11-02,22:00,07:00,true,60,17.0,USD,regular,scheduled,true,8.0,136.0,overnight
+S003-02,S003,W003,E02,L04,CT03,Chloe Nguyen,SwiftLogistics,Night Warehouse,dispatch,2026-11-04,21:30,05:30,true,30,17.0,USD,regular,scheduled,true,7.5,127.5,overnight
+S003-03,S003,W003,E02,L04,CT03,Chloe Nguyen,SwiftLogistics,Night Warehouse,dispatch,2026-11-06,23:00,07:00,true,0,17.0,USD,regular,scheduled,true,8.0,136.0,overnight
+S004-01,S004,W004,E01,L05,CT04,Dev Patel,BrightMart,Retail X,sales floor,2026-11-03,08:00,14:00,false,0,14.0,USD,regular,scheduled,true,6.0,84.0,overlap
+S004-02,S004,W004,E04,L06,CT04,Dev Patel,Diner Y Co,Diner Y,kitchen,2026-11-03,12:00,18:00,false,0,15.0,USD,regular,scheduled,true,6.0,90.0,overlap
+S004-03,S004,W004,E01,L05,CT04,Dev Patel,BrightMart,Retail X,sales floor,2026-11-05,09:00,13:00,false,0,14.0,USD,regular,scheduled,true,4.0,56.0,overlap
+S005-01,S005,W005,E05,L07,CT05,Elena Rossi,CityCare Hospital,Hospital Annex,patient support,2026-11-04,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
+S005-02,S005,W005,E03,L08,CT05,Elena Rossi,Central Cafe Group,Cafe Downtown,counter,2026-11-04,12:10,17:00,false,0,13.0,USD,regular,scheduled,true,4.83,62.79,commute_conflict
+S005-03,S005,W005,E05,L07,CT05,Elena Rossi,CityCare Hospital,Hospital Annex,patient support,2026-11-06,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,commute_conflict
+S006-01,S006,W006,E02,L09,CT06,Femi Adeyemi,SwiftLogistics,Warehouse,inventory,2026-11-02,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S006-02,S006,W006,E02,L09,CT06,Femi Adeyemi,SwiftLogistics,Warehouse,inventory,2026-11-03,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S006-03,S006,W006,E02,L09,CT06,Femi Adeyemi,SwiftLogistics,Warehouse,inventory,2026-11-04,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S007-01,S007,W007,E06,L10,CT07,Grace Kim,Wellness Clinic,Clinic Front Desk,front desk,2026-11-03,09:00,17:00,false,30,15.5,USD,regular,changed,true,7.5,116.25,schedule_change
+S007-02,S007,W007,E06,L10,CT07,Grace Kim,Wellness Clinic,Clinic Front Desk,front desk,2026-11-04,09:00,17:00,false,30,15.5,USD,regular,scheduled,true,7.5,116.25,schedule_change
+S008-01,S008,W008,E07,L11,CT08,Hassan Ali,Harbor Grill,Restaurant Bar,bar,2026-11-02,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S008-02,S008,W008,E07,L11,CT08,Hassan Ali,Harbor Grill,Restaurant Bar,bar,2026-11-04,13:00,21:00,false,30,20.0,USD,regular,scheduled,true,7.5,150.0,ambiguous_time
+S009-01,S009,W009,E02,L12,CT09,Isla Moreno,SwiftLogistics,Depot,loading,2026-11-02,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S009-02,S009,W009,E02,L12,CT09,Isla Moreno,SwiftLogistics,Depot,loading,2026-11-03,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S009-03,S009,W009,E02,L12,CT09,Isla Moreno,SwiftLogistics,Depot,loading,2026-11-05,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S010-01,S010,W010,E08,L13,CT10,Jonah Brooks,Kiosk Co,Mall Kiosk,sales floor,2026-11-03,10:00,15:00,false,0,13.5,USD,regular,scheduled,true,5.0,67.5,hallucinated_shift
+S010-02,S010,W010,E08,L13,CT10,Jonah Brooks,Kiosk Co,Mall Kiosk,sales floor,2026-11-04,10:00,15:00,false,0,13.5,USD,regular,scheduled,true,5.0,67.5,hallucinated_shift
+S011-01,S011,W011,E09,L14,CT11,Kemi Balogun,Grand Hotel,Hotel Front,front desk,2026-11-02,08:00,16:00,false,30,18.0,USD,regular,scheduled,true,7.5,135.0,week_boundary
+S011-02,S011,W011,E09,L14,CT11,Kemi Balogun,Grand Hotel,Hotel Front,front desk,2026-11-08,22:00,06:00,true,0,18.0,USD,weekend,scheduled,true,8.0,144.0,week_boundary
+S012-01,S012,W012,E10,L15,CT12,Liam Walsh,FitLife,Gym Reception,front desk,2026-11-03,10:00,18:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,multi_rate
+S012-02,S012,W012,E10,L15,CT12,Liam Walsh,FitLife,Gym Reception,front desk,2026-11-04,10:00,18:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,multi_rate
+S012-03,S012,W012,E10,L15,CT12,Liam Walsh,FitLife,Gym Reception,front desk,2026-11-07,10:00,18:00,false,30,20.0,USD,weekend,scheduled,true,7.5,150.0,multi_rate
+S013-01,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-02,08:00,17:00,false,0,15.0,USD,regular,scheduled,true,9.0,135.0,overtime
+S013-02,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-03,08:00,17:00,false,0,15.0,USD,regular,scheduled,true,9.0,135.0,overtime
+S013-03,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-04,08:00,17:00,false,0,15.0,USD,regular,scheduled,true,9.0,135.0,overtime
+S013-04,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-05,08:00,17:00,false,0,15.0,USD,regular,scheduled,true,9.0,135.0,overtime
+S013-05,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-06,08:00,17:00,false,0,15.0,USD,regular,scheduled,true,9.0,135.0,overtime
+S013-06,S013,W013,E11,L16,CT13,Maya Singh,PackRight,Packing Plant,packing,2026-11-07,08:00,17:00,false,0,15.0,USD,weekend,scheduled,true,9.0,135.0,overtime
+S014-01,S014,W001,E01,L01,CT15,Ada Okoye,BrightMart,Store A,sales floor,2026-11-09,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,missing_info
+S014-02,S014,W001,E01,L01,CT15,Ada Okoye,BrightMart,Store A,sales floor,2026-11-10,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,missing_info
+S014-03,S014,W001,E01,L01,CT15,Ada Okoye,BrightMart,Store A,sales floor,2026-11-11,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,missing_info
+S014-04,S014,W001,E01,L01,CT15,Ada Okoye,BrightMart,Store A,sales floor,2026-11-12,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,missing_info
+S014-05,S014,W001,E01,L01,CT15,Ada Okoye,BrightMart,Store A,sales floor,2026-11-13,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,missing_info
+S015-01,S015,W014,E03,L03,CT14,Noah Pereira,Central Cafe Group,Cafe Central,counter,2026-11-09,07:00,15:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,cancelled_shift
+S015-02,S015,W014,E03,L03,CT14,Noah Pereira,Central Cafe Group,Cafe Central,counter,2026-11-10,07:00,15:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,cancelled_shift
+S015-03,S015,W014,E03,L03,CT14,Noah Pereira,Central Cafe Group,Cafe Central,counter,2026-11-11,07:00,15:00,false,30,16.5,USD,regular,cancelled,false,0.0,0.0,cancelled_shift
+S015-04,S015,W014,E03,L03,CT14,Noah Pereira,Central Cafe Group,Cafe Central,counter,2026-11-12,07:00,15:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,cancelled_shift
+S015-05,S015,W014,E03,L03,CT14,Noah Pereira,Central Cafe Group,Cafe Central,counter,2026-11-13,07:00,15:00,false,30,16.5,USD,regular,cancelled,false,0.0,0.0,cancelled_shift
+S016-01,S016,W015,E02,L04,CT03,Olu Johnson,SwiftLogistics,Night Warehouse,dispatch,2026-11-09,22:00,06:00,true,30,17.5,USD,regular,scheduled,true,7.5,131.25,overnight
+S016-02,S016,W015,E02,L04,CT03,Olu Johnson,SwiftLogistics,Night Warehouse,dispatch,2026-11-10,22:00,06:00,true,30,17.5,USD,regular,scheduled,true,7.5,131.25,overnight
+S016-03,S016,W015,E02,L04,CT03,Olu Johnson,SwiftLogistics,Night Warehouse,dispatch,2026-11-11,22:00,06:00,true,30,17.5,USD,regular,scheduled,true,7.5,131.25,overnight
+S016-04,S016,W015,E02,L04,CT03,Olu Johnson,SwiftLogistics,Night Warehouse,dispatch,2026-11-12,22:00,06:00,true,30,17.5,USD,regular,scheduled,true,7.5,131.25,overnight
+S016-05,S016,W015,E02,L04,CT03,Olu Johnson,SwiftLogistics,Night Warehouse,dispatch,2026-11-13,22:00,06:00,true,30,17.5,USD,regular,scheduled,true,7.5,131.25,overnight
+S017-01,S017,W016,E01,L05,CT04,Priya Shah,BrightMart,Retail X,sales floor,2026-11-09,08:00,14:00,false,0,14.0,USD,regular,scheduled,true,6.0,84.0,overlap
+S017-02,S017,W016,E04,L06,CT04,Priya Shah,Diner Y Co,Diner Y,kitchen,2026-11-09,13:00,19:00,false,0,15.0,USD,regular,scheduled,true,6.0,90.0,overlap
+S017-03,S017,W016,E01,L05,CT04,Priya Shah,BrightMart,Retail X,sales floor,2026-11-10,09:00,15:00,false,0,14.0,USD,regular,scheduled,true,6.0,84.0,overlap
+S017-04,S017,W016,E01,L05,CT04,Priya Shah,BrightMart,Retail X,sales floor,2026-11-11,09:00,15:00,false,0,14.0,USD,regular,scheduled,true,6.0,84.0,overlap
+S017-05,S017,W016,E04,L06,CT04,Priya Shah,Diner Y Co,Diner Y,kitchen,2026-11-12,18:00,23:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,overlap
+S018-01,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-09,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
+S018-02,S018,W017,E03,L08,CT05,Quinn Foster,Central Cafe Group,Cafe Downtown,counter,2026-11-09,12:15,17:00,false,0,13.0,USD,regular,scheduled,true,4.75,61.75,commute_conflict
+S018-03,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-11,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
+S018-04,S018,W017,E03,L08,CT05,Quinn Foster,Central Cafe Group,Cafe Downtown,counter,2026-11-11,12:20,17:00,false,0,13.0,USD,regular,scheduled,true,4.67,60.71,commute_conflict
+S018-05,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-13,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,commute_conflict
+S019-01,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-09,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S019-02,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-10,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S019-03,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-11,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S019-04,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-12,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S019-05,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-13,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
+S020-01,S020,W019,E07,L11,CT08,Sam Okafor,Harbor Grill,Restaurant Bar,bar,2026-11-09,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S020-02,S020,W019,E07,L11,CT08,Sam Okafor,Harbor Grill,Restaurant Bar,bar,2026-11-10,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S020-03,S020,W019,E07,L11,CT08,Sam Okafor,Harbor Grill,Restaurant Bar,bar,2026-11-11,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S020-04,S020,W019,E07,L11,CT08,Sam Okafor,Harbor Grill,Restaurant Bar,bar,2026-11-12,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S020-05,S020,W019,E07,L11,CT08,Sam Okafor,Harbor Grill,Restaurant Bar,bar,2026-11-13,17:00,23:00,false,0,20.0,USD,regular,scheduled,true,6.0,120.0,ambiguous_time
+S021-01,S021,W020,E02,L12,CT09,Tara Lewis,SwiftLogistics,Depot,loading,2026-11-09,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S021-02,S021,W020,E02,L12,CT09,Tara Lewis,SwiftLogistics,Depot,loading,2026-11-10,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S021-03,S021,W020,E02,L12,CT09,Tara Lewis,SwiftLogistics,Depot,loading,2026-11-11,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S021-04,S021,W020,E02,L12,CT09,Tara Lewis,SwiftLogistics,Depot,loading,2026-11-12,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S021-05,S021,W020,E02,L12,CT09,Tara Lewis,SwiftLogistics,Depot,loading,2026-11-13,08:00,16:00,false,30,14.0,USD,regular,scheduled,true,7.5,105.0,duplicate
+S022-01,S022,W002,E03,L03,CT10,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-09,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,hallucinated_shift
+S022-02,S022,W002,E03,L03,CT10,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-10,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,hallucinated_shift
+S022-03,S022,W002,E03,L03,CT10,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-11,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,hallucinated_shift
+S022-04,S022,W002,E03,L03,CT10,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-12,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,hallucinated_shift
+S022-05,S022,W002,E03,L03,CT10,Ben Carter,Central Cafe Group,Cafe Central,counter,2026-11-13,09:00,17:00,false,30,16.5,USD,regular,scheduled,true,7.5,123.75,hallucinated_shift
+S023-01,S023,W003,E06,L10,CT07,Chloe Nguyen,Wellness Clinic,Clinic Front Desk,front desk,2026-11-09,10:00,18:00,false,30,15.5,USD,regular,changed,true,7.5,116.25,schedule_change
+S023-02,S023,W003,E06,L10,CT07,Chloe Nguyen,Wellness Clinic,Clinic Front Desk,front desk,2026-11-10,10:00,18:00,false,30,15.5,USD,regular,changed,true,7.5,116.25,schedule_change
+S023-03,S023,W003,E06,L10,CT07,Chloe Nguyen,Wellness Clinic,Clinic Front Desk,front desk,2026-11-11,09:00,17:00,false,30,15.5,USD,regular,scheduled,true,7.5,116.25,schedule_change
+S023-04,S023,W003,E06,L10,CT07,Chloe Nguyen,Wellness Clinic,Clinic Front Desk,front desk,2026-11-12,09:00,17:00,false,30,15.5,USD,regular,scheduled,true,7.5,116.25,schedule_change
+S023-05,S023,W003,E06,L10,CT07,Chloe Nguyen,Wellness Clinic,Clinic Front Desk,front desk,2026-11-13,09:00,17:00,false,30,15.5,USD,regular,scheduled,true,7.5,116.25,schedule_change
+S024-01,S024,W004,E10,L15,CT12,Dev Patel,FitLife,Gym Reception,front desk,2026-11-09,10:00,18:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,multi_rate
+S024-02,S024,W004,E10,L15,CT12,Dev Patel,FitLife,Gym Reception,front desk,2026-11-10,10:00,18:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,multi_rate
+S024-03,S024,W004,E10,L15,CT12,Dev Patel,FitLife,Gym Reception,front desk,2026-11-11,10:00,18:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,multi_rate
+S024-04,S024,W004,E10,L15,CT12,Dev Patel,FitLife,Gym Reception,front desk,2026-11-14,10:00,18:00,false,30,20.0,USD,weekend,scheduled,true,7.5,150.0,multi_rate
+S024-05,S024,W004,E10,L15,CT12,Dev Patel,FitLife,Gym Reception,front desk,2026-11-15,10:00,18:00,false,30,20.0,USD,weekend,scheduled,true,7.5,150.0,multi_rate
+S025-01,S025,W005,E09,L14,CT11,Elena Rossi,Grand Hotel,Hotel Front,front desk,2026-11-09,08:00,16:00,false,30,18.0,USD,regular,scheduled,true,7.5,135.0,week_boundary
+S025-02,S025,W005,E09,L14,CT11,Elena Rossi,Grand Hotel,Hotel Front,front desk,2026-11-10,08:00,16:00,false,30,18.0,USD,regular,scheduled,true,7.5,135.0,week_boundary
+S025-03,S025,W005,E09,L14,CT11,Elena Rossi,Grand Hotel,Hotel Front,front desk,2026-11-11,08:00,16:00,false,30,18.0,USD,regular,scheduled,true,7.5,135.0,week_boundary
+S025-04,S025,W005,E09,L14,CT11,Elena Rossi,Grand Hotel,Hotel Front,front desk,2026-11-12,08:00,16:00,false,30,18.0,USD,regular,scheduled,true,7.5,135.0,week_boundary
+S025-05,S025,W005,E09,L14,CT11,Elena Rossi,Grand Hotel,Hotel Front,front desk,2026-11-15,22:00,06:00,true,0,18.0,USD,weekend,scheduled,true,8.0,144.0,week_boundary
+S026-01,S026,W006,E01,L01,CT16,Femi Adeyemi,BrightMart,Store A,sales floor,2026-11-16,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_duration
+S026-02,S026,W006,E01,L01,CT16,Femi Adeyemi,BrightMart,Store A,sales floor,2026-11-17,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_duration
+S026-03,S026,W006,E01,L01,CT16,Femi Adeyemi,BrightMart,Store A,sales floor,2026-11-18,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_duration
+S026-04,S026,W006,E01,L01,CT16,Femi Adeyemi,BrightMart,Store A,sales floor,2026-11-19,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_duration
+S027-01,S027,W007,E01,L01,CT17,Grace Kim,BrightMart,Store A,sales floor,2026-11-16,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_break
+S027-02,S027,W007,E01,L01,CT17,Grace Kim,BrightMart,Store A,sales floor,2026-11-17,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_break
+S027-03,S027,W007,E01,L01,CT17,Grace Kim,BrightMart,Store A,sales floor,2026-11-18,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_break
+S027-04,S027,W007,E01,L01,CT17,Grace Kim,BrightMart,Store A,sales floor,2026-11-19,09:00,17:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,invalid_break
+S028-01,S028,W008,E08,L13,CT18,Hassan Ali,Kiosk Co,Mall Kiosk,sales floor,2026-11-16,10:00,18:00,false,30,13.5,USD,regular,scheduled,true,7.5,101.25,mixed_currency
+S028-02,S028,W008,E08,L13,CT18,Hassan Ali,Kiosk Co,Mall Kiosk,sales floor,2026-11-17,10:00,18:00,false,30,13.5,USD,regular,scheduled,true,7.5,101.25,mixed_currency
+S028-03,S028,W008,E08,L13,CT18,Hassan Ali,Kiosk Co,Mall Kiosk,sales floor,2026-11-18,10:00,18:00,false,30,12.0,EUR,regular,scheduled,true,7.5,90.0,mixed_currency
+S028-04,S028,W008,E08,L13,CT18,Hassan Ali,Kiosk Co,Mall Kiosk,sales floor,2026-11-19,10:00,18:00,false,30,12.0,EUR,regular,scheduled,true,7.5,90.0,mixed_currency
+S029-01,S029,W009,E11,L16,CT19,Isla Moreno,PackRight,Packing Plant,packing,2026-11-16,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,incomplete_earnings
+S029-02,S029,W009,E11,L16,CT19,Isla Moreno,PackRight,Packing Plant,packing,2026-11-17,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,incomplete_earnings
+S029-03,S029,W009,E11,L16,CT19,Isla Moreno,PackRight,Packing Plant,packing,2026-11-18,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,incomplete_earnings
+S029-04,S029,W009,E11,L16,CT19,Isla Moreno,PackRight,Packing Plant,packing,2026-11-19,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,incomplete_earnings
+S030-01,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-16,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,unknown_location
+S030-02,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-16,12:15,17:00,false,0,15.0,USD,regular,scheduled,true,4.75,71.25,unknown_location
+S030-03,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-17,07:00,15:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,unknown_location

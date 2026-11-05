@@ -1,0 +1,31 @@
+schedule_id,worker_id,case_type_id,source_format,file_name,pay_week_start,schedule_version,description,uploaded_at
+S001,W001,CT01,csv_text,S001_schedule.csv,2026-11-02,1,"Reference example, expected gross 384",2026-11-01T08:00:00
+S002,W002,CT02,csv_text,S002_schedule.csv,2026-11-02,1,Monday to Friday with 30 minute breaks,2026-11-01T09:07:00
+S003,W003,CT03,csv_text,S003_schedule.csv,2026-11-02,1,Three overnight shifts with breaks,2026-11-01T10:14:00
+S004,W004,CT04,csv_text,S004_schedule.csv,2026-11-02,1,Overlapping shifts at two jobs,2026-11-01T11:21:00
+S005,W005,CT05,csv_text,S005_schedule.csv,2026-11-02,1,10 minute gap between locations,2026-11-01T12:28:00
+S006,W006,CT06,csv_text,S006_schedule.csv,2026-11-02,1,Missing end time and date,2026-11-01T13:35:00
+S007,W007,CT07,csv_text,S007_schedule.csv,2026-11-02,2,First shift time changed,2026-11-01T14:42:00
+S008,W008,CT08,csv_text,S008_schedule.csv,2026-11-02,1,AM and PM misread,2026-11-01T15:49:00
+S009,W009,CT09,csv_text,S009_schedule.csv,2026-11-02,1,One shift extracted twice,2026-11-01T16:56:00
+S010,W010,CT10,csv_text,S010_schedule.csv,2026-11-02,1,Invented shift,2026-11-01T17:03:00
+S011,W011,CT11,csv_text,S011_schedule.csv,2026-11-02,1,Sunday night shift ends Monday,2026-11-01T08:10:00
+S012,W012,CT12,csv_text,S012_schedule.csv,2026-11-02,1,Weekday and weekend rates,2026-11-01T09:17:00
+S013,W013,CT13,csv_text,S013_schedule.csv,2026-11-02,1,54 hours in the week,2026-11-01T10:24:00
+S014,W001,CT15,csv_text,S014_schedule.csv,2026-11-09,1,Employer and location missing on two shifts,2026-11-01T11:31:00
+S015,W014,CT14,csv_text,S015_schedule.csv,2026-11-09,1,"Two cancelled shifts, kept but not counted",2026-11-01T12:38:00
+S016,W015,CT03,csv_text,S016_schedule.csv,2026-11-09,1,Five overnight shifts,2026-11-01T13:45:00
+S017,W016,CT04,csv_text,S017_schedule.csv,2026-11-09,1,Overlap on Monday,2026-11-01T14:52:00
+S018,W017,CT05,csv_text,S018_schedule.csv,2026-11-09,1,Two tight commutes,2026-11-01T15:59:00
+S019,W018,CT06,csv_text,S019_schedule.csv,2026-11-09,1,Several missing values,2026-11-01T16:06:00
+S020,W019,CT08,csv_text,S020_schedule.csv,2026-11-09,1,Three AM and PM errors,2026-11-01T17:13:00
+S021,W020,CT09,csv_text,S021_schedule.csv,2026-11-09,1,Two repeated shifts,2026-11-01T08:20:00
+S022,W002,CT10,csv_text,S022_schedule.csv,2026-11-09,1,Invented Saturday shift,2026-11-01T09:27:00
+S023,W003,CT07,csv_text,S023_schedule.csv,2026-11-09,2,Two shifts moved by one hour,2026-11-01T10:34:00
+S024,W004,CT12,csv_text,S024_schedule.csv,2026-11-09,1,Weekend rate on Saturday and Sunday,2026-11-01T11:41:00
+S025,W005,CT11,csv_text,S025_schedule.csv,2026-11-09,1,Sunday night shift crossing into Monday,2026-11-01T12:48:00
+S026,W006,CT16,csv_text,S026_schedule.csv,2026-11-16,1,One shift over 16 hours and one with equal start and end,2026-11-01T13:55:00
+S027,W007,CT17,csv_text,S027_schedule.csv,2026-11-16,1,One negative break and one break longer than the shift,2026-11-01T14:02:00
+S028,W008,CT18,csv_text,S028_schedule.csv,2026-11-16,1,Two USD shifts and two EUR shifts in one week,2026-11-01T15:09:00
+S029,W009,CT19,csv_text,S029_schedule.csv,2026-11-16,1,Confirmed shift without a rate,2026-11-01T16:16:00
+S030,W010,CT20,csv_text,S030_schedule.csv,2026-11-16,1,Second shift location matches no known location,2026-11-01T17:23:00

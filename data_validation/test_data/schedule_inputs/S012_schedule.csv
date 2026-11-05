@@ -1,0 +1,4 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-03,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled,8.0
+2026-11-04,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled,8.0
+2026-11-07,10:00,18:00,30,FitLife,Gym Reception,front desk,20.00,USD,scheduled,8.0

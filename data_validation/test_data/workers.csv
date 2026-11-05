@@ -1,0 +1,21 @@
+worker_id,worker_name,home_area,transport_mode
+W001,Ada Okoye,West,bike
+W002,Ben Carter,West,walk
+W003,Chloe Nguyen,Central,bike
+W004,Dev Patel,South,train
+W005,Elena Rossi,Central,walk
+W006,Femi Adeyemi,Central,train
+W007,Grace Kim,North,walk
+W008,Hassan Ali,East,train
+W009,Isla Moreno,North,bike
+W010,Jonah Brooks,North,bike
+W011,Kemi Balogun,West,walk
+W012,Liam Walsh,Central,train
+W013,Maya Singh,Central,bus
+W014,Noah Pereira,Central,bus
+W015,Olu Johnson,North,bus
+W016,Priya Shah,South,train
+W017,Quinn Foster,Central,bus
+W018,Rosa Diaz,West,car
+W019,Sam Okafor,West,bike
+W020,Tara Lewis,South,bike

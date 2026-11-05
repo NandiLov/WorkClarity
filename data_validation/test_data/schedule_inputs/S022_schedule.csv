@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled,8.0
+2026-11-10,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled,8.0
+2026-11-11,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled,8.0
+2026-11-12,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled,8.0
+2026-11-13,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled,8.0

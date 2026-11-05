@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled,8.0
+2026-11-10,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled,8.0
+2026-11-11,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled,8.0
+2026-11-12,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled,8.0
+2026-11-15,22:00,06:00,0,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled,8.0

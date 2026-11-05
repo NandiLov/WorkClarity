@@ -1,0 +1,4 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-16,07:00,12:00,0,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,5.0
+2026-11-16,12:15,17:00,0,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,4.75
+2026-11-17,07:00,15:00,30,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,8.0

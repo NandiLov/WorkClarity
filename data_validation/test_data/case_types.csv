@@ -1,0 +1,21 @@
+case_type_id,case_type,description
+CT01,reference_overnight,"Reference example with one overnight shift, expected gross 384"
+CT02,clean_week,Clean week with no extraction errors
+CT03,overnight,Overnight shifts that end the next day
+CT04,overlap,Two jobs with overlapping shifts
+CT05,commute_conflict,Shifts at different locations with too little travel time
+CT06,incomplete,Extraction misses values
+CT07,schedule_change,Shift times changed after the first version
+CT08,ambiguous_time,AM and PM misread
+CT09,duplicate,Shifts extracted twice
+CT10,hallucinated_shift,Extraction invents a shift
+CT11,week_boundary,Overnight shift crossing the pay week boundary
+CT12,multi_rate,Weekday and weekend rates
+CT13,overtime,More than 40 hours in the pay week
+CT14,cancelled_shift,Cancelled shifts are kept as records but not counted in projected earnings
+CT15,missing_info,Employer or location missing from the extracted shift
+CT16,invalid_duration,Extracted shift length is zero or longer than 16 hours
+CT17,invalid_break,Extracted break is negative or longer than the shift
+CT18,mixed_currency,"One week with shifts in two currencies, totals kept separate"
+CT19,incomplete_earnings,"Confirmed shift without a rate, earnings shown as incomplete"
+CT20,unknown_location,"Extracted location matches no known location, commute cannot be assessed"
