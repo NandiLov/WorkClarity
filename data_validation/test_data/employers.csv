@@ -1,0 +1,12 @@
+employer_id,employer_name,industry,default_rate
+E01,BrightMart,retail,14.5
+E02,SwiftLogistics,logistics,15.5
+E03,Central Cafe Group,food service,16.0
+E04,Diner Y Co,food service,15.0
+E05,CityCare Hospital,healthcare,15.0
+E06,Wellness Clinic,healthcare,15.5
+E07,Harbor Grill,food service,20.0
+E08,Kiosk Co,retail,13.5
+E09,Grand Hotel,hospitality,18.0
+E10,FitLife,fitness,15.0
+E11,PackRight,manufacturing,15.0

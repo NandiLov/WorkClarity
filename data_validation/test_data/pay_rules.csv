@@ -1,0 +1,19 @@
+rule_id,rule_name,value,description
+PR01,pay_week_start,monday,Overnight shift counts in the week of its start date
+PR02,earnings_basis,gross,"Gross pay before tax and deductions, from worker-confirmed hours and rates"
+PR03,breaks,unpaid,break_minutes is deducted from paid hours
+PR04,overtime_enabled,false,Overtime not applied in the MVP: every hour is paid at the standard rate. Weekly output also shows an overtime figure for comparison
+PR05,overtime_threshold_hours,40,Weekly hours above this are overtime when enabled
+PR06,overtime_multiplier,1.5,Rate multiplier for overtime hours when enabled
+PR07,max_shift_hours,16,Longer shifts are flagged as invalid duration
+PR08,min_commute_gap_minutes,30,Minimum gap between shifts at different locations
+PR09,weekend_pay_type,weekend,Saturday and Sunday shifts are labelled weekend
+PR10,rounding,2,Round money to 2 decimal places
+PR11,rate_source,worker_entered,Hourly rate is entered or confirmed by the worker
+PR12,cancelled_shifts,excluded_from_projected_earnings,Cancelled shifts that were not worked are kept as records but not counted
+PR13,cancellation_compensation,out_of_scope,Any pay for cancelled shifts needs separate rules and is outside the initial scope
+PR14,test_input_format,csv,The MVP is tested with csv input first
+PR15,second_mvp_format,tbd,"The brief requires two formats, the second is still to be agreed"
+PR16,valid_break,zero_to_shift_length,"Assumption: break_minutes must be zero or more and shorter than the shift, otherwise the shift is flagged as invalid"
+PR17,currency_totals,separate_per_currency,Weekly totals are kept per currency and never added across currencies
+PR18,missing_rate_confirmed,earnings_incomplete,A confirmed shift without a rate is left out of gross pay and counted as incomplete

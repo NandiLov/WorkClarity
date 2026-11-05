@@ -1,0 +1,142 @@
+table,column,type,key,meaning,example,change
+workers,worker_id,STRING,primary key,"Unique ID of the worker, for example W001",W001,unchanged
+workers,worker_name,STRING,,Worker name (fake),Ada Okoye,unchanged
+workers,home_area,STRING,,Area of the city where the worker lives,West,unchanged
+workers,transport_mode,STRING,,"How the worker usually travels: bus, train, car, walk or bike",bike,unchanged
+employers,employer_id,STRING,primary key,"Unique ID of the employer, for example E01",E01,unchanged
+employers,employer_name,STRING,,Name of the employer company,BrightMart,unchanged
+employers,industry,STRING,,"Type of business, for example retail or healthcare",retail,unchanged
+employers,default_rate,FLOAT64,,Typical hourly rate at this employer,14.5,unchanged
+locations,location_id,STRING,primary key,"Unique ID of the place of work, for example L01",L01,unchanged
+locations,employer_id,STRING,foreign key to employers.employer_id,"Unique ID of the employer, for example E01",E01,unchanged
+locations,location_name,STRING,,Name of the place of work,Store A,unchanged
+locations,area,STRING,,Area of the city where the location is,Central,unchanged
+case_types,case_type_id,STRING,primary key,"ID of the test scenario, for example CT04",CT01,unchanged
+case_types,case_type,STRING,,"Name of the test scenario, for example overlap",reference_overnight,unchanged
+case_types,description,STRING,,What the test scenario covers,"Reference example with one overnight shift, expected gross 384",unchanged
+flag_types,flag_type_id,STRING,primary key,ID of the flag shown to the worker,FL01,new
+flag_types,flag_name,STRING,,"Name of the flag: overlap, insufficient_commute, missing_or_invalid, duplicate, cancelled or unconfirmed",overlap,new
+flag_types,severity,STRING,,"error, warning or info",error,new
+flag_types,worker_message,STRING,,Plain-language message shown to the worker,These shifts happen at the same time. Please check which one is right.,new
+error_types,error_type_id,STRING,primary key,ID of the kind of extraction mistake,ET01,unchanged
+error_types,error_type,STRING,,Name of the kind of extraction mistake,unparseable_time,unchanged
+error_types,severity,STRING,,How serious the mistake is: error or warning,error,unchanged
+error_types,description,STRING,,What the mistake means,Time value cannot be parsed as HH:MM,unchanged
+error_types,flag_type_id,STRING,foreign key to flag_types.flag_type_id,ID of the flag shown to the worker,FL03,new
+pay_rules,rule_id,STRING,primary key,Unique ID of the pay or conflict rule,PR01,unchanged
+pay_rules,rule_name,STRING,,Name of the rule,pay_week_start,unchanged
+pay_rules,value,STRING,,"Value of the rule, for example monday or 30",monday,unchanged
+pay_rules,description,STRING,,Plain explanation of the rule,Overnight shift counts in the week of its start date,unchanged
+schedules,schedule_id,STRING,primary key,"Unique ID of the uploaded schedule, for example S001",S001,unchanged
+schedules,worker_id,STRING,foreign key to workers.worker_id,"Unique ID of the worker, for example W001",W001,unchanged
+schedules,case_type_id,STRING,foreign key to case_types.case_type_id,"ID of the test scenario, for example CT04",CT01,unchanged
+schedules,source_format,STRING,,Format of the uploaded schedule. Every schedule in this set is csv_text,csv_text,changed
+schedules,file_name,STRING,,Name of the uploaded schedule file,S001_schedule.csv,unchanged
+schedules,pay_week_start,DATE,,Date the pay week begins (a Monday),2026-11-02,unchanged
+schedules,schedule_version,INT64,,"Version number of the schedule, 2 or more means it was changed",1,unchanged
+schedules,description,STRING,,Short note on what the schedule is for,"Reference example, expected gross 384",unchanged
+schedules,uploaded_at,TIMESTAMP,,When the schedule was uploaded,2026-11-01T08:00:00,unchanged
+truth_shifts,shift_id,STRING,primary key,"Unique ID of the correct shift, for example S001-01",S001-01,unchanged
+truth_shifts,schedule_id,STRING,foreign key to schedules.schedule_id,"Unique ID of the uploaded schedule, for example S001",S001,unchanged
+truth_shifts,line_no,INT64,,Position of the shift line inside its schedule,1,unchanged
+truth_shifts,worker_id,STRING,foreign key to workers.worker_id,"Unique ID of the worker, for example W001",W001,unchanged
+truth_shifts,employer_id,STRING,foreign key to employers.employer_id,"Unique ID of the employer, for example E01",E01,unchanged
+truth_shifts,location_id,STRING,foreign key to locations.location_id,"Unique ID of the place of work, for example L01",L01,unchanged
+truth_shifts,department,STRING,,"Team or area the worker is in, for example kitchen or front desk",sales floor,unchanged
+truth_shifts,shift_date,DATE,,Date the shift starts,2026-11-03,unchanged
+truth_shifts,start_time,STRING,,"Shift start time, 24 hour HH:MM",08:00,unchanged
+truth_shifts,end_time,STRING,,"Shift end time, 24 hour HH:MM. Earlier than start means the shift ends the next day",16:00,unchanged
+truth_shifts,ends_next_day,BOOL,,true if the shift ends on the day after it starts,false,unchanged
+truth_shifts,break_minutes,INT64,,Unpaid break in minutes,0,unchanged
+truth_shifts,break_paid,BOOL,,true if the break is paid,false,unchanged
+truth_shifts,hourly_rate,FLOAT64,,Pay per hour,15.0,unchanged
+truth_shifts,currency,STRING,,"Currency of the rate, for example USD",USD,unchanged
+truth_shifts,pay_type,STRING,,regular or weekend,regular,unchanged
+truth_shifts,shift_status,STRING,,"scheduled, changed or cancelled",scheduled,changed
+truth_shifts,counts_toward_earnings,BOOL,,"false for cancelled shifts, which are kept as records but not counted in projected earnings",true,new
+truth_shifts,travel_minutes_to_next_shift,INT64,,"Minutes needed to travel to the worker's next shift (0 if same location, empty for the last shift)",0,unchanged
+truth_shifts,paid_hours,FLOAT64,,Hours paid: shift length minus the unpaid break,8.0,unchanged
+truth_shifts,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: paid hours times hourly rate. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
+truth_shifts,verified_by,STRING,,Who confirmed the correct answer (generator for synthetic data),generator,unchanged
+truth_shifts,verified_at,DATE,,Date the answer was confirmed,2026-11-04,unchanged
+raw_shifts,raw_id,STRING,primary key,Unique ID of one extracted row,R001,unchanged
+raw_shifts,schedule_id,STRING,foreign key to schedules.schedule_id,"Unique ID of the uploaded schedule, for example S001",S001,unchanged
+raw_shifts,line_no,INT64,,Position of the shift line inside its schedule,1,unchanged
+raw_shifts,worker_id,STRING,foreign key to workers.worker_id,Worker the schedule belongs to,W001,unchanged
+raw_shifts,shift_date,STRING,,"Date as the AI wrote it, text. Empty if missed",2026-11-03,unchanged
+raw_shifts,start_time,STRING,,"Start time as the AI wrote it, text. May be wrong or malformed",08:00,unchanged
+raw_shifts,end_time,STRING,,"End time as the AI wrote it, text. May be wrong, malformed or empty",16:00,unchanged
+raw_shifts,break_minutes,INT64,,Break as the AI wrote it. Empty if missed,0,unchanged
+raw_shifts,hourly_rate,FLOAT64,,Rate as the AI wrote it. Empty if missed,15.0,unchanged
+raw_shifts,location_text,STRING,,"Location as the AI wrote it, casing may differ, empty if missed",STORE A,changed
+raw_shifts,employer_name,STRING,,"Employer as the AI wrote it, casing may differ",BrightMart,unchanged
+raw_shifts,department,STRING,,"Team or area the worker is in, for example kitchen or front desk",sales floor,unchanged
+raw_shifts,currency,STRING,,"Currency as the AI wrote it, USD or the $ symbol",USD,unchanged
+raw_shifts,stated_hours,FLOAT64,,"Optional shift length from the csv, before breaks, used as a cross-check",8.0,changed
+raw_shifts,shift_status,STRING,,"Status as the AI read it: scheduled, changed or cancelled",scheduled,new
+raw_shifts,source_format,STRING,,Format of the uploaded schedule. Every schedule in this set is csv_text,csv_text,changed
+raw_shifts,file_name,STRING,,Name of the uploaded schedule file,S001_schedule.csv,unchanged
+raw_shifts,source_line,STRING,,The original schedule line the row came from,"2026-11-03,08:00,16:00,0,BrightMart,Store A,sales floor,15.00,USD,scheduled,8.0",unchanged
+raw_shifts,extraction_method,STRING,,"How the row was produced, ai for all synthetic rows",ai,unchanged
+raw_shifts,extraction_version,STRING,,Version of the extraction method,v0,unchanged
+raw_shifts,extraction_confidence,FLOAT64,,"How sure the AI was, from 0 to 1",0.94,unchanged
+raw_shifts,confirmation_status,STRING,,"confirmed if the worker has confirmed what the AI read, otherwise unconfirmed",confirmed,new
+raw_shifts,extracted_at,TIMESTAMP,,When the row was extracted,2026-11-01T08:00:30,unchanged
+raw_truth_map,raw_id,STRING,"primary key, foreign key to raw_shifts.raw_id",Extracted row,R001,unchanged
+raw_truth_map,shift_id,STRING,foreign key to truth_shifts.shift_id,Correct shift this row should match. Empty if the AI invented the row,S001-01,unchanged
+planted_errors,error_id,STRING,primary key,Unique ID of one planted mistake,ER001,unchanged
+planted_errors,raw_id,STRING,foreign key to raw_shifts.raw_id,Extracted row that carries the mistake,R007,unchanged
+planted_errors,error_type_id,STRING,foreign key to error_types.error_type_id,ID of the kind of extraction mistake,ET01,unchanged
+expected_weekly_earnings,weekly_id,STRING,primary key,Unique ID of the weekly result,WK-S001,unchanged
+expected_weekly_earnings,worker_id,STRING,foreign key to workers.worker_id,Worker the week belongs to,W001,unchanged
+expected_weekly_earnings,schedule_id,STRING,foreign key to schedules.schedule_id,"Unique ID of the uploaded schedule, for example S001",S001,unchanged
+expected_weekly_earnings,pay_week_start,DATE,,Date the pay week begins (a Monday),2026-11-02,unchanged
+expected_weekly_earnings,currency,STRING,,Currency of this row. Totals are kept per currency and never mixed,USD,new
+expected_weekly_earnings,shifts,INT64,,Number of shifts in the week,3,unchanged
+expected_weekly_earnings,incomplete_shifts,INT64,,Number of confirmed shifts left out of gross pay because the rate is missing,0,new
+expected_weekly_earnings,cancelled_shifts,INT64,,"Number of cancelled shifts in the week, not counted in pay",0,new
+expected_weekly_earnings,paid_hours,FLOAT64,,Correct paid hours for the week,24.0,unchanged
+expected_weekly_earnings,regular_hours,FLOAT64,,Hours up to the overtime threshold,24.0,unchanged
+expected_weekly_earnings,overtime_hours,FLOAT64,,Hours above the overtime threshold,0,unchanged
+expected_weekly_earnings,expected_gross_mvp,FLOAT64,,"Correct gross pay for the week with overtime switched off, from shifts that have a rate. Shifts counted in incomplete_shifts are left out",384.0,changed
+expected_weekly_earnings,expected_gross_with_overtime,FLOAT64,,Correct gross pay for the week if overtime applied,384.0,unchanged
+expected_conflicts,conflict_id,STRING,primary key,Unique ID of the conflict,C001,unchanged
+expected_conflicts,worker_id,STRING,foreign key to workers.worker_id,Worker who has the conflict,W004,unchanged
+expected_conflicts,shift_a_id,STRING,foreign key to truth_shifts.shift_id,First shift in the conflict,S004-01,unchanged
+expected_conflicts,shift_b_id,STRING,foreign key to truth_shifts.shift_id,Second shift in the conflict,S004-02,unchanged
+expected_conflicts,conflict_type,STRING,,overlap or commute_conflict,overlap,unchanged
+expected_conflicts,gap_minutes,INT64,,"Minutes between the two shifts, for commute conflicts",,unchanged
+shift_details,shift_id,STRING,"primary key, foreign key to truth_shifts.shift_id","Unique ID of the correct shift, for example S001-01",S001-01,unchanged
+shift_details,schedule_id,STRING,foreign key to schedules.schedule_id,"Unique ID of the uploaded schedule, for example S001",S001,unchanged
+shift_details,worker_id,STRING,foreign key to workers.worker_id,"Unique ID of the worker, for example W001",W001,unchanged
+shift_details,employer_id,STRING,foreign key to employers.employer_id,"Unique ID of the employer, for example E01",E01,unchanged
+shift_details,location_id,STRING,foreign key to locations.location_id,"Unique ID of the place of work, for example L01",L01,unchanged
+shift_details,case_type_id,STRING,foreign key to case_types.case_type_id,"ID of the test scenario, for example CT04",CT01,unchanged
+shift_details,worker_name,STRING,,Worker name (fake),Ada Okoye,unchanged
+shift_details,employer_name,STRING,,Name of the employer company,BrightMart,unchanged
+shift_details,location_name,STRING,,Name of the place of work,Store A,unchanged
+shift_details,department,STRING,,"Team or area the worker is in, for example kitchen or front desk",sales floor,unchanged
+shift_details,shift_date,DATE,,Date the shift starts,2026-11-03,unchanged
+shift_details,start_time,STRING,,"Shift start time, 24 hour HH:MM",08:00,unchanged
+shift_details,end_time,STRING,,"Shift end time, 24 hour HH:MM. Earlier than start means the shift ends the next day",16:00,unchanged
+shift_details,ends_next_day,BOOL,,true if the shift ends on the day after it starts,false,unchanged
+shift_details,break_minutes,INT64,,Unpaid break in minutes,0,unchanged
+shift_details,hourly_rate,FLOAT64,,Pay per hour,15.0,unchanged
+shift_details,currency,STRING,,"Currency of the rate, for example USD",USD,unchanged
+shift_details,pay_type,STRING,,regular or weekend,regular,unchanged
+shift_details,shift_status,STRING,,"scheduled, changed or cancelled",scheduled,changed
+shift_details,counts_toward_earnings,BOOL,,"false for cancelled shifts, which are kept as records but not counted in projected earnings",true,new
+shift_details,paid_hours,FLOAT64,,Hours paid: shift length minus the unpaid break,8.0,unchanged
+shift_details,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: paid hours times hourly rate. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
+shift_details,case_type,STRING,,"Name of the test scenario, for example overlap",reference_overnight,unchanged
+csv_upload_file,shift_date,date,,"Required. Date the shift starts, written YYYY-MM-DD",2026-11-03,new
+csv_upload_file,start_time,text,,Required. Start time in 24 hour HH:MM,08:00,new
+csv_upload_file,end_time,text,,Required. End time in 24 hour HH:MM. Earlier than start_time means the shift ends the next day,16:00,new
+csv_upload_file,break_minutes,whole number,,Optional. Unpaid break in minutes. Blank is flagged because the break is unknown,0,new
+csv_upload_file,employer_name,text,,Required. Name of the employer company,BrightMart,new
+csv_upload_file,location,text,,"Required. Name of the place of work, used for travel time checks",Store A,new
+csv_upload_file,department,text,,Optional. Team or area the worker is in,sales floor,new
+csv_upload_file,hourly_rate,number,,"Required for earnings. Entered or confirmed by the worker. If a real upload has no rate, the app asks the worker",15.00,new
+csv_upload_file,currency,text,,"Required. Currency code, for example USD",USD,new
+csv_upload_file,shift_status,text,,"Optional. scheduled, changed or cancelled. Blank means scheduled",scheduled,new
+csv_upload_file,stated_hours,number,,"Optional. Shift length before breaks, used only as a cross-check",8.0,new

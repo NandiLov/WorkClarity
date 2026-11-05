@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,08:00,14:00,0,BrightMart,Retail X,sales floor,14.00,USD,scheduled,6.0
+2026-11-09,13:00,19:00,0,Diner Y Co,Diner Y,kitchen,15.00,USD,scheduled,6.0
+2026-11-10,09:00,15:00,0,BrightMart,Retail X,sales floor,14.00,USD,scheduled,6.0
+2026-11-11,09:00,15:00,0,BrightMart,Retail X,sales floor,14.00,USD,scheduled,6.0
+2026-11-12,18:00,23:00,0,Diner Y Co,Diner Y,kitchen,15.00,USD,scheduled,5.0

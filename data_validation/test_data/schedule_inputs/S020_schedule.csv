@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,17:00,23:00,0,Harbor Grill,Restaurant Bar,bar,20.00,USD,scheduled,6.0
+2026-11-10,17:00,23:00,0,Harbor Grill,Restaurant Bar,bar,20.00,USD,scheduled,6.0
+2026-11-11,17:00,23:00,0,Harbor Grill,Restaurant Bar,bar,20.00,USD,scheduled,6.0
+2026-11-12,17:00,23:00,0,Harbor Grill,Restaurant Bar,bar,20.00,USD,scheduled,6.0
+2026-11-13,17:00,23:00,0,Harbor Grill,Restaurant Bar,bar,20.00,USD,scheduled,6.0

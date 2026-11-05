@@ -1,0 +1,4 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-02,22:00,07:00,60,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled,9.0
+2026-11-04,21:30,05:30,30,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled,8.0
+2026-11-06,23:00,07:00,0,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled,8.0

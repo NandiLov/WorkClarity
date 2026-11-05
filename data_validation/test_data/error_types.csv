@@ -1,0 +1,17 @@
+error_type_id,error_type,severity,description,flag_type_id
+ET01,unparseable_time,error,Time value cannot be parsed as HH:MM,FL03
+ET02,missing_rate,error,Hourly rate missing,FL03
+ET03,missing_end_time,error,End time missing,FL03
+ET04,missing_date,error,Shift date missing,FL03
+ET05,missing_break,warning,Break minutes missing,FL03
+ET06,stale_schedule_change,error,Extraction reads the old time after a schedule change,FL06
+ET07,am_pm_error,error,AM and PM misread,FL06
+ET08,wrong_date,error,Date shifted to the wrong day,FL06
+ET09,duplicate_row,warning,Same shift extracted twice,FL04
+ET10,hallucinated_shift,error,Shift that is not on the schedule,FL06
+ET11,missing_location,error,Location missing,FL03
+ET12,missing_employer,error,Employer missing,FL03
+ET13,invalid_duration,error,Shift length is zero or longer than 16 hours,FL03
+ET14,invalid_break,error,Break is negative or longer than the shift,FL03
+ET15,confirmed_missing_rate,error,"Worker confirmed the shift but the hourly rate is missing, so earnings are incomplete",FL03
+ET16,unknown_location,warning,"Location text matches no known location, so travel time cannot be assessed",FL03

@@ -1,0 +1,3 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-03,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,changed,8.0
+2026-11-04,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled,8.0

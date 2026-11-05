@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,08:00,16:00,30,SwiftLogistics,Depot,loading,14.00,USD,scheduled,8.0
+2026-11-10,08:00,16:00,30,SwiftLogistics,Depot,loading,14.00,USD,scheduled,8.0
+2026-11-11,08:00,16:00,30,SwiftLogistics,Depot,loading,14.00,USD,scheduled,8.0
+2026-11-12,08:00,16:00,30,SwiftLogistics,Depot,loading,14.00,USD,scheduled,8.0
+2026-11-13,08:00,16:00,30,SwiftLogistics,Depot,loading,14.00,USD,scheduled,8.0

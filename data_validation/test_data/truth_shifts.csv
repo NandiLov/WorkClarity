@@ -1,0 +1,120 @@
+shift_id,schedule_id,line_no,worker_id,employer_id,location_id,department,shift_date,start_time,end_time,ends_next_day,break_minutes,break_paid,hourly_rate,currency,pay_type,shift_status,counts_toward_earnings,travel_minutes_to_next_shift,paid_hours,gross_earnings,verified_by,verified_at
+S001-01,S001,1,W001,E01,L01,sales floor,2026-11-03,08:00,16:00,false,0,false,15.0,USD,regular,scheduled,true,0,8.0,120.0,generator,2026-11-04
+S001-02,S001,2,W001,E01,L01,sales floor,2026-11-04,09:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,30,8.0,120.0,generator,2026-11-04
+S001-03,S001,3,W001,E02,L02,dispatch,2026-11-05,22:00,06:00,true,0,false,18.0,USD,regular,scheduled,true,30,8.0,144.0,generator,2026-11-04
+S002-01,S002,1,W002,E03,L03,counter,2026-11-02,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S002-02,S002,2,W002,E03,L03,counter,2026-11-03,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S002-03,S002,3,W002,E03,L03,counter,2026-11-04,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S002-04,S002,4,W002,E03,L03,counter,2026-11-05,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S002-05,S002,5,W002,E03,L03,counter,2026-11-06,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S003-01,S003,1,W003,E02,L04,dispatch,2026-11-02,22:00,07:00,true,60,false,17.0,USD,regular,scheduled,true,0,8.0,136.0,generator,2026-11-04
+S003-02,S003,2,W003,E02,L04,dispatch,2026-11-04,21:30,05:30,true,30,false,17.0,USD,regular,scheduled,true,0,7.5,127.5,generator,2026-11-04
+S003-03,S003,3,W003,E02,L04,dispatch,2026-11-06,23:00,07:00,true,0,false,17.0,USD,regular,scheduled,true,30,8.0,136.0,generator,2026-11-04
+S004-01,S004,1,W004,E01,L05,sales floor,2026-11-03,08:00,14:00,false,0,false,14.0,USD,regular,scheduled,true,30,6.0,84.0,generator,2026-11-04
+S004-02,S004,2,W004,E04,L06,kitchen,2026-11-03,12:00,18:00,false,0,false,15.0,USD,regular,scheduled,true,30,6.0,90.0,generator,2026-11-04
+S004-03,S004,3,W004,E01,L05,sales floor,2026-11-05,09:00,13:00,false,0,false,14.0,USD,regular,scheduled,true,30,4.0,56.0,generator,2026-11-04
+S005-01,S005,1,W005,E05,L07,patient support,2026-11-04,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
+S005-02,S005,2,W005,E03,L08,counter,2026-11-04,12:10,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.83,62.79,generator,2026-11-04
+S005-03,S005,3,W005,E05,L07,patient support,2026-11-06,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,30,7.5,112.5,generator,2026-11-04
+S006-01,S006,1,W006,E02,L09,inventory,2026-11-02,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S006-02,S006,2,W006,E02,L09,inventory,2026-11-03,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S006-03,S006,3,W006,E02,L09,inventory,2026-11-04,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,,7.5,90.0,generator,2026-11-04
+S007-01,S007,1,W007,E06,L10,front desk,2026-11-03,09:00,17:00,false,30,false,15.5,USD,regular,changed,true,0,7.5,116.25,generator,2026-11-04
+S007-02,S007,2,W007,E06,L10,front desk,2026-11-04,09:00,17:00,false,30,false,15.5,USD,regular,scheduled,true,,7.5,116.25,generator,2026-11-04
+S008-01,S008,1,W008,E07,L11,bar,2026-11-02,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,0,6.0,120.0,generator,2026-11-04
+S008-02,S008,2,W008,E07,L11,bar,2026-11-04,13:00,21:00,false,30,false,20.0,USD,regular,scheduled,true,,7.5,150.0,generator,2026-11-04
+S009-01,S009,1,W009,E02,L12,loading,2026-11-02,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S009-02,S009,2,W009,E02,L12,loading,2026-11-03,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S009-03,S009,3,W009,E02,L12,loading,2026-11-05,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,,7.5,105.0,generator,2026-11-04
+S010-01,S010,1,W010,E08,L13,sales floor,2026-11-03,10:00,15:00,false,0,false,13.5,USD,regular,scheduled,true,0,5.0,67.5,generator,2026-11-04
+S010-02,S010,2,W010,E08,L13,sales floor,2026-11-04,10:00,15:00,false,0,false,13.5,USD,regular,scheduled,true,,5.0,67.5,generator,2026-11-04
+S011-01,S011,1,W011,E09,L14,front desk,2026-11-02,08:00,16:00,false,30,false,18.0,USD,regular,scheduled,true,0,7.5,135.0,generator,2026-11-04
+S011-02,S011,2,W011,E09,L14,front desk,2026-11-08,22:00,06:00,true,0,false,18.0,USD,weekend,scheduled,true,,8.0,144.0,generator,2026-11-04
+S012-01,S012,1,W012,E10,L15,front desk,2026-11-03,10:00,18:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S012-02,S012,2,W012,E10,L15,front desk,2026-11-04,10:00,18:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S012-03,S012,3,W012,E10,L15,front desk,2026-11-07,10:00,18:00,false,30,false,20.0,USD,weekend,scheduled,true,,7.5,150.0,generator,2026-11-04
+S013-01,S013,1,W013,E11,L16,packing,2026-11-02,08:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,9.0,135.0,generator,2026-11-04
+S013-02,S013,2,W013,E11,L16,packing,2026-11-03,08:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,9.0,135.0,generator,2026-11-04
+S013-03,S013,3,W013,E11,L16,packing,2026-11-04,08:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,9.0,135.0,generator,2026-11-04
+S013-04,S013,4,W013,E11,L16,packing,2026-11-05,08:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,9.0,135.0,generator,2026-11-04
+S013-05,S013,5,W013,E11,L16,packing,2026-11-06,08:00,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,9.0,135.0,generator,2026-11-04
+S013-06,S013,6,W013,E11,L16,packing,2026-11-07,08:00,17:00,false,0,false,15.0,USD,weekend,scheduled,true,,9.0,135.0,generator,2026-11-04
+S014-01,S014,1,W001,E01,L01,sales floor,2026-11-09,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S014-02,S014,2,W001,E01,L01,sales floor,2026-11-10,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S014-03,S014,3,W001,E01,L01,sales floor,2026-11-11,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S014-04,S014,4,W001,E01,L01,sales floor,2026-11-12,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S014-05,S014,5,W001,E01,L01,sales floor,2026-11-13,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S015-01,S015,1,W014,E03,L03,counter,2026-11-09,07:00,15:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S015-02,S015,2,W014,E03,L03,counter,2026-11-10,07:00,15:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S015-03,S015,3,W014,E03,L03,counter,2026-11-11,07:00,15:00,false,30,false,16.5,USD,regular,cancelled,false,,0.0,0.0,generator,2026-11-04
+S015-04,S015,4,W014,E03,L03,counter,2026-11-12,07:00,15:00,false,30,false,16.5,USD,regular,scheduled,true,,7.5,123.75,generator,2026-11-04
+S015-05,S015,5,W014,E03,L03,counter,2026-11-13,07:00,15:00,false,30,false,16.5,USD,regular,cancelled,false,,0.0,0.0,generator,2026-11-04
+S016-01,S016,1,W015,E02,L04,dispatch,2026-11-09,22:00,06:00,true,30,false,17.5,USD,regular,scheduled,true,0,7.5,131.25,generator,2026-11-04
+S016-02,S016,2,W015,E02,L04,dispatch,2026-11-10,22:00,06:00,true,30,false,17.5,USD,regular,scheduled,true,0,7.5,131.25,generator,2026-11-04
+S016-03,S016,3,W015,E02,L04,dispatch,2026-11-11,22:00,06:00,true,30,false,17.5,USD,regular,scheduled,true,0,7.5,131.25,generator,2026-11-04
+S016-04,S016,4,W015,E02,L04,dispatch,2026-11-12,22:00,06:00,true,30,false,17.5,USD,regular,scheduled,true,0,7.5,131.25,generator,2026-11-04
+S016-05,S016,5,W015,E02,L04,dispatch,2026-11-13,22:00,06:00,true,30,false,17.5,USD,regular,scheduled,true,,7.5,131.25,generator,2026-11-04
+S017-01,S017,1,W016,E01,L05,sales floor,2026-11-09,08:00,14:00,false,0,false,14.0,USD,regular,scheduled,true,30,6.0,84.0,generator,2026-11-04
+S017-02,S017,2,W016,E04,L06,kitchen,2026-11-09,13:00,19:00,false,0,false,15.0,USD,regular,scheduled,true,30,6.0,90.0,generator,2026-11-04
+S017-03,S017,3,W016,E01,L05,sales floor,2026-11-10,09:00,15:00,false,0,false,14.0,USD,regular,scheduled,true,0,6.0,84.0,generator,2026-11-04
+S017-04,S017,4,W016,E01,L05,sales floor,2026-11-11,09:00,15:00,false,0,false,14.0,USD,regular,scheduled,true,30,6.0,84.0,generator,2026-11-04
+S017-05,S017,5,W016,E04,L06,kitchen,2026-11-12,18:00,23:00,false,0,false,15.0,USD,regular,scheduled,true,,5.0,75.0,generator,2026-11-04
+S018-01,S018,1,W017,E05,L07,patient support,2026-11-09,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
+S018-02,S018,2,W017,E03,L08,counter,2026-11-09,12:15,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.75,61.75,generator,2026-11-04
+S018-03,S018,3,W017,E05,L07,patient support,2026-11-11,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
+S018-04,S018,4,W017,E03,L08,counter,2026-11-11,12:20,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.67,60.71,generator,2026-11-04
+S018-05,S018,5,W017,E05,L07,patient support,2026-11-13,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S019-01,S019,1,W018,E02,L09,inventory,2026-11-09,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S019-02,S019,2,W018,E02,L09,inventory,2026-11-10,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S019-03,S019,3,W018,E02,L09,inventory,2026-11-11,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S019-04,S019,4,W018,E02,L09,inventory,2026-11-12,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S019-05,S019,5,W018,E02,L09,inventory,2026-11-13,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,,7.5,90.0,generator,2026-11-04
+S020-01,S020,1,W019,E07,L11,bar,2026-11-09,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,0,6.0,120.0,generator,2026-11-04
+S020-02,S020,2,W019,E07,L11,bar,2026-11-10,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,0,6.0,120.0,generator,2026-11-04
+S020-03,S020,3,W019,E07,L11,bar,2026-11-11,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,0,6.0,120.0,generator,2026-11-04
+S020-04,S020,4,W019,E07,L11,bar,2026-11-12,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,0,6.0,120.0,generator,2026-11-04
+S020-05,S020,5,W019,E07,L11,bar,2026-11-13,17:00,23:00,false,0,false,20.0,USD,regular,scheduled,true,,6.0,120.0,generator,2026-11-04
+S021-01,S021,1,W020,E02,L12,loading,2026-11-09,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S021-02,S021,2,W020,E02,L12,loading,2026-11-10,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S021-03,S021,3,W020,E02,L12,loading,2026-11-11,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S021-04,S021,4,W020,E02,L12,loading,2026-11-12,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,0,7.5,105.0,generator,2026-11-04
+S021-05,S021,5,W020,E02,L12,loading,2026-11-13,08:00,16:00,false,30,false,14.0,USD,regular,scheduled,true,,7.5,105.0,generator,2026-11-04
+S022-01,S022,1,W002,E03,L03,counter,2026-11-09,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S022-02,S022,2,W002,E03,L03,counter,2026-11-10,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S022-03,S022,3,W002,E03,L03,counter,2026-11-11,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S022-04,S022,4,W002,E03,L03,counter,2026-11-12,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,0,7.5,123.75,generator,2026-11-04
+S022-05,S022,5,W002,E03,L03,counter,2026-11-13,09:00,17:00,false,30,false,16.5,USD,regular,scheduled,true,,7.5,123.75,generator,2026-11-04
+S023-01,S023,1,W003,E06,L10,front desk,2026-11-09,10:00,18:00,false,30,false,15.5,USD,regular,changed,true,0,7.5,116.25,generator,2026-11-04
+S023-02,S023,2,W003,E06,L10,front desk,2026-11-10,10:00,18:00,false,30,false,15.5,USD,regular,changed,true,0,7.5,116.25,generator,2026-11-04
+S023-03,S023,3,W003,E06,L10,front desk,2026-11-11,09:00,17:00,false,30,false,15.5,USD,regular,scheduled,true,0,7.5,116.25,generator,2026-11-04
+S023-04,S023,4,W003,E06,L10,front desk,2026-11-12,09:00,17:00,false,30,false,15.5,USD,regular,scheduled,true,0,7.5,116.25,generator,2026-11-04
+S023-05,S023,5,W003,E06,L10,front desk,2026-11-13,09:00,17:00,false,30,false,15.5,USD,regular,scheduled,true,,7.5,116.25,generator,2026-11-04
+S024-01,S024,1,W004,E10,L15,front desk,2026-11-09,10:00,18:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S024-02,S024,2,W004,E10,L15,front desk,2026-11-10,10:00,18:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S024-03,S024,3,W004,E10,L15,front desk,2026-11-11,10:00,18:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S024-04,S024,4,W004,E10,L15,front desk,2026-11-14,10:00,18:00,false,30,false,20.0,USD,weekend,scheduled,true,0,7.5,150.0,generator,2026-11-04
+S024-05,S024,5,W004,E10,L15,front desk,2026-11-15,10:00,18:00,false,30,false,20.0,USD,weekend,scheduled,true,,7.5,150.0,generator,2026-11-04
+S025-01,S025,1,W005,E09,L14,front desk,2026-11-09,08:00,16:00,false,30,false,18.0,USD,regular,scheduled,true,0,7.5,135.0,generator,2026-11-04
+S025-02,S025,2,W005,E09,L14,front desk,2026-11-10,08:00,16:00,false,30,false,18.0,USD,regular,scheduled,true,0,7.5,135.0,generator,2026-11-04
+S025-03,S025,3,W005,E09,L14,front desk,2026-11-11,08:00,16:00,false,30,false,18.0,USD,regular,scheduled,true,0,7.5,135.0,generator,2026-11-04
+S025-04,S025,4,W005,E09,L14,front desk,2026-11-12,08:00,16:00,false,30,false,18.0,USD,regular,scheduled,true,0,7.5,135.0,generator,2026-11-04
+S025-05,S025,5,W005,E09,L14,front desk,2026-11-15,22:00,06:00,true,0,false,18.0,USD,weekend,scheduled,true,,8.0,144.0,generator,2026-11-04
+S026-01,S026,1,W006,E01,L01,sales floor,2026-11-16,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S026-02,S026,2,W006,E01,L01,sales floor,2026-11-17,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S026-03,S026,3,W006,E01,L01,sales floor,2026-11-18,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S026-04,S026,4,W006,E01,L01,sales floor,2026-11-19,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S027-01,S027,1,W007,E01,L01,sales floor,2026-11-16,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S027-02,S027,2,W007,E01,L01,sales floor,2026-11-17,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S027-03,S027,3,W007,E01,L01,sales floor,2026-11-18,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S027-04,S027,4,W007,E01,L01,sales floor,2026-11-19,09:00,17:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S028-01,S028,1,W008,E08,L13,sales floor,2026-11-16,10:00,18:00,false,30,false,13.5,USD,regular,scheduled,true,0,7.5,101.25,generator,2026-11-04
+S028-02,S028,2,W008,E08,L13,sales floor,2026-11-17,10:00,18:00,false,30,false,13.5,USD,regular,scheduled,true,0,7.5,101.25,generator,2026-11-04
+S028-03,S028,3,W008,E08,L13,sales floor,2026-11-18,10:00,18:00,false,30,false,12.0,EUR,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
+S028-04,S028,4,W008,E08,L13,sales floor,2026-11-19,10:00,18:00,false,30,false,12.0,EUR,regular,scheduled,true,,7.5,90.0,generator,2026-11-04
+S029-01,S029,1,W009,E11,L16,packing,2026-11-16,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S029-02,S029,2,W009,E11,L16,packing,2026-11-17,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S029-03,S029,3,W009,E11,L16,packing,2026-11-18,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S029-04,S029,4,W009,E11,L16,packing,2026-11-19,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S030-01,S030,1,W010,E05,L07,patient support,2026-11-16,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,0,5.0,75.0,generator,2026-11-04
+S030-02,S030,2,W010,E05,L07,patient support,2026-11-16,12:15,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,4.75,71.25,generator,2026-11-04
+S030-03,S030,3,W010,E05,L07,patient support,2026-11-17,07:00,15:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04

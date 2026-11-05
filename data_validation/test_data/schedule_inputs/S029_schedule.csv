@@ -1,0 +1,5 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-16,08:00,16:00,30,PackRight,Packing Plant,packing,15.00,USD,scheduled,8.0
+2026-11-17,08:00,16:00,30,PackRight,Packing Plant,packing,15.00,USD,scheduled,8.0
+2026-11-18,08:00,16:00,30,PackRight,Packing Plant,packing,15.00,USD,scheduled,8.0
+2026-11-19,08:00,16:00,30,PackRight,Packing Plant,packing,15.00,USD,scheduled,8.0

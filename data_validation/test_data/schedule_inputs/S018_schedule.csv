@@ -1,0 +1,6 @@
+shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,stated_hours
+2026-11-09,07:00,12:00,0,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,5.0
+2026-11-09,12:15,17:00,0,Central Cafe Group,Cafe Downtown,counter,13.00,USD,scheduled,4.75
+2026-11-11,07:00,12:00,0,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,5.0
+2026-11-11,12:20,17:00,0,Central Cafe Group,Cafe Downtown,counter,13.00,USD,scheduled,4.67
+2026-11-13,08:00,16:00,30,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled,8.0
