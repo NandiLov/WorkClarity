@@ -29,3 +29,4 @@ S027,W007,CT17,csv_text,S027_schedule.csv,2026-11-16,1,One negative break and on
 S028,W008,CT18,csv_text,S028_schedule.csv,2026-11-16,1,Two USD shifts and two EUR shifts in one week,2026-11-01T15:09:00
 S029,W009,CT19,csv_text,S029_schedule.csv,2026-11-16,1,Confirmed shift without a rate,2026-11-01T16:16:00
 S030,W010,CT20,csv_text,S030_schedule.csv,2026-11-16,1,Second shift location matches no known location,2026-11-01T17:23:00
+S031,W011,CT21,csv_text,S031_schedule.csv,2026-11-16,1,One shift in the review queue and one rejected extracted shift,2026-11-01T08:30:00

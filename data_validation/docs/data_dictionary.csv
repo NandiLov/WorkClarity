@@ -80,7 +80,7 @@ raw_shifts,source_line,STRING,,The original schedule line the row came from,"202
 raw_shifts,extraction_method,STRING,,"How the row was produced, ai for all synthetic rows",ai,unchanged
 raw_shifts,extraction_version,STRING,,Version of the extraction method,v0,unchanged
 raw_shifts,extraction_confidence,FLOAT64,,"How sure the AI was, from 0 to 1",0.94,unchanged
-raw_shifts,confirmation_status,STRING,,"confirmed if the worker has confirmed what the AI read, otherwise unconfirmed",confirmed,new
+raw_shifts,confirmation_status,STRING,,"confirmed, unconfirmed, needs_review (in the review queue) or rejected (kept for traceability, left out of the schedule, conflicts and earnings). Only confirmed counts toward earnings",confirmed,new
 raw_shifts,extracted_at,TIMESTAMP,,When the row was extracted,2026-11-01T08:00:30,unchanged
 raw_truth_map,raw_id,STRING,"primary key, foreign key to raw_shifts.raw_id",Extracted row,R001,unchanged
 raw_truth_map,shift_id,STRING,foreign key to truth_shifts.shift_id,Correct shift this row should match. Empty if the AI invented the row,S001-01,unchanged
@@ -132,9 +132,10 @@ shift_details,case_type,STRING,,"Name of the test scenario, for example overlap"
 csv_upload_file,shift_date,date,,"Required. Date the shift starts, written YYYY-MM-DD",2026-11-03,new
 csv_upload_file,start_time,text,,Required. Start time in 24 hour HH:MM,08:00,new
 csv_upload_file,end_time,text,,Required. End time in 24 hour HH:MM. Earlier than start_time means the shift ends the next day,16:00,new
+csv_upload_file,end_date,date,,"Optional. Date the shift ends, written YYYY-MM-DD. Only needed when it differs from the start date; blank means use the end_time rule",,new
 csv_upload_file,break_minutes,whole number,,Optional. Unpaid break in minutes. Blank is flagged because the break is unknown,0,new
-csv_upload_file,employer_name,text,,Required. Name of the employer company,BrightMart,new
-csv_upload_file,location,text,,"Required. Name of the place of work, used for travel time checks",Store A,new
+csv_upload_file,employer_name,text,,"Recommended. Name of the employer company. If missing, the shift gets a warning and still counts",BrightMart,new
+csv_upload_file,location,text,,"Recommended. Name of the place of work, used for travel time checks. If missing or unknown, the shift gets a warning and the commute check is unavailable",Store A,new
 csv_upload_file,department,text,,Optional. Team or area the worker is in,sales floor,new
 csv_upload_file,hourly_rate,number,,"Required for earnings. Entered or confirmed by the worker. If a real upload has no rate, the app asks the worker",15.00,new
 csv_upload_file,currency,text,,"Required. Currency code, for example USD",USD,new
