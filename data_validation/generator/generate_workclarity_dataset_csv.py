@@ -109,7 +109,7 @@ flag_types = [
     ("FL01", "overlap", "error", "These shifts happen at the same time. Please check which one is right."),
     ("FL02", "insufficient_commute", "warning", "You may not have enough time to get from one job to the next."),
     ("FL03", "missing_or_invalid", "depends on the error", "Some details of this shift are missing or look wrong. Please check them."),
-    ("FL04", "duplicate", "warning", "This shift may be a duplicate. Please check it and keep only the one that is correct."),
+    ("FL04", "duplicate", "warning", "This shift may be a duplicate. It is not counted until you check it and confirm which one is correct."),
     ("FL05", "cancelled", "info", "This shift was cancelled, so it is not counted in your estimated earnings."),
     ("FL06", "unconfirmed", "warning", "This shift has not been confirmed yet. Please review it and confirm it so it counts toward your earnings."),
 ]
@@ -144,6 +144,9 @@ pay_rules = [
     ("PR20", "missing_date", "blocking_error", "A missing date is a blocking validation error under the missing or invalid flag, with a specific missing date reason"),
     ("PR21", "needs_review_and_rejected", "excluded_from_earnings", "needs_review shifts show in the review queue and are left out of final earnings until corrected and confirmed. Rejected shifts are kept for traceability but left out of the active schedule and earnings"),
     ("PR22", "earnings_source", "validated_worker_confirmed", "Earnings are calculated from validated, worker-confirmed shift data, including the worker's corrections. The original csv stays available for traceability and comparison"),
+    ("PR23", "missing_break", "incomplete_until_confirmed", "A missing break is never treated as zero minutes. The shift stays visible and its earnings are incomplete until the worker confirms no break (0) or enters the break, so estimated earnings are not overstated"),
+    ("PR24", "possible_duplicate", "held_for_review", "A possible duplicate is warned, and the extra copy is held for review and not counted. Final earnings never count the same shift twice before the worker resolves it"),
+    ("PR25", "missing_currency", "incomplete", "A missing currency makes that shift's earnings incomplete. No total is produced without a currency, and totals are never mixed across currencies"),
 ]
 
 # ------------------------------------------------------------------ schedules

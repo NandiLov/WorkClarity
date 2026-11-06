@@ -118,7 +118,7 @@ def test_cancelled_shifts_give_zero_s015():
     assert all(any(i["flag_name"] == "cancelled" for i in s["issues"]) for s in cancelled)
 
 
-def test_spec_example_8_hours_30_minute_break_at_16_50_is_123_75():
+def test_spec_examples_with_a_30_minute_break_at_16_50_give_132_00_and_123_75():
     result = process_shifts([dict(
         shift_id="X1", worker_id="W1", shift_date="2026-11-09", start_time="09:00", end_time="17:30",
         break_minutes=30, employer_name="A", location="Store A", hourly_rate="16.50", currency="USD",
@@ -557,3 +557,56 @@ def test_s031_gives_the_answer_key_once_the_worker_has_confirmed_every_shift():
     assert week["gross_earnings"] == 337.50
     expected = [e for e in read("expected_weekly_earnings.csv") if e["schedule_id"] == "S031"][0]
     assert float(expected["expected_gross_mvp"]) == 337.50
+
+
+# ------------------------------------------------------------------ Castro's second review: breaks, duplicates, currency, review queue
+def test_rules_file_holds_the_second_review_decisions():
+    assert RULES["missing_break"] == "incomplete_until_confirmed"
+    assert RULES["possible_duplicate"] == "held_for_review"
+    assert RULES["missing_currency"] == "incomplete"
+
+
+def test_a_missing_break_is_never_treated_as_zero_minutes():
+    shift = calc([backend_shift(break_minutes=None)])["shifts"][0]
+    assert shift["earnings_status"] == "incomplete" and shift["eligible_for_earnings"] is False
+    assert shift["paid_hours"] is None and shift["gross_earnings"] is None
+    flag = next(f for f in shift["flags"] if f["code"] == "MISSING_BREAK")
+    assert "no break" in flag["reason"] and "overstated" in flag["reason"]
+    week = calc([backend_shift(break_minutes=None)])["weekly_summary"][0]
+    assert week["gross_earnings"] == 0.0 and week["earnings_incomplete"] is True and week["incomplete_shifts"] == 1
+
+
+def test_a_confirmed_zero_break_counts_in_full():
+    shift = calc([backend_shift(break_minutes=0)])["shifts"][0]
+    assert shift["earnings_status"] == "counted" and shift["paid_hours"] == 8.0 and shift["gross_earnings"] == 132.0
+
+
+def test_a_possible_duplicate_is_held_for_review_and_not_counted_twice():
+    out = calc([backend_shift(shift_id="A"), backend_shift(shift_id="B")])
+    first, second = out["shifts"]
+    assert first["earnings_status"] == "counted"
+    assert second["earnings_status"] == "needs_review" and second["eligible_for_earnings"] is False
+    assert second["gross_earnings"] is None
+    assert "POSSIBLE_DUPLICATE" in {f["code"] for f in second["flags"]}
+    assert out["weekly_summary"][0]["gross_earnings"] == 123.75
+
+
+def test_a_missing_currency_makes_earnings_incomplete_and_gives_no_total():
+    out = calc([backend_shift(currency=None)])
+    shift, week = out["shifts"][0], out["weekly_summary"][0]
+    assert shift["earnings_status"] == "incomplete" and shift["gross_earnings"] is None
+    assert "MISSING_CURRENCY" in {f["code"] for f in shift["flags"]}
+    assert week["currency"] is None and week["gross_earnings"] is None
+    assert week["earnings_incomplete"] is True and week["incomplete_shifts"] == 1
+
+
+def test_confirmed_shifts_with_unresolved_problems_are_available_for_the_review_queue():
+    out = calc([backend_shift(shift_id="A", hourly_rate=None),
+                backend_shift(shift_id="B", date="2026-11-10", start_time="xx"),
+                backend_shift(shift_id="C", date="2026-11-11")])
+    status = {s["shift_id"]: s["earnings_status"] for s in out["shifts"]}
+    assert status == {"A": "incomplete", "B": "excluded", "C": "counted"}
+    need_attention = {"needs_review", "unconfirmed", "incomplete", "excluded"}
+    assert [s["shift_id"] for s in out["shifts"] if s["earnings_status"] in need_attention] == ["A", "B"]
+    reasons = {s["shift_id"]: [f["reason"] for f in s["flags"]] for s in out["shifts"] if s["flags"]}
+    assert all(reasons[k] for k in ("A", "B"))

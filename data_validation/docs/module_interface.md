@@ -56,7 +56,9 @@ One dictionary per worker:
 - Only valid, worker-confirmed shifts count towards final earnings (`eligible_for_earnings`).
 - A missing employer or location is a warning and the shift still counts. A missing date is a blocking error.
 - needs_review, rejected, unconfirmed and cancelled shifts are left out of final earnings. Rejected shifts are also left out of the schedule and conflicts.
-- A confirmed shift with no rate stays visible and is counted in `incomplete_shifts`.
+- A confirmed shift with no rate, no break or no currency stays visible and is counted in `incomplete_shifts`. A missing break is never treated as zero: the worker confirms no break (0) or enters one first. With no currency, no total is produced.
+- A possible duplicate is held for review and not counted, so the same shift never counts twice.
+- For the review queue, use `earnings_status` of needs_review, unconfirmed, incomplete or excluded. That includes confirmed shifts that still have a missing rate or an error. Each flag carries a `reason` that explains why earnings are incomplete or excluded.
 - Overtime is not applied. Weekly totals are kept per currency and never added together.
 - An `end_date` later than the date makes an overnight shift exact. Without it, an end time earlier than the start time means the next day.
 

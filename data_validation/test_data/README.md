@@ -29,7 +29,7 @@ For the meaning of every column, see data_dictionary.csv.
 | locations | 16 | One row per place of work. Each belongs to one employer. | Ololade, to check commute conflicts. |
 | schedules | 31 | One row per uploaded schedule file: whose it is, which pay week, which file format. | Nandila (what gets uploaded), Lavanya (which schedule is which test), Ololade. |
 | raw_shifts | 128 | What the AI extracted, one row per shift line, with deliberate mistakes. This is the table the validation layer reads. | Nandila (shape of the AI output), Ololade (input to validation). |
-| pay_rules | 22 | The pay and conflict rules we are assuming, such as pay week start and minimum travel gap. | Castro owns the values. Ololade uses them in calculations. |
+| pay_rules | 25 | The pay and conflict rules we are assuming, such as pay week start and minimum travel gap. | Castro owns the values. Ololade uses them in calculations. |
 | flag_types | 6 | The six kinds of flag a worker can see, each with a plain-language message. | Castro (wording), Nandila (app display), Ololade (checks). |
 
 ### Tables that exist only for testing
