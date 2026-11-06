@@ -1,7 +1,6 @@
 # WorkClarity — MVP Product Specification
 
-**Project:** WorkClarity  
-**Product & Project Lead:** Castro Mzizi  
+**Project:** WorkClarity   
 **Version:** 1.0 — Draft for Team Review  
 **Target delivery:** 28 November 2026
 
