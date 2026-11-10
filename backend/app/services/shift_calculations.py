@@ -41,10 +41,12 @@ Output:
 
 Shift status:
     counted       confirmed, valid, has a rate, included in gross earnings
-    incomplete    confirmed and valid but the rate is missing, stays visible, left out of gross earnings
+    incomplete    confirmed and valid but the rate, the break or the currency is missing, stays visible,
+                  left out of gross earnings until the worker fills it in (a break of 0 means no break)
     excluded      confirmed but has an error, left out until the worker fixes it
     unconfirmed   the worker has not confirmed it, left out of totals
-    needs_review  shown in the review queue, left out of earnings until corrected and confirmed
+    needs_review  shown in the review queue, left out of earnings until corrected and confirmed.
+                  A possible duplicate is held here too, so it never counts twice
     rejected      kept for traceability, left out of the active schedule, conflicts and earnings
     cancelled     kept as a record, 0.00 earnings
 
@@ -82,6 +84,7 @@ ISSUE_FLAGS = {
     "INVALID_BREAK": ("FL03", "error"),
     "MISSING_BREAK": ("FL03", "warning"),
     "MISSING_RATE": ("FL03", "error"),
+    "MISSING_CURRENCY": ("FL03", "warning"),
     "MISSING_EMPLOYER": ("FL03", "warning"),
     "MISSING_LOCATION": ("FL03", "warning"),
     "UNKNOWN_LOCATION": ("FL03", "warning"),
@@ -103,7 +106,7 @@ DEFAULT_MESSAGES = {
     "FL01": "These shifts happen at the same time. Please check which one is right.",
     "FL02": "You may not have enough time to get from one job to the next.",
     "FL03": "Some details of this shift are missing or look wrong. Please check them.",
-    "FL04": "This shift may be a duplicate. Please check it and keep only the one that is correct.",
+    "FL04": "This shift may be a duplicate. It is not counted until you check it and confirm which one is correct.",
     "FL05": "This shift was cancelled, so it is not counted in your estimated earnings.",
     "FL06": "This shift has not been confirmed yet. Please review it and confirm it so it counts toward your earnings.",
 }
@@ -114,12 +117,13 @@ REASONS = {
     "INVALID_END_DATE": "The end date is not a valid date written as YYYY-MM-DD.",
     "INVALID_DURATION": "The shift length is zero, negative or longer than the maximum allowed.",
     "INVALID_BREAK": "The break is negative or as long as, or longer than, the shift.",
-    "MISSING_BREAK": "The break length is missing, so no break was deducted.",
+    "MISSING_BREAK": "The break length is missing. Please confirm whether you had no break or enter the break, so earnings are not overstated.",
     "MISSING_RATE": "The hourly rate is missing, so earnings for this shift are incomplete.",
+    "MISSING_CURRENCY": "The currency is missing, so earnings for this shift are incomplete and cannot be added to a total.",
     "MISSING_EMPLOYER": "The employer is missing.",
     "MISSING_LOCATION": "The location is missing, so the commute check is unavailable.",
     "UNKNOWN_LOCATION": "The location does not match a known location, so the commute check is unavailable.",
-    "POSSIBLE_DUPLICATE": "Another shift has the same worker, date, times and location.",
+    "POSSIBLE_DUPLICATE": "Another shift has the same worker, date, times and location, so this one is held for review and not counted twice.",
     "CANCELLED": "The shift was cancelled and is not counted in earnings.",
     "UNCONFIRMED": "The worker has not confirmed this shift yet.",
     "NEEDS_REVIEW": "This shift is waiting in the review queue.",
@@ -127,6 +131,8 @@ REASONS = {
     "OVERLAP": "This shift overlaps another shift.",
     "COMMUTE_GAP": "The gap to the next shift at a different location is shorter than the minimum.",
 }
+
+INCOMPLETE_CODES = ("MISSING_RATE", "MISSING_BREAK", "MISSING_CURRENCY")
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 CENT = Decimal("0.01")
@@ -278,8 +284,8 @@ def _check_shift(shift, index, rules, known_locations):
     brk_raw = _get(shift, "break_minutes")
     brk = _to_int(brk_raw)
     if brk_raw is None:
-        issue("MISSING_BREAK")
-        brk = 0
+        issue("MISSING_BREAK")  # earnings stay incomplete until the worker confirms no break (0) or enters it
+        brk = None
     elif brk is None or brk < 0 or (minutes is not None and minutes_ok and brk >= minutes):
         issue("INVALID_BREAK")
         brk = None
@@ -288,6 +294,9 @@ def _check_shift(shift, index, rules, known_locations):
     if rate is None or rate < 0:
         issue("MISSING_RATE")
         rate = None
+
+    if _currency(_get(shift, "currency")) is None:
+        issue("MISSING_CURRENCY")
 
     if _get(shift, "employer_name", "employer") is None:
         issue("MISSING_EMPLOYER")
@@ -332,6 +341,23 @@ def _check_shift(shift, index, rules, known_locations):
     )
 
 
+def _earnings_reason(status, codes):
+    """Plain reason why a shift is not fully counted, or None when it is counted."""
+    if status == "counted":
+        return None
+    if status == "cancelled":
+        return REASONS["CANCELLED"]
+    if status == "rejected":
+        return "The worker rejected this shift, so it is not counted."
+    if status == "needs_review":
+        return REASONS["POSSIBLE_DUPLICATE"] if "POSSIBLE_DUPLICATE" in codes else REASONS["NEEDS_REVIEW"]
+    if status == "unconfirmed":
+        return REASONS["UNCONFIRMED"]
+    if status == "incomplete":
+        return " ".join(REASONS[c] for c in INCOMPLETE_CODES if c in codes)
+    return " ".join(REASONS[c] for c in codes if ISSUE_FLAGS[c][1] == "error")
+
+
 def _status_and_gross(s):
     errors = [c for c in s["codes"] if ISSUE_FLAGS[c][1] == "error"]
     if s["rejected"]:
@@ -342,10 +368,12 @@ def _status_and_gross(s):
         return "needs_review", None
     if not s["confirmed"]:
         return "unconfirmed", None
+    if "POSSIBLE_DUPLICATE" in s["codes"]:
+        return "needs_review", None  # held for review so it does not count twice
     blocking = [c for c in errors if c != "MISSING_RATE"]
     if blocking:
         return "excluded", None
-    if "MISSING_RATE" in errors:
+    if any(c in s["codes"] for c in INCOMPLETE_CODES):
         return "incomplete", None
     return "counted", _money(s["paid_hours"] * s["rate"])
 
@@ -401,7 +429,8 @@ def _weekly(results, rules):
     for (worker, week, cur), items in sorted(groups.items(), key=lambda kv: (str(kv[0][0]), kv[0][1], str(kv[0][2]))):
         counted = [i for i in items if i["status"] == "counted"]
         incomplete = [i for i in items if i["status"] == "incomplete"]
-        hours = sum((Decimal(str(i["paid_hours"])) for i in counted + incomplete), Decimal("0"))
+        hours = sum((Decimal(str(i["paid_hours"])) for i in counted + incomplete if i["paid_hours"] is not None),
+                    Decimal("0"))
         gross = sum((Decimal(str(i["gross_earnings"])) for i in counted), Decimal("0"))
         ot = max(hours - threshold, Decimal("0"))
         with_ot = gross if ot == 0 or hours == 0 else gross + ot * (gross / hours) * (mult - 1)
@@ -410,8 +439,8 @@ def _weekly(results, rules):
             cancelled_shifts=sum(1 for i in items if i["status"] == "cancelled"),
             incomplete_shifts=len(incomplete), paid_hours=float(hours),
             regular_hours=float(min(hours, threshold)), overtime_hours=float(ot),
-            gross_earnings=float(_money(with_ot if overtime_on else gross)),
-            gross_with_overtime=float(_money(with_ot))))
+            gross_earnings=None if cur is None else float(_money(with_ot if overtime_on else gross)),
+            gross_with_overtime=None if cur is None else float(_money(with_ot))))
     return rows
 
 
@@ -469,13 +498,15 @@ def process_shifts(shifts, rules=None, flag_messages=None, known_locations=None,
             issues.append(dict(code=code, flag_type_id=flag_id, flag_name=FLAG_NAMES[flag_id],
                                severity=severity, reason=REASONS[code], message=messages[flag_id]))
         paid = None if s["paid_hours"] is None else float(s["paid_hours"])
+        reason = _earnings_reason(status, s["codes"])
         if status == "cancelled":
             paid = 0.0
         results.append(dict(
             id=s["id"], worker_id=s["worker_id"], shift_date=s["day"].strftime("%Y-%m-%d") if s["day"] else None,
             week_start=_week_start(s["day"], rules.get("pay_week_start", "monday")) if s["day"] else None, paid_hours=paid,
             hourly_rate=float(s["rate"]) if s["rate"] is not None else None, currency=s["currency"],
-            gross_earnings=float(gross) if gross is not None else None, status=status, issues=issues))
+            gross_earnings=float(gross) if gross is not None else None, status=status, issues=issues,
+            earnings_reason=reason))
 
     conflicts, not_assessed = _find_conflicts(checked, rules, messages, include_unconfirmed)
     return dict(shifts=results, conflicts=conflicts, commute_not_assessed=not_assessed,
@@ -499,7 +530,7 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
         "worker_id": ...,
         "shifts": [ {shift_id, date, week_start, paid_hours, hourly_rate, currency, gross_earnings,
                      validation_status (valid, warning or invalid), earnings_status,
-                     eligible_for_earnings, flags: [...], source_line} ],
+                     eligible_for_earnings, earnings_reason, flags: [...], source_line} ],
         "weekly_summary": [ {week_start, currency, shifts, paid_hours, gross_earnings,
                              incomplete_shifts, earnings_incomplete, cancelled_shifts} ],
         "conflicts": [...], "commute_not_assessed": [...]
@@ -536,7 +567,8 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
             paid_hours=item["paid_hours"], hourly_rate=item["hourly_rate"], currency=item["currency"],
             gross_earnings=item["gross_earnings"], validation_status=validation_status,
             earnings_status=item["status"], eligible_for_earnings=item["status"] == "counted",
-            flags=item["issues"], source_line=original.get("source_line")))
+            earnings_reason=item["earnings_reason"], flags=item["issues"],
+            source_line=original.get("source_line")))
 
     weekly = [dict(week_start=w["pay_week_start"], currency=w["currency"], shifts=w["shifts"],
                    paid_hours=w["paid_hours"], gross_earnings=w["gross_earnings"],

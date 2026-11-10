@@ -2,6 +2,6 @@ flag_type_id,flag_name,severity,worker_message
 FL01,overlap,error,These shifts happen at the same time. Please check which one is right.
 FL02,insufficient_commute,warning,You may not have enough time to get from one job to the next.
 FL03,missing_or_invalid,depends on the error,Some details of this shift are missing or look wrong. Please check them.
-FL04,duplicate,warning,This shift may be a duplicate. Please check it and keep only the one that is correct.
+FL04,duplicate,warning,This shift may be a duplicate. It is not counted until you check it and confirm which one is correct.
 FL05,cancelled,info,"This shift was cancelled, so it is not counted in your estimated earnings."
 FL06,unconfirmed,warning,This shift has not been confirmed yet. Please review it and confirm it so it counts toward your earnings.
