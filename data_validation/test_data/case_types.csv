@@ -19,3 +19,4 @@ CT17,invalid_break,Extracted break is negative or longer than the shift
 CT18,mixed_currency,"One week with shifts in two currencies, totals kept separate"
 CT19,incomplete_earnings,"Confirmed shift without a rate, earnings shown as incomplete"
 CT20,unknown_location,"Extracted location matches no known location, commute cannot be assessed"
+CT21,review_and_rejected,"One shift sent to the review queue and one extracted shift the worker rejected, both left out of earnings"

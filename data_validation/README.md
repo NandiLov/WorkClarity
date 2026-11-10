@@ -9,17 +9,17 @@ All data is fake. No real person or company is in it.
 | Folder | What is in it |
 | --- | --- |
 | docs | The csv input contract, the field mapping against Castro's specification, the change log with reviewers and open items, and the data dictionary |
-| test_data | 30 example csv schedules (schedule_inputs), the reference tables, the extracted rows, the planted errors and the answer keys. test_data/README.md explains each table |
+| test_data | 31 example csv schedules (schedule_inputs), the reference tables, the extracted rows, the planted errors and the answer keys. test_data/README.md explains each table |
 | generator | The script that rebuilds the test data. Run it from an empty working folder: `python3 generate_workclarity_dataset_csv.py` |
-| validation | The Python module (not added yet) |
-| tests | The regression tests that check the module against the answer keys (not added yet) |
+| backend (one level up) | The Python service lives at backend/app/services/shift_calculations.py, as agreed with Nandila. calculate_shifts takes one worker's shifts and rules, and returns the checked shifts, conflicts and weekly totals. docs/module_interface.md shows the input and output |
+| tests | 49 regression tests that run the service on the test data and check it against the answer keys. Run them from this folder with `python3 -m pytest tests -v` |
 
 ## Where to start
 
 - Reviewers: read docs/CHANGES.md first. It lists who checks what and the open decisions.
 - Castro: pay rules, flags and the field mapping.
 - Nandila: the csv contract and the shape of the module's input and output.
-- Lavanya: the edge case schedules S026 to S030 and the answer keys.
+- Lavanya: the edge case schedules S026 to S031 and the answer keys.
 
 ## Known answers
 

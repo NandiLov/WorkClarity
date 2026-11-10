@@ -118,3 +118,6 @@ S029-04,S029,4,W009,E11,L16,packing,2026-11-19,08:00,16:00,false,30,false,15.0,U
 S030-01,S030,1,W010,E05,L07,patient support,2026-11-16,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,0,5.0,75.0,generator,2026-11-04
 S030-02,S030,2,W010,E05,L07,patient support,2026-11-16,12:15,17:00,false,0,false,15.0,USD,regular,scheduled,true,0,4.75,71.25,generator,2026-11-04
 S030-03,S030,3,W010,E05,L07,patient support,2026-11-17,07:00,15:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
+S031-01,S031,1,W011,E03,L08,counter,2026-11-16,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S031-02,S031,2,W011,E03,L08,counter,2026-11-17,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,0,7.5,112.5,generator,2026-11-04
+S031-03,S031,3,W011,E03,L08,counter,2026-11-18,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04

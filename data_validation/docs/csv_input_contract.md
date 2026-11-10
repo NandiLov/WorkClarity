@@ -11,9 +11,10 @@ One csv file is one worker's schedule for one pay week. The first row is the hea
 | shift_date | Yes | YYYY-MM-DD | 2026-11-05 | The date the shift starts |
 | start_time | Yes | HH:MM, 24 hour | 22:00 | |
 | end_time | Yes | HH:MM, 24 hour | 06:00 | Earlier than start_time means the shift ends the next day |
+| end_date | No | YYYY-MM-DD | 2026-11-06 | Only needed when the shift ends on a different date than it starts. If blank, the end_time rule above applies. Matches the end_date in Nandila's interface |
 | break_minutes | No | Whole number | 30 | Unpaid break. Blank is flagged because the break is unknown |
-| employer_name | Yes | Text | Warehouse B Co | Used to tell shifts from different companies apart |
-| location | Yes | Text | Warehouse B | Used for commute checks |
+| employer_name | Recommended | Text | Warehouse B Co | Used to tell shifts from different companies apart. If missing, the shift gets a warning and still counts |
+| location | Recommended | Text | Warehouse B | Used for commute checks. If missing or unknown, the shift gets a warning and the commute check is unavailable |
 | department | No | Text | dispatch | |
 | hourly_rate | Yes for earnings | Number | 18.00 | Entered or confirmed by the worker. If a real upload has no rate, the app asks the worker |
 | currency | Yes | Currency code | USD | |

@@ -118,3 +118,6 @@ S029-04,S029,W009,E11,L16,CT19,Isla Moreno,PackRight,Packing Plant,packing,2026-
 S030-01,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-16,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,unknown_location
 S030-02,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-16,12:15,17:00,false,0,15.0,USD,regular,scheduled,true,4.75,71.25,unknown_location
 S030-03,S030,W010,E05,L07,CT20,Jonah Brooks,CityCare Hospital,Hospital Annex,patient support,2026-11-17,07:00,15:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,unknown_location
+S031-01,S031,W011,E03,L08,CT21,Kemi Balogun,Central Cafe Group,Cafe Downtown,counter,2026-11-16,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,review_and_rejected
+S031-02,S031,W011,E03,L08,CT21,Kemi Balogun,Central Cafe Group,Cafe Downtown,counter,2026-11-17,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,review_and_rejected
+S031-03,S031,W011,E03,L08,CT21,Kemi Balogun,Central Cafe Group,Cafe Downtown,counter,2026-11-18,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,review_and_rejected
