@@ -13,7 +13,7 @@ PR11,rate_source,worker_entered,Hourly rate is entered or confirmed by the worke
 PR12,cancelled_shifts,excluded_from_projected_earnings,Cancelled shifts that were not worked are kept as records but not counted
 PR13,cancellation_compensation,out_of_scope,Any pay for cancelled shifts needs separate rules and is outside the initial scope
 PR14,test_input_format,csv,The MVP is tested with csv input first
-PR15,second_mvp_format,pdf,PDF is the planned second input format after csv. Images are deferred
+PR15,second_mvp_format,pdf_and_image,CSV comes first. PDF and image follow if time and reliability allow (Castro 2026-11-12)
 PR16,valid_break,nonnegative_and_shorter_than_shift,"break_minutes must be zero or more and shorter than the shift duration, otherwise the shift is flagged as invalid"
 PR17,currency_totals,separate_per_currency,Weekly totals are kept per currency and never added across currencies
 PR18,missing_rate_confirmed,earnings_incomplete,A confirmed shift without a rate stays visible but is left out of gross pay and counted as incomplete

@@ -284,7 +284,7 @@ def run(shifts, **kw):
 def test_rules_file_holds_castros_decisions():
     assert RULES["pay_week_start"] == "monday"
     assert RULES["min_commute_gap_minutes"] == "30"
-    assert RULES["second_mvp_format"] == "pdf"
+    assert RULES["second_mvp_format"] == "pdf_and_image"
     assert RULES["valid_break"] == "nonnegative_and_shorter_than_shift"
     assert RULES["missing_employer_or_location"] == "warning_not_blocking"
     assert RULES["missing_date"] == "blocking_error"

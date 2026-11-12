@@ -12,7 +12,7 @@ All data is fake. No real person or company is in it.
 | test_data | 31 example csv schedules (schedule_inputs), the reference tables, the extracted rows, the planted errors and the answer keys. test_data/README.md explains each table |
 | generator | The script that rebuilds the test data. Run it from an empty working folder: `python3 generate_workclarity_dataset_csv.py` |
 | backend (one level up) | The Python service lives at backend/app/services/shift_calculations.py, as agreed with Nandila. calculate_shifts takes one worker's shifts and rules, and returns the checked shifts, conflicts and weekly totals. docs/module_interface.md shows the input and output |
-| tests | 49 regression tests that run the service on the test data and check it against the answer keys. Run them from this folder with `python3 -m pytest tests -v` |
+| tests | 55 regression tests that run the service on the test data and check it against the answer keys. Run them from this folder with `python3 -m pytest tests -v` |
 
 ## Where to start
 
