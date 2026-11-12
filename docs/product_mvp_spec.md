@@ -1,79 +1,109 @@
 # WorkClarity — MVP Product Specification
 
-**Project:** WorkClarity   
-**Version:** 1.0 — Draft for Team Review  
-**Target delivery:** 28 November 2026
+**Project:** WorkClarity  
+**Version:** 1.1 — Updated After Team Review  
+**Target Delivery:** 28 November 2026  
+**Document Owner:** Castro Mzizi — Product & Project
 
 ## 1. Product Overview
 
-WorkClarity is a schedule-to-earnings assistant for hourly workers.
+WorkClarity is a schedule-to-earnings assistant designed for hourly workers managing shifts across multiple employers.
 
-Workers can upload their work schedules, review AI-extracted shifts, correct mistakes, identify scheduling conflicts, and see estimated gross earnings for the week.
+Workers can upload schedules, review extracted shifts, correct mistakes, identify scheduling conflicts, and view estimated weekly gross earnings.
 
-The product should be simple, transparent, and usable without technical knowledge.
+The product should be simple, transparent, accessible, and usable without technical knowledge.
 
 **Core workflow:**
 
-Upload schedule → Extract shifts → Review and correct → Validate → Confirm → View weekly schedule and estimated gross earnings.
+Upload Schedule → Extract Shifts → Review and Correct → Validate → Confirm → View Weekly Schedule and Estimated Gross Earnings
+
+### Product Principles
+
+- Workers retain control over their shift information.
+- AI-extracted information must be reviewed before contributing to earnings.
+- Earnings calculations must be deterministic, consistent, and explainable.
+- Incomplete information must never be presented as a confirmed financial result.
+- The frontend and backend must follow one agreed set of business rules.
+- Reliability of the complete worker journey takes priority over additional features.
 
 ## 2. MVP Scope
 
-### Included
+### 2.1 Core MVP — Required
 
 - CSV schedule upload.
-- PDF schedule upload.
-- AI-assisted extraction and normalization.
+- Structured shift extraction and normalisation.
 - Worker review and correction of extracted shifts.
 - Shift confirmation and rejection.
-- Detection of overlaps, possible duplicates, missing information, and insufficient commute gaps.
-- Weekly calendar or schedule view.
+- Detection of overlapping shifts, possible duplicates, missing information, and insufficient commute gaps.
+- Weekly schedule view.
 - Estimated gross earnings per shift and per week.
 - Separate earnings totals for different currencies.
-- Saved corrections and confirmation statuses.
+- Persistent worker corrections and confirmation statuses.
+- Clear validation warnings, errors, and incomplete earnings indicators.
+- Integration between the frontend and the agreed backend validation and earnings service.
 
-### Excluded from MVP
+### 2.2 Conditional MVP Features
 
-- Image schedule uploads.
+The following features are included in the intended product experience but are dependent on extraction reliability, integration readiness, and available development time:
+
+- PDF schedule upload and extraction.
+- Image schedule upload and extraction.
+- NVIDIA-assisted extraction of unstructured schedule information.
+
+**Priority decision:** CSV must work reliably from upload through earnings calculation before PDF and image support is considered complete.
+
+PDF and image formats must not be represented as fully supported unless they have been successfully tested.
+
+### 2.3 Excluded from MVP
+
 - Monthly earnings reports.
 - Tax and deduction calculations.
 - Overtime calculations.
 - Actual travel-time routing.
 - Payroll processing.
 - A separate correction-history screen.
+- Advanced analytics and forecasting.
 
 ## 3. Worker Experience
 
 ### Screen 1 — Upload Schedule
 
-The worker uploads a CSV or PDF schedule.
+The worker uploads a CSV schedule, or a supported PDF or image schedule where extraction functionality is available.
 
 The system should:
 
-- Accept supported files.
-- Show a clear error for unsupported or unreadable files.
-- Extract shifts into structured records.
-- Mark extracted shifts as unconfirmed.
-- Preserve original extracted information for comparison.
+- Accept supported file formats.
+- Display clear errors for unsupported, corrupted, or unreadable files.
+- Extract or normalise shifts into structured records.
+- Mark newly extracted shifts as unconfirmed.
+- Preserve original extracted information for comparison with worker corrections.
+- Direct the worker to the review interface.
 
-**Acceptance criterion:** The worker can upload a supported schedule and proceed to review extracted shifts.
+**Acceptance criterion:** A worker can upload a CSV schedule and proceed to review the extracted shifts without manually rebuilding the schedule.
+
+PDF and image acceptance criteria apply only when those integrations are implemented.
 
 ### Screen 2 — Review and Edit Shifts
 
-The worker can see and edit:
+The worker must be able to review and correct:
 
 - Shift date.
+- End date for overnight shifts.
 - Employer.
 - Start and end times.
 - Unpaid break duration.
 - Work location.
-- Hourly rate and currency.
-- Shift status.
+- Hourly rate.
+- Currency.
+- Shift and confirmation status.
 
 The worker can confirm, reject, or leave a shift requiring review.
 
-The original extracted values should remain available alongside worker corrections.
+The system must preserve both the original extracted values and the worker-corrected values.
 
-**Acceptance criterion:** Calculations use validated, worker-confirmed corrected values, not unreviewed AI extraction.
+A confirmed shift containing unresolved errors or incomplete earnings information must remain visible in the review queue.
+
+**Acceptance criterion:** Earnings calculations use validated, worker-confirmed values rather than unreviewed extracted information.
 
 ### Screen 3 — Resolve Warnings
 
@@ -86,19 +116,31 @@ The system should identify:
 - Cancelled or unworked shifts.
 - Shifts requiring worker confirmation.
 
-A commute gap of less than 30 minutes between different locations triggers a warning. This is a product heuristic, not a real travel-time estimate.
+#### Commute Gap Rule
 
-If location information is missing, commute feasibility is **not assessed**, rather than marked as passed.
+A gap of less than 30 minutes between shifts at different locations triggers a warning.
 
-Missing or unknown break duration must be confirmed before earnings are finalized.
+This is a scheduling heuristic, not a verified travel-time estimate.
 
-Possible duplicates must be resolved before they can contribute twice to earnings.
+If location information is missing, commute feasibility is marked **Not assessed**, rather than passed.
 
-**Acceptance criterion:** The worker understands what needs attention and which shifts are excluded or incomplete.
+#### Duplicate Handling
+
+Possible duplicate shifts must be held for review to prevent double counting.
+
+If a worker rejects one duplicate, the retained shift should become eligible for calculation, provided it satisfies all other confirmation and validation requirements.
+
+#### Missing Breaks
+
+An unknown break duration must not automatically be treated as zero.
+
+The worker must confirm a zero-minute break or provide the actual break duration before earnings can be calculated.
+
+**Acceptance criterion:** Workers can identify which shifts require attention and understand why earnings are excluded or incomplete.
 
 ### Screen 4 — Weekly Schedule
 
-Display shifts grouped by day, with the week starting on Monday.
+Display shifts grouped by day, with the reporting week starting on Monday.
 
 Each shift should show:
 
@@ -108,124 +150,310 @@ Each shift should show:
 - Warnings or errors.
 - Estimated earnings where available.
 
-Overnight shifts belong to the reporting week in which they begin.
+Overnight shifts must support an explicit end date.
+
+For reporting purposes, overnight shifts belong to the week in which they begin.
 
 The Monday reporting week is a WorkClarity product default, not a universal payroll rule.
 
-**Acceptance criterion:** Workers can identify their shifts and unresolved issues for the selected week.
+**Acceptance criterion:** Workers can identify their scheduled shifts, confirmed work, and outstanding issues for the selected week.
 
 ### Screen 5 — Weekly Earnings
 
-Show:
+Display:
 
 - Total eligible paid hours.
 - Estimated gross earnings.
 - Per-shift earnings.
 - Weekly totals by currency.
 - Incomplete earnings indicators.
-- Reasons why shifts were excluded or earnings could not be calculated.
+- Reasons why shifts were excluded or could not be calculated.
 
-The formula is:
+#### Calculation Rules
 
-**Paid hours = Shift duration − Unpaid break duration**
+**Paid minutes = Shift duration in minutes − Unpaid break minutes**
 
-**Estimated gross earnings = Paid hours × Confirmed hourly rate**
+**Estimated gross earnings = (Paid minutes ÷ 60) × Confirmed hourly rate**
 
-Round monetary amounts to two decimal places.
+Use exact minutes for calculations.
 
-Do not calculate overtime, taxes, or deductions in the MVP.
+Do not round intermediate paid hours before calculating earnings.
 
-**Acceptance criterion:** Only eligible, validated, confirmed shifts contribute to estimated gross earnings.
+Round final monetary amounts to two decimal places.
+
+Displayed per-shift monetary amounts must not introduce cumulative rounding errors into weekly totals.
+
+No overtime, taxes, or deductions are calculated in the MVP.
+
+#### Weeks With No Counted Shifts
+
+When shifts exist but none can be counted because confirmation or required information is outstanding, display:
+
+**Not counted yet**
+
+Do not present 0.00 as a final earnings result in this situation.
+
+A genuine zero-earnings week must remain distinguishable from an incomplete week.
+
+**Acceptance criterion:** Only eligible, validated, confirmed shifts contribute to estimated gross earnings, and incomplete totals are clearly identified.
 
 ## 4. Confirmation and Earnings Rules
 
-| Status | Expected behavior |
+| Status or Condition | Expected Behaviour |
 |---|---|
 | Unconfirmed | Excluded from earnings |
 | Needs review | Excluded until resolved and confirmed |
 | Confirmed | Eligible if valid and complete |
-| Rejected | Excluded from active schedule and earnings, retained for traceability |
+| Rejected | Excluded from active schedule and earnings; retained for traceability |
 | Cancelled/unworked | Excluded from earnings |
-| Missing rate or currency | Earnings marked incomplete |
-| Invalid date, duration or break | Blocking error |
-| Missing employer or location | Warning, not automatically blocking |
-| Unresolved possible duplicate | Held for review to prevent double counting |
-| Missing break | Worker confirms zero break or provides duration before earnings are finalized |
+| Missing hourly rate | Warning with incomplete earnings; shift remains visible |
+| Missing currency | Earnings incomplete; no unsupported monetary total |
+| Missing break | Earnings incomplete until break duration is confirmed |
+| Invalid date | Blocking error |
+| Invalid duration | Blocking error |
+| Invalid break duration | Blocking error |
+| Missing employer | Warning, not automatically blocking |
+| Missing location | Warning; commute feasibility not assessed |
+| Possible duplicate | Held for review to prevent double counting |
+| Rejected duplicate | Retained valid copy may become eligible |
+| Shift exceeding 16 hours | Invalid for MVP |
+| Commute gap under 30 minutes | Scheduling warning, not verified travel time |
+
+The 16-hour maximum shift duration may become configurable in a future release.
+
+Validation status and earnings completeness must remain distinguishable. A shift may be structurally valid while its earnings are incomplete.
 
 ## 5. Backend and Frontend Data Requirements
 
-The frontend needs access to:
+The frontend requires access to:
 
-- Worker and reporting-week identifiers.
-- Shift identifiers and dates.
-- Employer, location, start/end times and breaks.
+- Worker identifier.
+- Reporting-week identifier.
+- Unique shift identifier.
+- Shift start date.
+- Shift end date for overnight shifts.
+- Employer and location.
+- Start and end times.
+- Unpaid break duration.
 - Original extracted values.
 - Worker-corrected values.
-- Confirmation and shift statuses.
-- Validation flags and errors.
+- Confirmation status.
+- Shift status.
+- Validation flags and error messages.
 - Earnings eligibility.
-- Paid hours, hourly rate, currency and estimated gross earnings.
-- Weekly totals and incomplete earnings indicators.
+- Paid minutes or paid hours.
+- Hourly rate and currency.
+- Estimated gross earnings.
+- Weekly totals.
+- Earnings completeness indicators.
 - Exclusion or incomplete reasons.
 - Commute feasibility assessment status.
 
-The backend remains the source of truth for calculations and validation.
+### 5.1 Single Source of Truth
 
-Firestore collection names, nesting, and canonical field names are subject to Nandila's architecture and integration decisions.
+The backend must remain the authoritative source for validation and earnings calculations.
+
+The existing Newly prototype may be retained as the frontend.
+
+However, Newly's independent earnings calculations must not remain a competing source of business logic after integration.
+
+The agreed target architecture is:
+
+- **Frontend:** Existing Newly prototype, adapted as required.
+- **Backend:** FastAPI service on Google Cloud.
+- **Validation and earnings:** Existing Python calculation module.
+- **Persistence:** Firestore.
+- **File storage:** Google Cloud Storage, where required.
+- **AI extraction:** NVIDIA-assisted extraction component for supported unstructured formats.
+
+These are target integration requirements, not a claim that all components have already been deployed.
+
+### 5.2 Persistence Requirements
+
+The system must preserve:
+
+- Original extracted shift information.
+- Worker corrections.
+- Confirmation and rejection decisions.
+- Current validation status.
+- Relevant earnings information.
+- Identifiers needed to retrieve and update shifts.
+
+Canonical field names, API responses, Firestore collections, and nesting must be finalised with Nandila.
 
 ## 6. Product Acceptance Test
 
+### 6.1 Earnings Example
+
 Example worker schedule:
 
-| Day | Shift | Unpaid break | Rate |
-|---|---|---|---|
-| Monday | 09:00–17:00 | 30 minutes | $16/hour |
-| Tuesday | 10:00–18:00 | 60 minutes | $16/hour |
-| Wednesday | 09:00–17:00 | Unknown | $16/hour |
+| Day | Shift | Unpaid Break | Rate | Confirmation |
+|---|---|---|---|---|
+| Monday | 09:00–17:00 | 30 minutes | $16/hour | Confirmed |
+| Tuesday | 10:00–18:00 | 60 minutes | $16/hour | Confirmed |
+| Wednesday | 09:00–17:00 | Unknown | $16/hour | Held for review |
 
 Expected result:
 
 - Monday: 7.5 paid hours = $120.00.
 - Tuesday: 7 paid hours = $112.00.
-- Wednesday: Held for break confirmation.
+- Wednesday: Excluded pending break confirmation.
 - **Weekly eligible paid hours: 14.5.**
 - **Weekly estimated gross: $232.00.**
+- Weekly earnings must indicate that the Wednesday shift remains incomplete.
 
-After the worker confirms Wednesday's break duration, the system recalculates earnings if the shift is otherwise valid and confirmed.
+Once the worker confirms Wednesday's break duration and the shift satisfies all other requirements, the system recalculates the weekly earnings.
+
+### 6.2 Additional Acceptance Scenarios
+
+**Scenario A — Duplicate shifts**
+
+Two identical shifts are detected. The worker rejects one and confirms the other.
+
+Expected: The retained valid shift contributes once to earnings.
+
+**Scenario B — Missing hourly rate**
+
+A worker confirms a shift without an hourly rate.
+
+Expected: The shift remains visible with an incomplete earnings warning. No unsupported earnings amount is calculated.
+
+**Scenario C — Overnight shift**
+
+A worker has a shift starting before midnight and ending the following day.
+
+Expected: The system uses the correct start and end dates, calculates the duration accurately, and assigns the shift to the week in which it begins.
+
+**Scenario D — No eligible shifts**
+
+A worker uploads a schedule but has not confirmed any shifts.
+
+Expected: Weekly earnings display **Not counted yet**, rather than a misleading final total of 0.00.
+
+**Scenario E — Earnings precision**
+
+A shift includes paid minutes that produce fractional hours.
+
+Expected: Earnings are calculated from exact minutes, with monetary rounding applied at the final calculation stage.
+
+**Scenario F — Commute warning**
+
+Two shifts at different locations have less than 30 minutes between them.
+
+Expected: The system displays a scheduling warning without claiming to have calculated actual travel time.
+
+**Scenario G — Corrected extraction**
+
+The worker changes an incorrectly extracted shift time and confirms the correction.
+
+Expected: The corrected value is used in calculations, the original value is preserved, and the updated information persists.
 
 ## 7. Definition of Done
 
-The MVP is ready when:
+The core MVP is ready when:
 
-- A worker can upload CSV and PDF schedules.
-- Extracted shifts can be reviewed, edited, confirmed or rejected.
+- CSV upload works end to end.
+- Extracted shifts can be reviewed, edited, confirmed, and rejected.
+- Original extracted information and worker corrections are preserved.
 - Invalid and incomplete shifts are handled clearly.
 - Scheduling conflicts and warnings are visible.
 - Eligible paid hours and gross earnings are calculated correctly.
 - Weekly schedule and earnings views are usable.
 - Worker corrections and statuses persist.
-- The frontend and backend use agreed data contracts.
-- End-to-end tests pass.
-- The team can demonstrate the complete workflow.
+- Frontend and backend use the agreed data contract.
+- Earnings calculations use one authoritative backend implementation.
+- Overnight shifts are handled correctly.
+- Duplicate resolution prevents double counting.
+- Incomplete earnings are not displayed as confirmed zero totals.
+- The existing validator regression tests continue passing.
+- Frontend/backend end-to-end tests pass.
+- The team can demonstrate the complete worker journey.
+
+PDF and image extraction must be separately verified against known-answer test files if implemented.
+
+The existing validator tests do not replace full end-to-end testing.
 
 ## 8. Team Responsibilities
 
-**Castro Mzizi — Product & Project / AI Cloud Lead:** Product requirements, worker experience, acceptance criteria, product review and demo alignment.
+**Castro Mzizi — Product & Project**
 
-**Nandila Mulilalila — Team Lead / Architecture:** Backend, cloud architecture, integration and technical decisions.
+Product requirements, worker experience, acceptance criteria, frontend review, product decisions, and demo alignment.
 
-**Ololade Gbodogbe — Data Validation and Earnings:** Synthetic data, validation rules, earnings calculations and regression tests.
+**Nandila Mulilalila — Team Lead / Architecture**
 
-**Lavanya Sai Bandla — Testing:** Test coverage, regression verification and quality assurance.
+Backend, cloud architecture, API contracts, persistence, integration, and technical decisions.
 
-## 9. Open Decisions
+**Ololade Gbodogbe — Data Validation and Earnings**
 
-Before finalizing implementation:
+Synthetic data, validation rules, earnings calculations, regression tests, and implementation of agreed calculation changes.
 
-1. Confirm canonical backend field names and frontend data contract.
-2. Resolve missing-break and duplicate-earnings handling.
-3. Confirm incomplete earnings behavior for missing currency.
-4. Ensure review queues include confirmed shifts with unresolved blocking errors or incomplete earnings.
-5. Agree on the simplest Firestore structure and frontend integration approach.
+**Lavanya Sai Bandla — Testing and Quality Assurance**
 
-These decisions should be resolved collaboratively through the existing pull-request review process.
+Regression verification, acceptance test coverage, integration testing, and end-to-end quality assurance.
+
+## 9. Product Decisions and Remaining Implementation Items
+
+### 9.1 Confirmed Product Decisions
+
+The following decisions were established through PR #3 review:
+
+1. **Upload priority:** CSV first; PDF and image extraction depend on reliability and development capacity.
+2. **Missing hourly rate:** Warning with incomplete earnings, not a blocking scheduling error.
+3. **Earnings rounding:** Calculate using exact minutes and round monetary amounts at the final stage.
+4. **No eligible shifts:** Display **Not counted yet** when shifts await confirmation or required information.
+5. **Duplicate handling:** Rejecting one duplicate must allow the retained valid shift to become eligible.
+6. **Maximum shift duration:** Retain the 16-hour validation limit for the MVP.
+7. **Backend and persistence:** Standardise data contracts, preserve original and corrected values, and support overnight end dates.
+8. **Commute warnings:** The 30-minute rule is a scheduling heuristic, not a verified travel-time estimate.
+
+### 9.2 Remaining Implementation Items
+
+**Nandila**
+
+- Finalise canonical backend fields and API responses.
+- Confirm the minimum Firestore structure.
+- Confirm Google Cloud deployment status.
+- Confirm the NVIDIA integration approach.
+- Establish how the Newly frontend connects to the FastAPI service.
+
+**Ololade**
+
+- Apply the agreed missing-rate behaviour.
+- Fix rejected-duplicate handling.
+- Implement exact-minute earnings calculations.
+- Implement the no-counted-shifts earnings behaviour.
+- Extend regression tests for these decisions.
+
+**Castro**
+
+- Review the Newly screens against this specification.
+- Identify missing or inconsistent worker interactions.
+- Confirm that the final interface follows the agreed product rules.
+- Support integration review and demonstration planning.
+
+**Lavanya**
+
+- Verify that the agreed product rules have test coverage.
+- Continue validator regression testing.
+- Test the connected frontend and backend.
+- Record and verify end-to-end issues.
+
+### 9.3 Integration Priority
+
+The immediate priority is a reliable end-to-end worker journey:
+
+**CSV Upload → Shift Review → Worker Correction → Confirmation → Backend Validation → Weekly Earnings**
+
+The team should avoid maintaining separate calculation implementations.
+
+Additional extraction formats should not delay delivery of this core workflow.
+
+## 10. Final Product Acceptance
+
+This document defines the agreed product behaviour and acceptance criteria for WorkClarity's MVP.
+
+It does not imply that all integration, deployment, or testing tasks have already been completed.
+
+The MVP will be considered ready for demonstration when the complete worker journey works reliably, calculations match the agreed rules, and outstanding limitations are documented.
+
+**Target submission: 28 November 2026.**
