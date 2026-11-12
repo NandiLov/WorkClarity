@@ -299,7 +299,7 @@ for t in truth:
     cancelled = t["shift_status"] == "cancelled"
     t["counts_toward_earnings"] = "false" if cancelled else "true"
     t["paid_hours"] = 0.0 if cancelled else round((mins - t["break_minutes"]) / 60, 2)
-    t["gross_earnings"] = round(t["paid_hours"] * t["hourly_rate"], 2)
+    t["gross_earnings"] = 0.0 if cancelled else round((mins - t["break_minutes"]) / 60 * t["hourly_rate"], 2)  # exact minutes, round only the money
     t["verified_by"] = "generator"
     t["verified_at"] = "2026-11-04"
     t["_s"], t["_e"] = s, e
