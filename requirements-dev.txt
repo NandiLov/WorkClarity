@@ -1,0 +1,6 @@
+# Install application dependencies
+-r requirements.txt
+
+# Development and testing dependencies
+pytest==9.2.0
+httpx2==2.16.0
