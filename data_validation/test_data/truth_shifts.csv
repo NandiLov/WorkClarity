@@ -14,7 +14,7 @@ S004-01,S004,1,W004,E01,L05,sales floor,2026-11-03,08:00,14:00,false,0,false,14.
 S004-02,S004,2,W004,E04,L06,kitchen,2026-11-03,12:00,18:00,false,0,false,15.0,USD,regular,scheduled,true,30,6.0,90.0,generator,2026-11-04
 S004-03,S004,3,W004,E01,L05,sales floor,2026-11-05,09:00,13:00,false,0,false,14.0,USD,regular,scheduled,true,30,4.0,56.0,generator,2026-11-04
 S005-01,S005,1,W005,E05,L07,patient support,2026-11-04,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
-S005-02,S005,2,W005,E03,L08,counter,2026-11-04,12:10,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.83,62.79,generator,2026-11-04
+S005-02,S005,2,W005,E03,L08,counter,2026-11-04,12:10,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.83,62.83,generator,2026-11-04
 S005-03,S005,3,W005,E05,L07,patient support,2026-11-06,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,30,7.5,112.5,generator,2026-11-04
 S006-01,S006,1,W006,E02,L09,inventory,2026-11-02,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
 S006-02,S006,2,W006,E02,L09,inventory,2026-11-03,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
@@ -62,7 +62,7 @@ S017-05,S017,5,W016,E04,L06,kitchen,2026-11-12,18:00,23:00,false,0,false,15.0,US
 S018-01,S018,1,W017,E05,L07,patient support,2026-11-09,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
 S018-02,S018,2,W017,E03,L08,counter,2026-11-09,12:15,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.75,61.75,generator,2026-11-04
 S018-03,S018,3,W017,E05,L07,patient support,2026-11-11,07:00,12:00,false,0,false,15.0,USD,regular,scheduled,true,30,5.0,75.0,generator,2026-11-04
-S018-04,S018,4,W017,E03,L08,counter,2026-11-11,12:20,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.67,60.71,generator,2026-11-04
+S018-04,S018,4,W017,E03,L08,counter,2026-11-11,12:20,17:00,false,0,false,13.0,USD,regular,scheduled,true,30,4.67,60.67,generator,2026-11-04
 S018-05,S018,5,W017,E05,L07,patient support,2026-11-13,08:00,16:00,false,30,false,15.0,USD,regular,scheduled,true,,7.5,112.5,generator,2026-11-04
 S019-01,S019,1,W018,E02,L09,inventory,2026-11-09,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04
 S019-02,S019,2,W018,E02,L09,inventory,2026-11-10,10:00,18:00,false,30,false,12.0,USD,regular,scheduled,true,0,7.5,90.0,generator,2026-11-04

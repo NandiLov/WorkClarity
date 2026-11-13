@@ -24,7 +24,7 @@ Status: draft by Ololade, 2026-11-05, updated after Castro's review on 2026-11-0
 | Spec code | Dataset error type | Dataset flag | Note |
 | --- | --- | --- | --- |
 | INVALID_TIME | unparseable_time, missing_end_time | missing_or_invalid | A missing time counts as invalid |
-| MISSING_RATE | missing_rate | missing_or_invalid | |
+| MISSING_RATE | missing_rate | missing_or_invalid | Warning. The shift is not counted and the week is marked incomplete |
 | MISSING_EMPLOYER | missing_employer | missing_or_invalid | Decided by Castro: a warning, the shift still counts |
 | MISSING_LOCATION | missing_location | missing_or_invalid | Decided by Castro: a warning, and the commute check is unavailable |
 | INVALID_BREAK | missing_break, invalid_break (S027) | missing_or_invalid | A missing break is never treated as zero: earnings stay incomplete until the worker confirms no break or enters one (PR23). invalid_break covers a negative break and a break as long as or longer than the shift. Rule PR16, confirmed by Castro |
@@ -53,8 +53,8 @@ Status: draft by Ololade, 2026-11-05, updated after Castro's review on 2026-11-0
 | Spec output | Dataset |
 | --- | --- |
 | Paid hours per shift | truth_shifts.paid_hours |
-| Gross earnings per shift, rounded to 2 decimals | truth_shifts.gross_earnings |
-| Weekly total from the rounded per shift amounts | expected_weekly_earnings.expected_gross_mvp. Checked: all 32 weekly rows match |
+| Gross earnings per shift, from exact minutes, rounded to 2 decimals | truth_shifts.gross_earnings |
+| Weekly total from the per shift amounts | expected_weekly_earnings.expected_gross_mvp. Checked: all 32 weekly rows match |
 | Totals per currency, no mixed currency | expected_weekly_earnings has a currency column. S028 has one USD row and one EUR row |
 | Earnings incomplete count | expected_weekly_earnings.incomplete_shifts. S029 has 1 |
 | Label "Estimated gross earnings (before tax or deductions)" | Display text for the app, not stored in the data |

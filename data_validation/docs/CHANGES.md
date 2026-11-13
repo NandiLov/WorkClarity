@@ -78,6 +78,19 @@ The service is separate and lives at backend/app/services/shift_calculations.py.
 
 Monday pay week (PR01), 30 minute travel gap (PR08), break rule (PR16), PDF as the second format (PR15), missing employer or location as a warning, missing date as a blocking error, needs_review and rejected handling, and the flag wording and severity.
 
+## Applied in this update: Castro's decisions on PR 3 (2026-11-12)
+
+- Earnings use exact minutes and only the final money amount is rounded to 2 decimals. Answer key changes: S005 250.29 to 250.33 and S018 384.96 to 384.92 (expected_weekly_earnings.csv, truth_shifts.csv, shift_details.csv, generator).
+- A missing hourly rate is a warning with incomplete earnings, not an invalid shift.
+- A week with nothing counted yet shows "Not counted yet" (gross_earnings null). A genuine zero stays 0.00.
+- A rejected shift no longer makes its duplicate twin look like a duplicate.
+- The 16 hour shift limit (PR07) stays.
+- CSV comes first. PDF and image follow if time and reliability allow. The PR15 line in pay_rules.csv is Castro's to update, so it is unchanged here.
+
+## Castro's review of PR 5 (2026-11-13)
+
+- Weekly `paid_hours` now counts eligible hours only, the hours behind `gross_earnings`. Hours of incomplete shifts are reported in the new `incomplete_hours`, and hours of shifts waiting for confirmation or review in the new `pending_hours`. Overtime hours are worked out from eligible hours.
+
 ## Resolved in this update
 
 - end_date added as an optional column in csv_input_contract.md and data_dictionary.csv (csv_upload_file.end_date). The service already supports it.
