@@ -43,7 +43,8 @@ One dictionary per worker:
   ],
   "weekly_summary": [
     { "week_start": "2026-11-09", "currency": "USD", "shifts": 1, "paid_hours": 7.5,
-      "gross_earnings": 123.75, "incomplete_shifts": 0, "earnings_incomplete": false,    gross_earnings is null (Not counted yet) when nothing is counted but shifts are waiting,
+      "incomplete_hours": 0.0, "pending_hours": 0.0,
+      "gross_earnings": 123.75, "incomplete_shifts": 0, "earnings_incomplete": false,
       "cancelled_shifts": 0 }
   ],
   "conflicts": [ overlaps and commute conflicts ],
@@ -57,6 +58,7 @@ One dictionary per worker:
 - A missing employer or location is a warning and the shift still counts. A missing date is a blocking error.
 - needs_review, rejected, unconfirmed and cancelled shifts are left out of final earnings. Rejected shifts are also left out of the schedule and conflicts.
 - Earnings use exact minutes. Only the final money amount is rounded to 2 decimals (4h50m at 13.00 pays 62.83). `paid_hours` is rounded for display only.
+- Weekly `paid_hours` is eligible hours only: the hours of counted shifts, which are the hours behind `gross_earnings`. Hours of shifts that are incomplete (for example no rate or currency) are reported in `incomplete_hours`, and hours of shifts waiting for confirmation or review in `pending_hours`. Shifts with an unknown break have no paid hours yet, so they add nothing to any of the three.
 - A week with nothing counted yet, because shifts are unconfirmed, held for review or incomplete, has `gross_earnings` null and `earnings_incomplete` true. The app shows "Not counted yet". A real zero, such as every shift cancelled, stays 0.00 with `earnings_incomplete` false.
 - A rejected shift is ignored everywhere, including duplicate detection, so it never holds back a retained shift.
 - A confirmed shift with no rate, no break or no currency stays visible and is counted in `incomplete_shifts`. A missing rate is a warning (`validation_status` warning), not an error; the shift is still not counted. A missing break is never treated as zero: the worker confirms no break (0) or enters one first. With no currency, no total is produced.

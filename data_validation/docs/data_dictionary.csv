@@ -56,7 +56,7 @@ truth_shifts,shift_status,STRING,,"scheduled, changed or cancelled",scheduled,ch
 truth_shifts,counts_toward_earnings,BOOL,,"false for cancelled shifts, which are kept as records but not counted in projected earnings",true,new
 truth_shifts,travel_minutes_to_next_shift,INT64,,"Minutes needed to travel to the worker's next shift (0 if same location, empty for the last shift)",0,unchanged
 truth_shifts,paid_hours,FLOAT64,,Hours paid: shift length minus the unpaid break,8.0,unchanged
-truth_shifts,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: exact paid minutes times hourly rate, rounded to 2 decimals at the end. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
+truth_shifts,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: exact paid minutes times hourly rate and rounded to 2 decimals at the end. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
 truth_shifts,verified_by,STRING,,Who confirmed the correct answer (generator for synthetic data),generator,unchanged
 truth_shifts,verified_at,DATE,,Date the answer was confirmed,2026-11-04,unchanged
 raw_shifts,raw_id,STRING,primary key,Unique ID of one extracted row,R001,unchanged
@@ -95,7 +95,7 @@ expected_weekly_earnings,currency,STRING,,Currency of this row. Totals are kept 
 expected_weekly_earnings,shifts,INT64,,Number of shifts in the week,3,unchanged
 expected_weekly_earnings,incomplete_shifts,INT64,,Number of confirmed shifts left out of gross pay because the rate is missing,0,new
 expected_weekly_earnings,cancelled_shifts,INT64,,"Number of cancelled shifts in the week, not counted in pay",0,new
-expected_weekly_earnings,paid_hours,FLOAT64,,Correct paid hours for the week,24.0,unchanged
+expected_weekly_earnings,paid_hours,FLOAT64,,Correct eligible paid hours for the week: the hours behind the gross earnings without incomplete or waiting shifts,24.0,unchanged
 expected_weekly_earnings,regular_hours,FLOAT64,,Hours up to the overtime threshold,24.0,unchanged
 expected_weekly_earnings,overtime_hours,FLOAT64,,Hours above the overtime threshold,0,unchanged
 expected_weekly_earnings,expected_gross_mvp,FLOAT64,,"Correct gross pay for the week with overtime switched off, from shifts that have a rate. Shifts counted in incomplete_shifts are left out",384.0,changed
@@ -127,7 +127,7 @@ shift_details,pay_type,STRING,,regular or weekend,regular,unchanged
 shift_details,shift_status,STRING,,"scheduled, changed or cancelled",scheduled,changed
 shift_details,counts_toward_earnings,BOOL,,"false for cancelled shifts, which are kept as records but not counted in projected earnings",true,new
 shift_details,paid_hours,FLOAT64,,Hours paid: shift length minus the unpaid break,8.0,unchanged
-shift_details,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: exact paid minutes times hourly rate, rounded to 2 decimals at the end. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
+shift_details,gross_earnings,FLOAT64,,Gross pay for the shift before tax and deductions: exact paid minutes times hourly rate and rounded to 2 decimals at the end. 0.00 for cancelled shifts. Renamed from earnings,120.0,renamed
 shift_details,case_type,STRING,,"Name of the test scenario, for example overlap",reference_overnight,unchanged
 csv_upload_file,shift_date,date,,"Required. Date the shift starts, written YYYY-MM-DD",2026-11-03,new
 csv_upload_file,start_time,text,,Required. Start time in 24 hour HH:MM,08:00,new

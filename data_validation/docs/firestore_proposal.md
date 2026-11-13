@@ -36,7 +36,7 @@ The `extracted` map is kept separate from `current` so the original upload stays
 
 ## Weekly summary document
 
-Fields come straight from the output: week_start, currency, shifts, paid_hours, gross_earnings, incomplete_shifts, earnings_incomplete and cancelled_shifts, plus worker_id. gross_earnings is null ("Not counted yet") when nothing is counted but shifts are waiting for confirmation or information, and 0.00 only for a genuine zero such as every shift cancelled. Totals are always read from this document and never added up in the frontend, which also keeps currencies from being mixed.
+Fields come straight from the output: week_start, currency, shifts, paid_hours (eligible hours only, the hours behind gross_earnings), incomplete_hours, pending_hours, gross_earnings, incomplete_shifts, earnings_incomplete and cancelled_shifts, plus worker_id. gross_earnings is null ("Not counted yet") when nothing is counted but shifts are waiting for confirmation or information, and 0.00 only for a genuine zero such as every shift cancelled. Totals are always read from this document and never added up in the frontend, which also keeps currencies from being mixed.
 
 ## Conflict document
 

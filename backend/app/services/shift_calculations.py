@@ -35,7 +35,8 @@ Output:
                       flag_name, message} ],
       "commute_not_assessed": [ {shift_a_id, shift_b_id, gap_minutes, message} ],
       "weekly_summary": [ {worker_id, pay_week_start, currency, shifts, cancelled_shifts,
-                           incomplete_shifts, paid_hours, regular_hours, overtime_hours,
+                           incomplete_shifts, pending_shifts, paid_hours (eligible hours only),
+                           incomplete_hours, pending_hours, regular_hours, overtime_hours,
                            gross_earnings, gross_with_overtime} ]
     }
 
@@ -432,8 +433,13 @@ def _weekly(results, rules):
         counted = [i for i in items if i["status"] == "counted"]
         incomplete = [i for i in items if i["status"] == "incomplete"]
         pending = [i for i in items if i["status"] in ("unconfirmed", "needs_review", "excluded")]
-        hours = sum((i["_exact_hours"] for i in counted + incomplete if i["_exact_hours"] is not None),
-                    Decimal("0"))
+        def _hours_of(group):
+            return sum((i["_exact_hours"] for i in group if i["_exact_hours"] is not None), Decimal("0"))
+        # paid_hours = eligible hours only: the hours that make up gross_earnings.
+        # Hours of incomplete and waiting shifts are reported apart so they are never mixed in.
+        hours = _hours_of(counted)
+        incomplete_hours = _hours_of(incomplete)
+        pending_hours = _hours_of([i for i in pending if i["status"] != "excluded"])
         gross = sum((Decimal(str(i["gross_earnings"])) for i in counted), Decimal("0"))
         # "Not counted yet": nothing counted but shifts are still waiting, so the total is null, not 0.00.
         # A genuine zero (for example every shift cancelled) stays 0.00.
@@ -445,6 +451,7 @@ def _weekly(results, rules):
             cancelled_shifts=sum(1 for i in items if i["status"] == "cancelled"),
             incomplete_shifts=len(incomplete), pending_shifts=len(pending),
             paid_hours=float(_money(hours)),
+            incomplete_hours=float(_money(incomplete_hours)), pending_hours=float(_money(pending_hours)),
             regular_hours=float(_money(min(hours, threshold))), overtime_hours=float(_money(ot)),
             gross_earnings=None if no_total else float(_money(with_ot if overtime_on else gross)),
             gross_with_overtime=None if no_total else float(_money(with_ot))))
@@ -541,7 +548,8 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
         "shifts": [ {shift_id, date, week_start, paid_hours, hourly_rate, currency, gross_earnings,
                      validation_status (valid, warning or invalid), earnings_status,
                      eligible_for_earnings, earnings_reason, flags: [...], source_line} ],
-        "weekly_summary": [ {week_start, currency, shifts, paid_hours, gross_earnings,
+        "weekly_summary": [ {week_start, currency, shifts, paid_hours (eligible hours only),
+                             incomplete_hours, pending_hours, gross_earnings,
                              incomplete_shifts, earnings_incomplete, cancelled_shifts} ],
         "conflicts": [...], "commute_not_assessed": [...]
     }
@@ -581,7 +589,8 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
             source_line=original.get("source_line")))
 
     weekly = [dict(week_start=w["pay_week_start"], currency=w["currency"], shifts=w["shifts"],
-                   paid_hours=w["paid_hours"], gross_earnings=w["gross_earnings"],
+                   paid_hours=w["paid_hours"], incomplete_hours=w["incomplete_hours"],
+                   pending_hours=w["pending_hours"], gross_earnings=w["gross_earnings"],
                    incomplete_shifts=w["incomplete_shifts"], earnings_incomplete=(w["incomplete_shifts"] + w["pending_shifts"]) > 0,
                    cancelled_shifts=w["cancelled_shifts"])
               for w in result["weekly_summary"]]

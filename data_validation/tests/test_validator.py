@@ -159,7 +159,8 @@ def test_confirmed_shift_without_a_rate_is_incomplete_s029():
     week = result["weekly_summary"][0]
     assert week["gross_earnings"] == 337.50
     assert week["incomplete_shifts"] == 1
-    assert week["paid_hours"] == 30.0
+    assert week["paid_hours"] == 22.5          # eligible hours only, the ones that make up 337.50
+    assert week["incomplete_hours"] == 7.5     # the shift without a rate is reported apart
     assert result["shifts"][1]["status"] == "incomplete"
     assert any(i["code"] == "MISSING_RATE" for i in result["shifts"][1]["issues"])
 
@@ -414,6 +415,7 @@ def test_backend_shape_in_and_out():
     assert shift["source_line"].startswith("2026-11-09,09:00")
     week = out["weekly_summary"][0]
     assert week == {"week_start": "2026-11-09", "currency": "USD", "shifts": 1, "paid_hours": 7.5,
+                    "incomplete_hours": 0.0, "pending_hours": 0.0,
                     "gross_earnings": 123.75, "incomplete_shifts": 0, "earnings_incomplete": False,
                     "cancelled_shifts": 0}
 
@@ -485,7 +487,8 @@ def test_incomplete_earnings_are_indicated_in_the_weekly_summary():
     out = calc([backend_shift(shift_id="A"), backend_shift(shift_id="B", date="2026-11-10", hourly_rate=None)])
     week = out["weekly_summary"][0]
     assert week["incomplete_shifts"] == 1 and week["earnings_incomplete"] is True
-    assert week["gross_earnings"] == 123.75 and week["paid_hours"] == 15.0
+    assert week["gross_earnings"] == 123.75 and week["paid_hours"] == 7.5
+    assert week["incomplete_hours"] == 7.5
 
 
 def test_weekly_summary_is_grouped_by_currency():
@@ -661,3 +664,17 @@ def test_spec_acceptance_example_232():
     week = out["weekly_summary"][0]
     assert week["paid_hours"] == 14.5 and week["gross_earnings"] == 232.0
     assert week["earnings_incomplete"] is True and week["incomplete_shifts"] == 1
+
+
+def test_weekly_hours_separate_eligible_from_incomplete_and_waiting():
+    # Castro's review of PR 5: paid_hours must be the hours behind gross_earnings only.
+    out = calc([
+        backend_shift(shift_id="A", date="2026-11-09", start_time="09:00", end_time="17:00", break_minutes=30, hourly_rate="16"),
+        backend_shift(shift_id="B", date="2026-11-10", start_time="09:00", end_time="17:00", break_minutes=30, hourly_rate=None),
+        backend_shift(shift_id="C", date="2026-11-11", start_time="09:00", end_time="17:00", break_minutes=30, hourly_rate="16",
+                      confirmation_status="unconfirmed"),
+    ])
+    week = out["weekly_summary"][0]
+    assert week["paid_hours"] == 7.5 and week["gross_earnings"] == 120.0
+    assert week["incomplete_hours"] == 7.5 and week["pending_hours"] == 7.5
+    assert week["earnings_incomplete"] is True

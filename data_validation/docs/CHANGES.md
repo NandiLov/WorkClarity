@@ -87,6 +87,10 @@ Monday pay week (PR01), 30 minute travel gap (PR08), break rule (PR16), PDF as t
 - The 16 hour shift limit (PR07) stays.
 - CSV comes first. PDF and image follow if time and reliability allow. The PR15 line in pay_rules.csv is Castro's to update, so it is unchanged here.
 
+## Castro's review of PR 5 (2026-11-13)
+
+- Weekly `paid_hours` now counts eligible hours only, the hours behind `gross_earnings`. Hours of incomplete shifts are reported in the new `incomplete_hours`, and hours of shifts waiting for confirmation or review in the new `pending_hours`. Overtime hours are worked out from eligible hours.
+
 ## Resolved in this update
 
 - end_date added as an optional column in csv_input_contract.md and data_dictionary.csv (csv_upload_file.end_date). The service already supports it.
