@@ -3,4 +3,6 @@
 
 # Development and testing dependencies
 pytest==9.2.0
+
+# Required by Starlette TestClient; preferred over deprecated httpx support
 httpx2==2.16.0
