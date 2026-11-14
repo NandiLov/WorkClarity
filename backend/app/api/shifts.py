@@ -1,14 +1,30 @@
+
+from pathlib import Path
+
 from fastapi import APIRouter
-#keeps shift-related endpoints separate from the main application.
+
 from backend.app.schemas.shift import ShiftCalculationRequest
-#ShiftCalculationRequest validates the incoming request.
-from backend.app.services.shift_calculations import calculate_shifts
+from backend.app.services.shift_calculations import (
+    calculate_shifts,
+    load_flag_messages,
+    load_known_locations,
+    load_rules,
+)
 
 
 router = APIRouter(
     prefix="/shifts",
     tags=["Shifts"],
 )
+
+# Locate the backend configuration directory independently
+# of the directory from which the application is started.
+CONFIG_DIR = Path(__file__).resolve().parents[1] / "config"
+
+# Load trusted, server-controlled configuration.
+PAY_RULES = load_rules(CONFIG_DIR / "pay_rules.csv")
+KNOWN_LOCATIONS = load_known_locations(CONFIG_DIR / "locations.csv")
+FLAG_MESSAGES = load_flag_messages()
 
 
 @router.post("/calculate")
@@ -17,12 +33,14 @@ async def calculate_shift_endpoint(request: ShiftCalculationRequest):
 
     payload = request.model_dump(
         exclude={"include_unconfirmed"}
-    ) #model_dump() converts the validated request into a Python dictionary.
+    )
 
     result = calculate_shifts(
         payload,
+        flag_messages=FLAG_MESSAGES,
+        known_locations=KNOWN_LOCATIONS,
         include_unconfirmed=request.include_unconfirmed,
-    ) #delegates the actual calculations to Ololade's service.
+        rules=PAY_RULES,
+    )
 
     return result
-#http://127.0.0.1:8000/api/v1/shifts/calculate

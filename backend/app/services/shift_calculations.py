@@ -531,7 +531,13 @@ def process_shifts(shifts, rules=None, flag_messages=None, known_locations=None,
 
 
 # ------------------------------------------------------------------ service entry point for the backend
-def calculate_shifts(payload, flag_messages=None, known_locations=None, include_unconfirmed=False):
+def calculate_shifts(
+    payload,
+    flag_messages=None,
+    known_locations=None,
+    include_unconfirmed=False,
+    rules=None,
+):
     """Entry point for the FastAPI backend. Takes one worker's shifts and the rules, returns the results.
 
     payload = {
@@ -539,8 +545,6 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
         "shifts": [ {shift_id, employer, date, start_time, end_time, end_date, break_minutes,
                      hourly_rate, currency, location_text, confirmation_status, shift_status,
                      source_line}, ... ],
-        "rules": {"pay_week_start": "monday", "min_commute_gap_minutes": 30},   # optional
-        "known_locations": ["Store A", ...]                                      # optional
     }
 
     Returns {
@@ -565,11 +569,13 @@ def calculate_shifts(payload, flag_messages=None, known_locations=None, include_
             item["worker_id"] = worker_id
         prepared.append(item)
 
-    known = known_locations
-    if payload.get("known_locations"):
-        known = {_norm(n) for n in payload["known_locations"]}
-
-    result = process_shifts(prepared, payload.get("rules"), flag_messages, known, include_unconfirmed)
+    result = process_shifts(
+        prepared,
+        rules,
+        flag_messages,
+        known_locations,
+        include_unconfirmed,
+    )
 
     shifts = []
     for original, item in zip(incoming, result["shifts"]):

@@ -405,9 +405,7 @@ def backend_shift(**changes):
 
 def calc(shifts, rules=None, worker_id="W1"):
     payload = {"worker_id": worker_id, "shifts": shifts}
-    if rules is not None:
-        payload["rules"] = rules
-    return calculate_shifts(payload)
+    return calculate_shifts(payload, rules=rules)
 
 
 def test_backend_shape_in_and_out():
@@ -515,9 +513,16 @@ def test_weekly_summary_is_grouped_by_currency():
 
 
 def test_known_locations_can_be_passed_by_the_backend():
-    payload = {"worker_id": "W1", "shifts": [backend_shift(location_text="Riverside Annex")],
-               "known_locations": ["Store A", "Store B"]}
-    flags = calculate_shifts(payload)["shifts"][0]["flags"]
+    payload = {
+        "worker_id": "W1",
+        "shifts": [backend_shift(location_text="Riverside Annex")],
+    }
+
+    flags = calculate_shifts(
+        payload,
+        known_locations={"store a", "store b"},
+    )["shifts"][0]["flags"]
+
     assert any(f["code"] == "UNKNOWN_LOCATION" for f in flags)
 
 

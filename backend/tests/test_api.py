@@ -59,3 +59,35 @@ def test_calculate_shift_rejects_missing_worker_id():
     )
 
     assert response.status_code == 422
+
+
+def test_calculate_shift_rejects_client_supplied_rules():
+    payload = {
+        "worker_id": "W001",
+        "shifts": [],
+        "rules": {
+            "max_shift_hours": "100",
+        },
+    }
+
+    response = client.post(
+        "/api/v1/shifts/calculate",
+        json=payload,
+    )
+
+    assert response.status_code == 422
+
+
+def test_calculate_shift_rejects_client_supplied_locations():
+    payload = {
+        "worker_id": "W001",
+        "shifts": [],
+        "known_locations": ["Any Location"],
+    }
+
+    response = client.post(
+        "/api/v1/shifts/calculate",
+        json=payload,
+    )
+
+    assert response.status_code == 422
