@@ -159,7 +159,10 @@ def test_confirmed_shift_without_a_rate_is_incomplete_s029():
     week = result["weekly_summary"][0]
     assert week["gross_earnings"] == 337.50
     assert week["incomplete_shifts"] == 1
-    assert week["paid_hours"] == 30.0
+
+    assert week["paid_hours"] == 22.5
+    assert week["incomplete_hours"] == 7.5
+
     assert result["shifts"][1]["status"] == "incomplete"
     assert any(i["code"] == "MISSING_RATE" for i in result["shifts"][1]["issues"])
 
@@ -384,6 +387,10 @@ def test_earnings_use_confirmed_validated_shifts_only():
               one_shift(shift_id="BAD", shift_date="2026-11-13", start_time="09:00", end_time="09:00")]
     week = run(shifts)["weekly_summary"][0]
     assert week["gross_earnings"] == 123.75
+    assert week["paid_hours"] == 7.5
+    assert week["pending_shifts"] == 2
+    assert week["pending_hours"] == 15.0
+    assert week["incomplete_shifts"] == 0
 
 
 # ------------------------------------------------------------------ the backend interface agreed with Nandila
@@ -398,9 +405,7 @@ def backend_shift(**changes):
 
 def calc(shifts, rules=None, worker_id="W1"):
     payload = {"worker_id": worker_id, "shifts": shifts}
-    if rules is not None:
-        payload["rules"] = rules
-    return calculate_shifts(payload)
+    return calculate_shifts(payload, rules=rules)
 
 
 def test_backend_shape_in_and_out():
@@ -413,9 +418,19 @@ def test_backend_shape_in_and_out():
     assert shift["earnings_status"] == "counted" and shift["flags"] == []
     assert shift["source_line"].startswith("2026-11-09,09:00")
     week = out["weekly_summary"][0]
-    assert week == {"week_start": "2026-11-09", "currency": "USD", "shifts": 1, "paid_hours": 7.5,
-                    "gross_earnings": 123.75, "incomplete_shifts": 0, "earnings_incomplete": False,
-                    "cancelled_shifts": 0}
+
+    assert week == {
+        "week_start": "2026-11-09",
+        "currency": "USD",
+        "shifts": 1,
+        "paid_hours": 7.5,
+        "incomplete_hours": 0.0,
+        "pending_hours": 0.0,
+        "gross_earnings": 123.75,
+        "incomplete_shifts": 0,
+        "earnings_incomplete": False,
+        "cancelled_shifts": 0,
+    }
 
 
 def test_both_csv_names_and_backend_names_are_accepted():
@@ -485,7 +500,9 @@ def test_incomplete_earnings_are_indicated_in_the_weekly_summary():
     out = calc([backend_shift(shift_id="A"), backend_shift(shift_id="B", date="2026-11-10", hourly_rate=None)])
     week = out["weekly_summary"][0]
     assert week["incomplete_shifts"] == 1 and week["earnings_incomplete"] is True
-    assert week["gross_earnings"] == 123.75 and week["paid_hours"] == 15.0
+    assert week["gross_earnings"] == 123.75
+    assert week["paid_hours"] == 7.5
+    assert week["incomplete_hours"] == 7.5
 
 
 def test_weekly_summary_is_grouped_by_currency():
@@ -496,9 +513,16 @@ def test_weekly_summary_is_grouped_by_currency():
 
 
 def test_known_locations_can_be_passed_by_the_backend():
-    payload = {"worker_id": "W1", "shifts": [backend_shift(location_text="Riverside Annex")],
-               "known_locations": ["Store A", "Store B"]}
-    flags = calculate_shifts(payload)["shifts"][0]["flags"]
+    payload = {
+        "worker_id": "W1",
+        "shifts": [backend_shift(location_text="Riverside Annex")],
+    }
+
+    flags = calculate_shifts(
+        payload,
+        known_locations={"store a", "store b"},
+    )["shifts"][0]["flags"]
+
     assert any(f["code"] == "UNKNOWN_LOCATION" for f in flags)
 
 
@@ -573,8 +597,10 @@ def test_a_missing_break_is_never_treated_as_zero_minutes():
     flag = next(f for f in shift["flags"] if f["code"] == "MISSING_BREAK")
     assert "no break" in flag["reason"] and "overstated" in flag["reason"]
     week = calc([backend_shift(break_minutes=None)])["weekly_summary"][0]
-    assert week["gross_earnings"] == 0.0 and week["earnings_incomplete"] is True and week["incomplete_shifts"] == 1
-
+    assert week["gross_earnings"] is None
+    assert week["earnings_incomplete"] is True
+    assert week["incomplete_shifts"] == 1
+    assert week["incomplete_hours"] == 0.0
 
 def test_a_confirmed_zero_break_counts_in_full():
     shift = calc([backend_shift(break_minutes=0)])["shifts"][0]
