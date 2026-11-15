@@ -1,0 +1,49 @@
+file_name,shift_no,shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status
+pdf_01_table_clean.pdf,1,2026-11-03,08:00,16:00,0,BrightMart,Store A,sales floor,15.00,USD,scheduled
+pdf_01_table_clean.pdf,2,2026-11-04,09:00,17:00,0,BrightMart,Store A,sales floor,15.00,USD,scheduled
+pdf_01_table_clean.pdf,3,2026-11-05,22:00,06:00,0,SwiftLogistics,Warehouse B,dispatch,18.00,USD,scheduled
+pdf_02_table_week.pdf,1,2026-11-02,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+pdf_02_table_week.pdf,2,2026-11-03,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+pdf_02_table_week.pdf,3,2026-11-04,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+pdf_02_table_week.pdf,4,2026-11-05,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+pdf_02_table_week.pdf,5,2026-11-06,09:00,17:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+pdf_03_sentences_12h.pdf,1,2026-11-02,22:00,07:00,60,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled
+pdf_03_sentences_12h.pdf,2,2026-11-04,21:30,05:30,30,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled
+pdf_03_sentences_12h.pdf,3,2026-11-06,23:00,07:00,0,SwiftLogistics,Night Warehouse,dispatch,17.00,USD,scheduled
+pdf_04_weekly_grid.pdf,1,2026-11-03,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled
+pdf_04_weekly_grid.pdf,2,2026-11-04,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled
+pdf_04_weekly_grid.pdf,3,2026-11-07,10:00,18:00,30,FitLife,Gym Reception,front desk,20.00,USD,scheduled
+pdf_05_list_exact_minutes.pdf,1,2026-11-04,07:00,12:00,0,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled
+pdf_05_list_exact_minutes.pdf,2,2026-11-04,12:10,17:00,0,Central Cafe Group,Cafe Downtown,counter,13.00,USD,scheduled
+pdf_05_list_exact_minutes.pdf,3,2026-11-06,08:00,16:00,30,CityCare Hospital,Hospital Annex,patient support,15.00,USD,scheduled
+img_01_screenshot_clean.png,1,2026-11-02,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_01_screenshot_clean.png,2,2026-11-03,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_01_screenshot_clean.png,3,2026-11-04,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_01_screenshot_clean.png,4,2026-11-05,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_01_screenshot_clean.png,5,2026-11-06,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_01_screenshot_clean.png,6,2026-11-07,08:00,17:00,0,PackRight,Packing Plant,packing,15.00,USD,scheduled
+img_02_photo_tilted.jpg,1,2026-11-09,07:00,15:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+img_02_photo_tilted.jpg,2,2026-11-10,07:00,15:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+img_02_photo_tilted.jpg,3,2026-11-11,07:00,15:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,cancelled
+img_02_photo_tilted.jpg,4,2026-11-12,07:00,15:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,scheduled
+img_02_photo_tilted.jpg,5,2026-11-13,07:00,15:00,30,Central Cafe Group,Cafe Central,counter,16.50,USD,cancelled
+img_03_blurry_lowlight.jpg,1,2026-11-09,22:00,06:00,30,SwiftLogistics,Night Warehouse,dispatch,17.50,USD,scheduled
+img_03_blurry_lowlight.jpg,2,2026-11-10,22:00,06:00,30,SwiftLogistics,Night Warehouse,dispatch,17.50,USD,scheduled
+img_03_blurry_lowlight.jpg,3,2026-11-11,22:00,06:00,30,SwiftLogistics,Night Warehouse,dispatch,17.50,USD,scheduled
+img_03_blurry_lowlight.jpg,4,2026-11-12,22:00,06:00,30,SwiftLogistics,Night Warehouse,dispatch,17.50,USD,scheduled
+img_03_blurry_lowlight.jpg,5,2026-11-13,22:00,06:00,30,SwiftLogistics,Night Warehouse,dispatch,17.50,USD,scheduled
+img_04_phone_dark_mode.png,1,2026-11-09,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled
+img_04_phone_dark_mode.png,2,2026-11-10,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled
+img_04_phone_dark_mode.png,3,2026-11-11,10:00,18:00,30,FitLife,Gym Reception,front desk,15.00,USD,scheduled
+img_04_phone_dark_mode.png,4,2026-11-14,10:00,18:00,30,FitLife,Gym Reception,front desk,20.00,USD,scheduled
+img_04_phone_dark_mode.png,5,2026-11-15,10:00,18:00,30,FitLife,Gym Reception,front desk,20.00,USD,scheduled
+img_05_cropped_perspective.jpg,1,2026-11-09,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled
+img_05_cropped_perspective.jpg,2,2026-11-10,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled
+img_05_cropped_perspective.jpg,3,2026-11-11,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled
+img_05_cropped_perspective.jpg,4,2026-11-12,08:00,16:00,30,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled
+img_05_cropped_perspective.jpg,5,2026-11-15,22:00,06:00,0,Grand Hotel,Hotel Front,front desk,18.00,USD,scheduled
+img_06_chat_message.png,1,2026-11-09,10:00,18:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,changed
+img_06_chat_message.png,2,2026-11-10,10:00,18:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,changed
+img_06_chat_message.png,3,2026-11-11,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
+img_06_chat_message.png,4,2026-11-12,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
+img_06_chat_message.png,5,2026-11-13,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
