@@ -79,3 +79,27 @@ def test_report_text_lists_the_differences():
     got[0]["hourly_rate"] = "16.00"
     text = tool.report(tool.compare(key, got))
     assert "expected '15.00' got '16.00'" in text and "Differences to look at" in text
+
+
+def _one_shift_key():
+    return [r for r in key_rows() if r["file_name"] == "img_06_chat_message.png"][:1]
+
+
+def test_a_blank_hourly_rate_is_reported_as_a_mismatch():
+    # QA recommendation on PR 6: the key has a valid rate, so an empty rate must never count as a match.
+    key = _one_shift_key()
+    assert key[0]["hourly_rate"] == "15.50"
+    got = [dict(r) for r in key]
+    got[0]["hourly_rate"] = ""
+    file_result = tool.compare(key, got)["img_06_chat_message.png"]
+    assert file_result["field_ok"]["hourly_rate"] == 0 and file_result["money_ok"] == 0
+    assert file_result["wrong"][0][2] == ["hourly_rate"]
+    assert "expected '15.50' got ''" in tool.report(tool.compare(key, got))
+
+
+def test_a_missing_hourly_rate_column_is_reported_as_a_mismatch():
+    key = _one_shift_key()
+    got = [{k: v for k, v in r.items() if k != "hourly_rate"} for r in key]
+    file_result = tool.compare(key, got)["img_06_chat_message.png"]
+    assert file_result["field_ok"]["hourly_rate"] == 0 and file_result["all_ok"] == 0
+    assert tool.summarise(tool.compare(key, got))["money_ok"] == 0
