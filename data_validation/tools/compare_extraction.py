@@ -10,7 +10,10 @@ The answer key defaults to test_data/unstructured/answer_key.csv. Dates may be w
 times as 08:00 or 8:00 AM, rates as 15 or 15.00. Everything is normalised before it is compared.
 
 Shifts are matched inside each file by date and start time. A shift in the key that has no match is
-"missed". A shift that was read but is not in the key is "invented".
+"missed". A shift that was read but is not in the key is "invented" (for example a shift of another employee).
+In the answer key an empty cell means the document does not state that detail. If the extractor fills it with a
+value, that is an "invented detail". If the extractor leaves empty something that is written down, that is a
+"dropped detail". A dash, n/a, null, unknown or TBC counts as empty.
 "money fields" are the ones that change earnings: date, start, end, break, rate and currency.
 """
 import csv
@@ -31,6 +34,13 @@ MONEY_FIELDS = ["shift_date", "start_time", "end_time", "break_minutes", "hourly
 
 
 # ----------------------------------------------------------------------------- normalising
+EMPTY_WORDS = {"", "-", "\u2013", "\u2014", "n/a", "na", "null", "unknown", "tbc", "?", "missing"}
+
+
+def is_empty(value):
+    return (value or "").strip().lower() in EMPTY_WORDS
+
+
 def norm_date(value):
     text = (value or "").strip()
     for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d %b %Y", "%d %B %Y", "%a %d %b %Y"):
@@ -77,7 +87,7 @@ NORMALISERS = {"shift_date": norm_date, "start_time": norm_time, "end_time": nor
 
 
 def normalise(row):
-    return {f: NORMALISERS[f](row.get(f)) for f in FIELDS}
+    return {f: "" if is_empty(row.get(f)) else NORMALISERS[f](row.get(f)) for f in FIELDS}
 
 
 def read_csv(path):
@@ -123,9 +133,15 @@ def compare(key_all, got_all):
         all_ok = sum(1 for k, g in pairs if all(k[f] == g[f] for f in FIELDS))
         money_ok = sum(1 for k, g in pairs if all(k[f] == g[f] for f in MONEY_FIELDS))
         wrong = [(k, g, [f for f in FIELDS if k[f] != g[f]]) for k, g in pairs if any(k[f] != g[f] for f in FIELDS)]
+        # a detail the document does not state, filled in by the extractor
+        made_up = [(k, g, [f for f in FIELDS if k[f] == "" and g[f] != ""]) for k, g in pairs
+                   if any(k[f] == "" and g[f] != "" for f in FIELDS)]
+        # a detail that is written in the document, left empty by the extractor
+        dropped = [(k, g, [f for f in FIELDS if k[f] != "" and g[f] == ""]) for k, g in pairs
+                   if any(k[f] != "" and g[f] == "" for f in FIELDS)]
         per_file[name] = {"expected": len(key_by_file.get(name, [])), "matched": len(pairs), "missed": missed,
                           "invented": invented, "field_ok": field_ok, "all_ok": all_ok, "money_ok": money_ok,
-                          "wrong": wrong}
+                          "wrong": wrong, "made_up": made_up, "dropped": dropped}
     return per_file
 
 
@@ -134,6 +150,8 @@ def summarise(per_file):
     matched = sum(v["matched"] for v in per_file.values())
     return {"expected": exp, "matched": matched, "missed": sum(len(v["missed"]) for v in per_file.values()),
             "invented": sum(len(v["invented"]) for v in per_file.values()),
+            "made_up_details": sum(len(f) for v in per_file.values() for _, _, f in v["made_up"]),
+            "dropped_details": sum(len(f) for v in per_file.values() for _, _, f in v["dropped"]),
             "all_ok": sum(v["all_ok"] for v in per_file.values()),
             "money_ok": sum(v["money_ok"] for v in per_file.values()),
             "field_ok": {f: sum(v["field_ok"][f] for v in per_file.values()) for f in FIELDS}}
@@ -157,6 +175,8 @@ def report(per_file):
     lines.append(f"Shifts found: {total['matched']} ({pct(total['matched'], total['expected'])})")
     lines.append(f"Shifts missed: {total['missed']}")
     lines.append(f"Shifts invented (read but not in the key): {total['invented']}")
+    lines.append(f"Details invented (the document does not state them): {total['made_up_details']}")
+    lines.append(f"Details dropped (written in the document, left empty): {total['dropped_details']}")
     lines.append(f"Shifts with every field right: {total['all_ok']} ({pct(total['all_ok'], total['expected'])})")
     lines.append(f"Shifts with every money field right: {total['money_ok']} ({pct(total['money_ok'], total['expected'])})")
     lines.append("")
@@ -188,7 +208,10 @@ def report(per_file):
         for g in v["invented"]:
             problems.append(f"  {name}: INVENTED {g['shift_date']} {g['start_time']}-{g['end_time']}")
         for k, g, fields in v["wrong"]:
-            detail = ", ".join(f"{f}: expected {k[f]!r} got {g[f]!r}" for f in fields)
+            def label(f):
+                tag = " INVENTED DETAIL" if k[f] == "" else (" DROPPED DETAIL" if g[f] == "" else "")
+                return f"{f}: expected {k[f]!r} got {g[f]!r}{tag}"
+            detail = ", ".join(label(f) for f in fields)
             problems.append(f"  {name}: {k['shift_date']} {k['start_time']} wrong -> {detail}")
     lines.append("")
     lines.append("Differences to look at:" if problems else "No differences found.")
@@ -208,6 +231,12 @@ def write_report_csv(per_file, path):
             for k, g, fields in v["wrong"]:
                 w.writerow([name, "wrong_field", k["shift_date"], k["start_time"], k["end_time"],
                             "; ".join(f"{x}: expected {k[x]} got {g[x]}" for x in fields)])
+            for k, g, fields in v["made_up"]:
+                w.writerow([name, "invented_detail", k["shift_date"], k["start_time"], k["end_time"],
+                            "; ".join(f"{x}: document has none, got {g[x]}" for x in fields)])
+            for k, g, fields in v["dropped"]:
+                w.writerow([name, "dropped_detail", k["shift_date"], k["start_time"], k["end_time"],
+                            "; ".join(f"{x}: expected {k[x]}" for x in fields)])
 
 
 def main(argv):

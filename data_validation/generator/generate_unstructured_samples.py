@@ -7,7 +7,12 @@ are already known. The answer key lists what an extractor should read from each 
 Usage (from the data_validation folder):
     python3 -I generator/generate_unstructured_samples.py
 
-Writes to test_data/unstructured: pdf and images folders, answer_key.csv and files.csv.
+Three samples are written by hand below (TEAM01, MISS01, MISS02): a team roster that lists several
+employees, and two schedules where some details are deliberately left out. They test whether an extractor
+invents details. In the answer key a blank means the document does not state that detail, so the right
+answer is a blank.
+
+Writes to test_data/unstructured: pdf and images folders, answer_key.csv, files.csv and README.md.
 Needs reportlab, Pillow and numpy. The output is repeatable (fixed random seed).
 """
 import csv
@@ -17,6 +22,7 @@ from datetime import date, datetime
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from reportlab import rl_config
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
@@ -30,6 +36,7 @@ ROOT = os.path.dirname(HERE)
 INPUTS = os.path.join(ROOT, "test_data", "schedule_inputs")
 OUT = os.path.join(ROOT, "test_data", "unstructured")
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+rl_config.invariant = 1  # no timestamps inside the PDFs, so the files are the same every time
 
 KEY_FIELDS = ["shift_date", "start_time", "end_time", "break_minutes", "employer_name", "location",
               "department", "hourly_rate", "currency", "shift_status"]
@@ -47,13 +54,85 @@ FILES = [
     ("img_04_phone_dark_mode.png", "S024", "image", "dark", "medium", "Phone dark mode cards, weekend rate"),
     ("img_05_cropped_perspective.jpg", "S025", "image", "perspective", "hard", "Angled and cropped photo, overnight shift on the pay week boundary"),
     ("img_06_chat_message.png", "S023", "image", "chat", "medium", "Manager chat message in free text, no table, rate stated once, two changed shifts"),
+    ("pdf_06_team_roster_multi_employee.pdf", "TEAM01", "pdf", "roster", "hard",
+     "Team roster with four employees. Only the shifts of Maria Santos belong in the answer, the others must not be read as hers"),
+    ("pdf_07_missing_details.pdf", "MISS01", "pdf", "table", "hard",
+     "Table with details left out on purpose: a break, a rate, a currency, an end time and a location. The answer for each is blank"),
+    ("img_07_photo_missing_details.jpg", "MISS02", "image", "tilted", "hard",
+     "Tilted photo with a break and a rate left out, and a break of 0 that is written down and must stay 0"),
 ]
+
+
+# ----------------------------------------------------------------------------- hand written samples
+def _shift(day, start, end, brk, employer, location, department, rate, currency, status="scheduled", **extra):
+    row = dict(shift_date=day, start_time=start, end_time=end, break_minutes=brk, employer_name=employer,
+               location=location, department=department, hourly_rate=rate, currency=currency, shift_status=status)
+    row.update(extra)
+    return row
+
+
+def _team_roster():
+    hb = "Harbor Bistro"
+    maria = [_shift("2026-11-16", "09:00", "17:00", "30", hb, "Harbor Bistro Main", "kitchen", "16.50", "USD", worker_name="Maria Santos"),
+             _shift("2026-11-18", "09:00", "17:00", "30", hb, "Harbor Bistro Main", "kitchen", "16.50", "USD", worker_name="Maria Santos"),
+             _shift("2026-11-19", "12:00", "20:00", "45", hb, "Harbor Bistro Main", "kitchen", "16.50", "USD", worker_name="Maria Santos"),
+             _shift("2026-11-21", "10:00", "18:00", "30", hb, "Harbor Bistro Main", "kitchen", "16.50", "USD", worker_name="Maria Santos")]
+    others = [_shift("2026-11-16", "07:00", "15:00", "30", hb, "Harbor Bistro Main", "bar", "15.00", "USD", worker_name="Priya Nair"),
+              _shift("2026-11-17", "09:00", "17:00", "30", hb, "Harbor Bistro Main", "bar", "15.00", "USD", worker_name="James Okoro"),
+              _shift("2026-11-17", "16:00", "23:00", "30", hb, "Harbor Bistro Main", "floor", "14.00", "USD", worker_name="Tom Becker"),
+              _shift("2026-11-18", "07:00", "15:00", "30", hb, "Harbor Bistro Main", "bar", "15.00", "USD", worker_name="Priya Nair"),
+              _shift("2026-11-18", "17:00", "23:00", "30", hb, "Harbor Bistro Main", "floor", "14.00", "USD", worker_name="James Okoro"),
+              _shift("2026-11-19", "09:00", "17:00", "45", hb, "Harbor Bistro Main", "bar", "15.00", "USD", worker_name="Priya Nair"),
+              _shift("2026-11-20", "10:00", "18:00", "30", hb, "Harbor Bistro Main", "floor", "14.00", "USD", worker_name="Tom Becker"),
+              _shift("2026-11-20", "12:00", "20:00", "30", hb, "Harbor Bistro Main", "kitchen", "16.50", "USD", worker_name="James Okoro"),
+              _shift("2026-11-21", "16:00", "23:00", "30", hb, "Harbor Bistro Main", "floor", "14.00", "USD", worker_name="Tom Becker")]
+    return maria, sorted(maria + others, key=lambda r: (r["shift_date"], r["start_time"], r["worker_name"]))
+
+
+def _missing_details():
+    ml, depot, dsp = "Metro Logistics", "Central Depot", "dispatch"
+    return [
+        _shift("2026-11-16", "08:00", "16:00", "30", ml, depot, dsp, "18.00", "USD"),
+        _shift("2026-11-17", "08:00", "16:00", "", ml, depot, dsp, "18.00", "USD"),
+        _shift("2026-11-18", "08:00", "16:00", "30", ml, depot, dsp, "", ""),
+        _shift("2026-11-19", "08:00", "16:00", "30", ml, depot, dsp, "18.00", ""),
+        _shift("2026-11-20", "08:00", "", "30", ml, depot, dsp, "18.00", "USD", _show={"end_time": "TBC"}),
+        _shift("2026-11-21", "09:00", "17:00", "30", ml, "", dsp, "18.00", "USD"),
+    ]
+
+
+def _missing_details_photo():
+    gc, home, care = "Greenfield Care", "Greenfield Home", "carer"
+    return [
+        _shift("2026-11-16", "07:00", "15:00", "45", gc, home, care, "14.25", "GBP"),
+        _shift("2026-11-17", "07:00", "15:00", "", gc, home, care, "14.25", "GBP"),
+        _shift("2026-11-19", "07:00", "15:00", "45", gc, home, care, "", ""),
+        _shift("2026-11-20", "13:00", "21:00", "0", gc, home, care, "14.25", "GBP"),
+    ]
+
+
+def _custom():
+    maria, roster = _team_roster()
+    return {"TEAM01": {"key": maria, "draw": roster, "target": "Maria Santos"},
+            "MISS01": {"key": _missing_details()},
+            "MISS02": {"key": _missing_details_photo()}}
+
+
+CUSTOM = _custom()
 
 
 # ----------------------------------------------------------------------------- data helpers
 def read_schedule(schedule_id):
+    """The rows the answer key holds for this schedule."""
+    if schedule_id in CUSTOM:
+        return CUSTOM[schedule_id]["key"]
     with open(os.path.join(INPUTS, f"{schedule_id}_schedule.csv"), newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def drawn_rows(schedule_id):
+    """The rows that are printed in the document. For a team roster this includes the other employees."""
+    return CUSTOM.get(schedule_id, {}).get("draw") or read_schedule(schedule_id)
 
 
 def pay_week_start(rows):
@@ -94,11 +173,33 @@ def register_fonts():
     pdfmetrics.registerFont(TTFont("DejaVu-Bold", os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf")))
 
 
+def shown(r, field):
+    """What the document prints for a field. A detail that is left out is printed as a dash."""
+    text = (r.get("_show") or {}).get(field)
+    if text:
+        return text
+    value = r.get(field)
+    return "-" if value in (None, "") else value
+
+
+def rate_text(r):
+    if r["hourly_rate"] in (None, ""):
+        return "-"
+    return money(r["hourly_rate"], r["currency"]) if r["currency"] else f"{float(r['hourly_rate']):.2f}"
+
+
 def table_rows(rows, show_year=True):
     head = ["Date", "Start", "End", "Break (min)", "Employer", "Location", "Department", "Rate", "Status"]
-    body = [[day_label(r["shift_date"], show_year), r["start_time"], r["end_time"], r["break_minutes"],
-             r["employer_name"], r["location"], r["department"], money(r["hourly_rate"], r["currency"]),
-             status_text(r["shift_status"])] for r in rows]
+    body = [[day_label(r["shift_date"], show_year), shown(r, "start_time"), shown(r, "end_time"),
+             shown(r, "break_minutes"), shown(r, "employer_name"), shown(r, "location"), shown(r, "department"),
+             rate_text(r), status_text(r["shift_status"])] for r in rows]
+    return head, body
+
+
+def roster_rows(rows):
+    head = ["Employee", "Role", "Date", "Start", "End", "Break (min)", "Location", "Rate"]
+    body = [[r["worker_name"], r["department"], day_label(r["shift_date"]), r["start_time"], r["end_time"],
+             r["break_minutes"], r["location"], rate_text(r)] for r in rows]
     return head, body
 
 
@@ -109,9 +210,17 @@ def build_pdf(path, rows, layout, title):
         styles[s].fontName = "DejaVu-Bold" if s != "Normal" else "DejaVu"
     doc = SimpleDocTemplate(path, pagesize=landscape(A4), leftMargin=15 * mm, rightMargin=15 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm, title=title)
-    story = [Paragraph("Work schedule", styles["Title"]), Paragraph(week_header(rows), styles["Heading2"]),
+    heading = f"{rows[0]['employer_name']} - team roster" if layout == "roster" else "Work schedule"
+    story = [Paragraph(heading, styles["Title"]), Paragraph(week_header(rows), styles["Heading2"]),
              Spacer(1, 6 * mm)]
-    if layout == "table":
+    if layout == "roster":
+        head, body = roster_rows(rows)
+        t = Table([head] + body, repeatRows=1)
+        t.setStyle(TableStyle([("FONTNAME", (0, 0), (-1, -1), "DejaVu"), ("FONTNAME", (0, 0), (-1, 0), "DejaVu-Bold"),
+                               ("FONTSIZE", (0, 0), (-1, -1), 9), ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                               ("GRID", (0, 0), (-1, -1), 0.5, colors.grey), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+        story.append(t)
+    elif layout == "table":
         head, body = table_rows(rows)
         t = Table([head] + body, repeatRows=1)
         t.setStyle(TableStyle([("FONTNAME", (0, 0), (-1, -1), "DejaVu"), ("FONTNAME", (0, 0), (-1, 0), "DejaVu-Bold"),
@@ -308,6 +417,72 @@ def build_image(path, rows, look, rng):
         raise ValueError(look)
 
 
+# ----------------------------------------------------------------------------- readme
+def write_readme(file_rows, shift_count):
+    table = "\n".join(f"| {r['file_name']} | {r['schedule_id']} | {r['shifts']} | {r['difficulty']} | {r['what_it_tests']} |"
+                      for r in file_rows)
+    text = f"""# PDF and image schedule samples
+
+{len(file_rows)} schedules that are not csv, for checking how accurately an extractor (for example the NVIDIA step) reads them.
+Eleven of them show the shifts of one clean csv schedule from `test_data/schedule_inputs`, so the correct values are known.
+Three are written by hand: a team roster with several employees, and two schedules where some details are left out on purpose.
+`answer_key.csv` lists what should be read from every file ({shift_count} shifts in total). `files.csv` describes each file.
+
+| File | Schedule | Shifts | Difficulty | What it tests |
+|---|---|---|---|---|
+{table}
+
+## How to use them
+
+1. Give each file to the extractor and save everything it reads in one csv, one row per shift, with these columns:
+   `file_name, shift_date, start_time, end_time, break_minutes, employer_name, location, department, hourly_rate, currency, shift_status`
+   (`file_name` is the name of the sample file, for example `img_03_blurry_lowlight.jpg`).
+   Leave a cell empty when the document does not give that detail.
+2. From the `data_validation` folder, run:
+   `python3 -I tools/compare_extraction.py extracted.csv`
+   Add a third value to also save the list of differences, for example `... extracted.csv test_data/unstructured/answer_key.csv differences.csv`.
+3. The report shows shifts found, missed and invented, details invented and details dropped, accuracy for each field,
+   results by difficulty and by file, and every difference. "Money fields" are date, start, end, break, rate and currency,
+   the ones that change earnings.
+
+Dates, times and rates can be written in common formats (`2026-11-03` or `3 Nov 2026`, `22:00` or `10:00 PM`, `17` or `17.00`).
+They are converted before comparing. A dash, `n/a`, `null`, `unknown` or `TBC` counts as empty. Shifts are matched inside each
+file by date and start time.
+
+## Does the extractor invent details?
+
+Two of the files leave details out on purpose (`pdf_07_missing_details.pdf`, `img_07_photo_missing_details.jpg`).
+In the answer key an empty cell means the document does not say, so the right answer is an empty cell.
+If the extractor fills it with a value, for example a break of `0` or a guessed rate, the report counts it as an
+invented detail. If it leaves out something that is written down, it counts as a dropped detail. In
+`img_07_photo_missing_details.jpg` the Friday break is written as `0`, and that must stay `0`, not become empty.
+
+`pdf_06_team_roster_multi_employee.pdf` lists four employees. The answer key holds only the shifts of Maria Santos
+(see `target_worker` in `files.csv`). Shifts of the other employees count as invented shifts.
+
+## What the files show
+
+- Every file has a "Week of ..." heading with the year. Day labels like "Tue 3 Nov" have no year, so the extractor
+  has to take the year from the heading.
+- A shift that ends earlier than it starts (22:00 to 06:00) finishes the next morning. The key keeps the times as printed.
+- Cancelled shifts are printed as CANCELLED and the key has `shift_status` cancelled.
+- The images are made on a computer: tilt, shadow, noise, blur, low light, perspective and cropping. They are not real
+  photos, and there is no handwriting. Real photographed rosters may be harder.
+
+## Checking what the extractor reads against what validation does
+
+Reading a file correctly is not the same as getting the earnings right. After extraction the shifts go through the
+validation rules like csv shifts. Anything missing or doubtful is flagged, not guessed.
+
+## Making the files again
+
+`python3 -I generator/generate_unstructured_samples.py` rebuilds the files, the answer key, `files.csv` and this README.
+It needs reportlab, Pillow and numpy, and the output is repeatable.
+"""
+    with open(os.path.join(OUT, "README.md"), "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 # ----------------------------------------------------------------------------- main
 def main():
     os.makedirs(os.path.join(OUT, "pdf"), exist_ok=True)
@@ -317,14 +492,16 @@ def main():
     key_rows, file_rows = [], []
     for name, schedule_id, kind, look, difficulty, note in FILES:
         rows = read_schedule(schedule_id)
+        drawn = drawn_rows(schedule_id)
         folder = "pdf" if kind == "pdf" else "images"
         path = os.path.join(OUT, folder, name)
         if kind == "pdf":
-            build_pdf(path, rows, look, f"Schedule {schedule_id}")
+            build_pdf(path, drawn, look, f"Schedule {schedule_id}")
         else:
-            build_image(path, rows, look, rng)
+            build_image(path, drawn, look, rng)
         file_rows.append({"file_name": name, "folder": folder, "schedule_id": schedule_id, "kind": kind,
-                          "layout_or_look": look, "difficulty": difficulty, "shifts": len(rows), "what_it_tests": note})
+                          "layout_or_look": look, "difficulty": difficulty, "shifts": len(rows),
+                          "target_worker": CUSTOM.get(schedule_id, {}).get("target", ""), "what_it_tests": note})
         for i, r in enumerate(rows, 1):
             key_rows.append({"file_name": name, "shift_no": i, **{k: r[k] for k in KEY_FIELDS}})
     with open(os.path.join(OUT, "answer_key.csv"), "w", newline="", encoding="utf-8") as f:
@@ -335,6 +512,7 @@ def main():
         w = csv.DictWriter(f, fieldnames=list(file_rows[0].keys()))
         w.writeheader()
         w.writerows(file_rows)
+    write_readme(file_rows, len(key_rows))
     print(f"Wrote {len(file_rows)} files and {len(key_rows)} answer key rows to {OUT}")
 
 

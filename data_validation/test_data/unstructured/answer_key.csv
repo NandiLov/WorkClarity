@@ -47,3 +47,17 @@ img_06_chat_message.png,2,2026-11-10,10:00,18:00,30,Wellness Clinic,Clinic Front
 img_06_chat_message.png,3,2026-11-11,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
 img_06_chat_message.png,4,2026-11-12,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
 img_06_chat_message.png,5,2026-11-13,09:00,17:00,30,Wellness Clinic,Clinic Front Desk,front desk,15.50,USD,scheduled
+pdf_06_team_roster_multi_employee.pdf,1,2026-11-16,09:00,17:00,30,Harbor Bistro,Harbor Bistro Main,kitchen,16.50,USD,scheduled
+pdf_06_team_roster_multi_employee.pdf,2,2026-11-18,09:00,17:00,30,Harbor Bistro,Harbor Bistro Main,kitchen,16.50,USD,scheduled
+pdf_06_team_roster_multi_employee.pdf,3,2026-11-19,12:00,20:00,45,Harbor Bistro,Harbor Bistro Main,kitchen,16.50,USD,scheduled
+pdf_06_team_roster_multi_employee.pdf,4,2026-11-21,10:00,18:00,30,Harbor Bistro,Harbor Bistro Main,kitchen,16.50,USD,scheduled
+pdf_07_missing_details.pdf,1,2026-11-16,08:00,16:00,30,Metro Logistics,Central Depot,dispatch,18.00,USD,scheduled
+pdf_07_missing_details.pdf,2,2026-11-17,08:00,16:00,,Metro Logistics,Central Depot,dispatch,18.00,USD,scheduled
+pdf_07_missing_details.pdf,3,2026-11-18,08:00,16:00,30,Metro Logistics,Central Depot,dispatch,,,scheduled
+pdf_07_missing_details.pdf,4,2026-11-19,08:00,16:00,30,Metro Logistics,Central Depot,dispatch,18.00,,scheduled
+pdf_07_missing_details.pdf,5,2026-11-20,08:00,,30,Metro Logistics,Central Depot,dispatch,18.00,USD,scheduled
+pdf_07_missing_details.pdf,6,2026-11-21,09:00,17:00,30,Metro Logistics,,dispatch,18.00,USD,scheduled
+img_07_photo_missing_details.jpg,1,2026-11-16,07:00,15:00,45,Greenfield Care,Greenfield Home,carer,14.25,GBP,scheduled
+img_07_photo_missing_details.jpg,2,2026-11-17,07:00,15:00,,Greenfield Care,Greenfield Home,carer,14.25,GBP,scheduled
+img_07_photo_missing_details.jpg,3,2026-11-19,07:00,15:00,45,Greenfield Care,Greenfield Home,carer,,,scheduled
+img_07_photo_missing_details.jpg,4,2026-11-20,13:00,21:00,0,Greenfield Care,Greenfield Home,carer,14.25,GBP,scheduled
