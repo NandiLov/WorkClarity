@@ -46,6 +46,7 @@ def test_calculate_shift_endpoint():
     assert result["shifts"][0]["paid_hours"] == 8.0
     assert result["shifts"][0]["gross_earnings"] == 200.0
     assert result["shifts"][0]["eligible_for_earnings"] is True
+    assert result["weekly_summary"][0]["pending_shifts"] == 0
 
 
 def test_calculate_shift_rejects_missing_worker_id():
