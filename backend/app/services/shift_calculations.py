@@ -378,7 +378,7 @@ def _status_and_gross(s):
         return "excluded", None
     if any(c in s["codes"] for c in INCOMPLETE_CODES):
         return "incomplete", None
-    return "counted", _money(s["paid_exact"] * s["rate"])
+    return "counted", s["paid_exact"] * s["rate"]
 
 
 # ------------------------------------------------------------------ conflicts
@@ -440,7 +440,7 @@ def _weekly(results, rules):
         hours = _hours_of(counted)
         incomplete_hours = _hours_of(incomplete)
         pending_hours = _hours_of([i for i in pending if i["status"] != "excluded"])
-        gross = sum((Decimal(str(i["gross_earnings"])) for i in counted), Decimal("0"))
+        gross = sum((i["_exact_gross_earnings"] for i in counted), Decimal("0"))
         # "Not counted yet": nothing counted but shifts are still waiting, so the total is null, not 0.00.
         # A genuine zero (for example every shift cancelled) stays 0.00.
         no_total = cur is None or (not counted and bool(incomplete or pending))
@@ -522,7 +522,8 @@ def process_shifts(shifts, rules=None, flag_messages=None, known_locations=None,
             id=s["id"], worker_id=s["worker_id"], shift_date=s["day"].strftime("%Y-%m-%d") if s["day"] else None,
             week_start=_week_start(s["day"], rules.get("pay_week_start", "monday")) if s["day"] else None, paid_hours=paid,
             _exact_hours=exact, hourly_rate=float(s["rate"]) if s["rate"] is not None else None, currency=s["currency"],
-            gross_earnings=float(gross) if gross is not None else None, status=status, issues=issues,
+            gross_earnings=float(_money(gross)) if gross is not None else None,
+            _exact_gross_earnings=gross, status=status, issues=issues,
             earnings_reason=reason))
 
     conflicts, not_assessed = _find_conflicts(checked, rules, messages, include_unconfirmed)

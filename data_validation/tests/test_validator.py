@@ -711,6 +711,31 @@ def test_earnings_use_exact_minutes_and_round_only_the_money():
     assert shift["gross_earnings"] == 62.83
 
 
+def test_weekly_earnings_round_only_after_combining_exact_shift_earnings():
+    out = calc([
+        backend_shift(
+            shift_id="S1",
+            start_time="09:00",
+            end_time="09:01",
+            break_minutes=0,
+            hourly_rate="100",
+        ),
+        backend_shift(
+            shift_id="S2",
+            start_time="10:00",
+            end_time="10:01",
+            break_minutes=0,
+            hourly_rate="100",
+        ),
+    ])
+
+    shifts = out["shifts"]
+    week = out["weekly_summary"][0]
+
+    assert [s["gross_earnings"] for s in shifts] == [1.67, 1.67]
+    assert week["gross_earnings"] == 3.33
+
+
 def test_a_missing_hourly_rate_is_a_warning_and_the_shift_is_not_counted():
     out = calc([backend_shift(hourly_rate=None)])
     shift, week = out["shifts"][0], out["weekly_summary"][0]
