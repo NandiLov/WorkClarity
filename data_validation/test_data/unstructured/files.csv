@@ -1,0 +1,15 @@
+file_name,folder,schedule_id,kind,layout_or_look,difficulty,shifts,target_worker,what_it_tests
+pdf_01_table_clean.pdf,pdf,S001,pdf,table,easy,3,,Clean table with an overnight shift
+pdf_02_table_week.pdf,pdf,S002,pdf,table,easy,5,,"Clean table, five days, 30 minute breaks"
+pdf_03_sentences_12h.pdf,pdf,S003,pdf,sentences,medium,3,,"One sentence per shift, 12 hour times, overnight shifts"
+pdf_04_weekly_grid.pdf,pdf,S012,pdf,grid,hard,3,,"Weekly grid, days as columns, weekend rate"
+pdf_05_list_exact_minutes.pdf,pdf,S005,pdf,sentences,medium,3,,"Shifts that do not end on the hour (12:10), 12 hour times"
+img_01_screenshot_clean.png,images,S013,image,clean,easy,6,,"Clean screenshot of a table, six long shifts"
+img_02_photo_tilted.jpg,images,S015,image,tilted,medium,5,,"Tilted photo with shadow and noise, two cancelled shifts"
+img_03_blurry_lowlight.jpg,images,S016,image,blurry,hard,5,,"Blurry low light photo, five overnight shifts"
+img_04_phone_dark_mode.png,images,S024,image,dark,medium,5,,"Phone dark mode cards, weekend rate"
+img_05_cropped_perspective.jpg,images,S025,image,perspective,hard,5,,"Angled and cropped photo, overnight shift on the pay week boundary"
+img_06_chat_message.png,images,S023,image,chat,medium,5,,"Manager chat message in free text, no table, rate stated once, two changed shifts"
+pdf_06_team_roster_multi_employee.pdf,pdf,TEAM01,pdf,roster,hard,4,Maria Santos,"Team roster with four employees. Only the shifts of Maria Santos belong in the answer, the others must not be read as hers"
+pdf_07_missing_details.pdf,pdf,MISS01,pdf,table,hard,6,,"Table with details left out on purpose: a break, a rate, a currency, an end time and a location. The answer for each is blank"
+img_07_photo_missing_details.jpg,images,MISS02,image,tilted,hard,4,,"Tilted photo with a break and a rate left out, and a break of 0 that is written down and must stay 0"
