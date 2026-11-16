@@ -33,7 +33,11 @@ type ReviewFilter = 'attention' | 'counted' | 'cancelled' | 'rejected' | 'all'
 export function ReviewPage() {
   const {
     shifts,
+    backendStatus,
+    isRecalculating,
     isCalculationStale,
+    readyToConfirmCount,
+    canBulkConfirm,
     updateShift,
     setShiftConfirmation,
     confirmReadyShifts,
@@ -95,17 +99,27 @@ export function ReviewPage() {
   }, [shifts, filter])
 
   const handleConfirmReady = () => {
+    if (!canBulkConfirm) return
     const confirmedCount = confirmReadyShifts()
     if (confirmedCount > 0) {
       setBatchMessage(
-        `Confirmed ${confirmedCount} ready shift(s) and sent to the backend for calculation.`,
+        `Confirmed ${confirmedCount} validated shift(s) and updated earnings.`,
       )
     } else {
       setBatchMessage(
-        'No unconfirmed shifts were ready for one-tap confirmation (shifts with missing breaks/rates, errors, or duplicates must be reviewed individually).',
+        'No unconfirmed shifts were eligible for bulk confirmation (shifts with missing breaks/rates, errors, overlaps, or duplicates must be reviewed individually).',
       )
     }
   }
+
+  const bulkDisabledReason =
+    backendStatus !== 'online'
+      ? 'Disabled while calculation service is offline.'
+      : isRecalculating || isCalculationStale
+        ? 'Waiting for latest validation results…'
+        : readyToConfirmCount === 0
+          ? 'No validated unconfirmed shifts are ready.'
+          : undefined
 
   return (
     <div className="space-y-5">
@@ -136,11 +150,13 @@ export function ReviewPage() {
           {shifts.length > 0 && (
             <button
               type="button"
+              disabled={!canBulkConfirm}
+              title={bulkDisabledReason}
               onClick={handleConfirmReady}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               <CheckCheck className="h-4 w-4" />
-              Confirm Ready Shifts
+              Confirm All Valid Shifts ({readyToConfirmCount})
             </button>
           )}
         </div>
@@ -399,6 +415,7 @@ export function ReviewPage() {
 
                         <DiffPill
                           extracted={shift.extracted}
+                          previousCurrent={shift.previous_current}
                           current={shift.current}
                           onReset={() => resetShiftToExtracted(shift.shift_id)}
                         />

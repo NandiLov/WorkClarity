@@ -192,12 +192,15 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       expect(
         screen.getByRole('heading', { name: /Review & Correct Shifts/i }),
       ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+      ).toBeEnabled()
       expect(screen.getAllByText(/Not counted yet/i).length).toBeGreaterThan(0)
     })
 
     // Confirm all 3 ready shifts (including the 22:00-06:00 overnight shift)
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
     )
 
     await waitFor(() => {
@@ -271,10 +274,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
 
     await uploadCsvFileInUi(user, 'S004_schedule.csv', s004Csv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     await waitFor(() => {
@@ -298,10 +303,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
 
     await uploadCsvFileInUi(user, 'S005_schedule.csv', s005Csv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     // Matches WK-S005 in expected_weekly_earnings.csv: 17.33 hrs, $250.33, and 4.83 hrs -> $62.83
@@ -337,10 +344,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
     render(<App />)
     await uploadCsvFileInUi(user, 'rounding_test.csv', roundingCsv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
@@ -362,10 +371,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
     render(<App />)
     await uploadCsvFileInUi(user, 'locations_test.csv', mixedLocationsCsv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     // Matches WK-S030 ($258.75, 17.25 hrs) even with unknown & missing locations
@@ -393,10 +404,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
 
     await uploadCsvFileInUi(user, 'S011_schedule.csv', s011Csv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     await waitFor(() => {
@@ -413,10 +426,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
 
     await uploadCsvFileInUi(user, 'S015_schedule.csv', s015Csv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     await waitFor(() => {
@@ -424,18 +439,28 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       expect(screen.getByText('22.5 hrs')).toBeInTheDocument()
     })
 
-    // Test a genuine zero week where every shift is cancelled
+    // Test a genuine zero week where every shift is cancelled (using explicit Replace mode)
     await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    await user.click(
+      screen.getByRole('radio', { name: /Replace existing schedule/i }),
+    )
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Confirm: replace all existing shifts/i,
+      }),
+    )
     const allCancelledCsv = [
       'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency,shift_status',
       '2026-11-09,07:00,15:00,30,Central Cafe Group,Cafe Central,16.50,USD,cancelled',
     ].join('\n')
     await uploadCsvFileInUi(user, 'all_cancelled.csv', allCancelledCsv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
     await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
 
@@ -483,8 +508,16 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       screen.getByText(/1 incomplete shift\(s\) \(7\.5 hrs\)/i),
     ).toBeInTheDocument()
 
-    // Now upload a shift missing currency -> must show "Not counted yet" and no total
+    // Now replace schedule with a shift missing currency -> must show "Not counted yet" and no total
     await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    await user.click(
+      screen.getByRole('radio', { name: /Replace existing schedule/i }),
+    )
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Confirm: replace all existing shifts/i,
+      }),
+    )
     const noCurrencyCsv = [
       'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency',
       '2026-11-16,08:00,16:00,30,PackRight,Packing Plant,15.00,',
@@ -511,10 +544,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
 
     await uploadCsvFileInUi(user, 'S028_schedule.csv', s028Csv)
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
 
     await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
@@ -591,10 +626,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       readRepoFile('schedule_inputs/S001_schedule.csv'),
     )
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
     await waitFor(() => {
       expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
@@ -610,10 +647,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       readRepoFile('schedule_inputs/S028_schedule.csv'),
     )
     await waitFor(() => {
-      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeEnabled()
     })
     await user.click(
-      screen.getByRole('button', { name: /Confirm Ready Shifts/i }),
+      screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
     )
     await waitFor(() => {
       expect(screen.getAllByText(/\$202\.50 \(USD\)/).length).toBeGreaterThan(0)
@@ -828,5 +867,340 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
     expect(res.shifts[3].flags.map((f) => f.code)).toContain('INVALID_BREAK')
     expect(res.shifts.every((s) => s.earnings_status === 'excluded')).toBe(true)
     expect(res.weekly_summary[0].gross_earnings).toBeNull()
+  })
+
+  it('19. Multi-employer schedule append keeps prior shifts, preserves unique IDs, detects cross-employer conflicts, and totals combined earnings', async () => {
+    const user = userEvent.setup()
+    const employerACsv = [
+      'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency',
+      '2026-11-09,08:00,12:00,0,BrightMart,Retail X,14.00,USD',
+      '2026-11-10,07:00,12:00,0,CityCare Hospital,Hospital Annex,15.00,USD',
+    ].join('\n')
+
+    const employerBCsv = [
+      'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency',
+      '2026-11-09,11:00,15:00,0,Diner Y Co,Diner Y,15.00,USD',
+      '2026-11-10,12:15,16:00,0,Central Cafe Group,Cafe Downtown,13.00,USD',
+    ].join('\n')
+
+    render(<App />)
+
+    // Upload Employer A schedule and confirm
+    await uploadCsvFileInUi(user, 'employer_a.csv', employerACsv)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(2\)/i }),
+      ).toBeEnabled()
+    })
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(2\)/i }),
+    )
+    await waitFor(() => {
+      // 4*14 + 5*15 = 56 + 75 = $131.00
+      expect(screen.getAllByText(/\$131\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
+
+    // Return to Upload Schedule -> verify Add to existing schedule (append) is selected by default
+    await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    expect(
+      screen.getByRole('radio', { name: /Add to existing schedule/i }),
+    ).toBeChecked()
+
+    await uploadCsvFileInUi(user, 'employer_b.csv', employerBCsv)
+
+    // Verify all 4 shifts exist across both employers and unique IDs were preserved
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /All Shifts\s*4/i }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(2\)/i }),
+      ).toBeEnabled()
+    })
+
+    const savedRaw = localStorage.getItem('workclarity_dev_state_v1_W001')!
+    const savedState = JSON.parse(savedRaw) as { shifts: ShiftRecord[] }
+    expect(savedState.shifts).toHaveLength(4)
+    expect(new Set(savedState.shifts.map((s) => s.shift_id)).size).toBe(4)
+    expect(new Set(savedState.shifts.map((s) => s.schedule_id)).size).toBe(2)
+
+    // Confirm Employer B shifts -> combined earnings: 131.00 + 4*15 + 3.75*13 = 131 + 60 + 48.75 = $239.75
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(2\)/i }),
+    )
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$239\.75 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.getByText('16.75 hrs')).toBeInTheDocument()
+    })
+
+    // Verify cross-employer Overlap (Mon 08:00-12:00 vs 11:00-15:00) AND 15m Commute gap (Tue 12:00 vs 12:15)
+    await user.click(screen.getAllByRole('link', { name: /Warnings/i })[0])
+    expect(
+      screen.getByRole('heading', { name: /Overlapping Shifts \(1\)/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: /Short Travel Gaps Between Locations \(1\)/i,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('15 min gap')).toBeInTheDocument()
+  })
+
+  it('20. Duplicate schedule re-import preserves unique IDs and never double-counts earnings', async () => {
+    const user = userEvent.setup()
+    const s001Csv = readRepoFile('schedule_inputs/S001_schedule.csv')
+    render(<App />)
+
+    // First import & confirm -> $384.00
+    await uploadCsvFileInUi(user, 'S001_schedule.csv', s001Csv)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+      ).toBeEnabled()
+    })
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+    )
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
+
+    // Re-import the exact same file in default Append mode
+    await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    await uploadCsvFileInUi(user, 'S001_schedule.csv', s001Csv)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /All Shifts\s*6/i }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getAllByText(/Possible duplicate shift/i).length,
+      ).toBeGreaterThan(0)
+    })
+
+    // Duplicate shifts must be blocked from bulk confirmation and held out of earnings ($384.00, NOT $768.00)
+    expect(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(0\)/i }),
+    ).toBeDisabled()
+    expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/\$768\.00/)).not.toBeInTheDocument()
+
+    // Even if worker clicks individual Confirm Shift on duplicate rows, backend holds them in needs_review
+    const singleConfirmBtns = screen.getAllByRole('button', {
+      name: /^Confirm Shift$/i,
+    })
+    for (const btn of singleConfirmBtns) {
+      await user.click(btn)
+    }
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.queryByText(/\$768\.00/)).not.toBeInTheDocument()
+    })
+
+    const savedRaw = localStorage.getItem('workclarity_dev_state_v1_W001')!
+    const savedState = JSON.parse(savedRaw) as { shifts: ShiftRecord[] }
+    expect(savedState.shifts).toHaveLength(6)
+    expect(new Set(savedState.shifts.map((s) => s.shift_id)).size).toBe(6)
+  })
+
+  it('21. Explicit Replace mode requires confirmation warning before replacing existing shifts', async () => {
+    const user = userEvent.setup()
+    const s001Csv = readRepoFile('schedule_inputs/S001_schedule.csv')
+    const s004Csv = readRepoFile('schedule_inputs/S004_schedule.csv')
+    render(<App />)
+
+    await uploadCsvFileInUi(user, 'S001_schedule.csv', s001Csv)
+    await waitFor(() => {
+      expect(screen.getByText(/Review & Correct Shifts/i)).toBeInTheDocument()
+    })
+
+    await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    await user.click(
+      screen.getByRole('radio', { name: /Replace existing schedule/i }),
+    )
+
+    // Warning is displayed and Select CSV File is disabled until checkbox is confirmed
+    expect(
+      screen.getByText(/Warning: Replacing will permanently remove 3 existing shift/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Select CSV File/i }),
+    ).toBeDisabled()
+
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Confirm: replace all existing shifts/i,
+      }),
+    )
+    expect(
+      screen.getByRole('button', { name: /Select CSV File/i }),
+    ).toBeEnabled()
+
+    await uploadCsvFileInUi(user, 'S004_schedule.csv', s004Csv)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /All Shifts\s*3/i }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+      ).toBeEnabled()
+    })
+  })
+
+  it('22. Confirmation integrity resets status to unconfirmed when confirmed shift details are edited without Save & Confirm', async () => {
+    const user = userEvent.setup()
+    const singleShiftCsv = [
+      'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency',
+      '2026-11-09,09:00,17:00,0,BrightMart,Store A,16.00,USD',
+    ].join('\n')
+
+    render(<App />)
+    await uploadCsvFileInUi(user, 'single.csv', singleShiftCsv)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(1\)/i }),
+      ).toBeEnabled()
+    })
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(1\)/i }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$128\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
+
+    // Edit the confirmed shift's break via Save Changes (NOT Save & Confirm)
+    await user.click(
+      screen.getByRole('button', { name: /Confirmed & Counted/i }),
+    )
+    await user.click(screen.getByRole('button', { name: /Edit Details/i }))
+
+    const breakInput = screen.getByLabelText(/Unpaid break \(minutes\)/i)
+    await user.clear(breakInput)
+    await user.type(breakInput, '30')
+
+    // Modal warns that renewed confirmation is required and sets decision select to unconfirmed
+    expect(
+      screen.getByText(/You edited a previously confirmed shift/i),
+    ).toBeInTheDocument()
+    expect(
+      (
+        screen.getByLabelText(
+          /Confirmation decision/i,
+        ) as HTMLSelectElement
+      ).value,
+    ).toBe('unconfirmed')
+
+    await user.click(screen.getByRole('button', { name: /^Save Changes$/i }))
+
+    // Shift moves back to Needs Attention as unconfirmed and earnings drop from $128.00 to Not counted yet
+    await waitFor(() => {
+      expect(screen.queryByText(/\$128\.00 \(USD\)/)).not.toBeInTheDocument()
+      expect(screen.getAllByText(/Not counted yet/i).length).toBeGreaterThan(0)
+    })
+
+    await user.click(screen.getByRole('button', { name: /Needs Attention/i }))
+    expect(screen.getByText('Unconfirmed')).toBeInTheDocument()
+
+    // Now edit break to 60 and click explicit Save & Confirm -> retains original (0), previous (30), and current (60)
+    await user.click(screen.getByRole('button', { name: /Edit Details/i }))
+    const breakInput2 = screen.getByLabelText(/Unpaid break \(minutes\)/i)
+    await user.clear(breakInput2)
+    await user.type(breakInput2, '60')
+    await user.click(screen.getByRole('button', { name: /Save & Confirm/i }))
+
+    await waitFor(() => {
+      // 7 paid hours * $16.00 = $112.00
+      expect(screen.getAllByText(/\$112\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /Confirmed & Counted/i }),
+    )
+    const savedRaw = localStorage.getItem('workclarity_dev_state_v1_W001')!
+    const savedState = JSON.parse(savedRaw) as { shifts: ShiftRecord[] }
+    expect(savedState.shifts[0].extracted.break_minutes).toBe('0')
+    expect(savedState.shifts[0].previous_current?.break_minutes).toBe('30')
+    expect(savedState.shifts[0].current.break_minutes).toBe('60')
+  })
+
+  it('23. Bulk confirmation is disabled while validation is pending or backend is offline and reports exact count when enabled', async () => {
+    const user = userEvent.setup()
+    const s001Csv = readRepoFile('schedule_inputs/S001_schedule.csv')
+    const realFetch = globalThis.fetch.bind(globalThis)
+    let releaseValidation!: () => void
+    let holdFirstCalc = true
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/shifts/calculate') && holdFirstCalc) {
+        holdFirstCalc = false
+        return new Promise<Response>((resolve) => {
+          releaseValidation = () => {
+            void realFetch(input, init).then(resolve)
+          }
+        })
+      }
+      return realFetch(input, init)
+    })
+
+    render(<App />)
+    await uploadCsvFileInUi(user, 'S001_schedule.csv', s001Csv)
+
+    // While backend calculation is pending, Confirm All Valid Shifts must be disabled with count 0
+    const pendingBtn = await screen.findByRole('button', {
+      name: /Confirm All Valid Shifts/i,
+    })
+    expect(pendingBtn).toBeDisabled()
+
+    // Release backend validation -> button becomes enabled with exact count (3)
+    await act(async () => {
+      releaseValidation()
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+      ).toBeEnabled()
+    })
+
+    // Simulate backend disconnection -> button must disable again
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('Backend unreachable'),
+    )
+    await user.click(screen.getAllByRole('button', { name: /Edit Details/i })[0])
+    await user.type(screen.getByLabelText(/Employer/i), ' Updated')
+    await user.click(screen.getByRole('button', { name: /^Save Changes$/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Calculation service unavailable/i),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts/i }),
+      ).toBeDisabled()
+    })
+
+    // Restore backend, retry calculation, and confirm accurate count feedback
+    vi.spyOn(globalThis, 'fetch').mockImplementation(realFetch)
+    await user.click(
+      screen.getByRole('button', { name: /Retry recalculation/i }),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+      ).toBeEnabled()
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Confirmed 3 validated shift\(s\) and updated earnings\./i),
+      ).toBeInTheDocument()
+      expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
   })
 })

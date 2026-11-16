@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { RotateCcw, X } from 'lucide-react'
+import { AlertTriangle, RotateCcw, X } from 'lucide-react'
 import type {
   ConfirmationStatus,
   EditableShiftValues,
@@ -35,12 +35,18 @@ export function ShiftEditModal({
   )
   const [confirmationStatus, setConfirmationStatus] =
     useState<ConfirmationStatus>(shift?.confirmation_status ?? 'unconfirmed')
+  const [confirmationManuallySet, setConfirmationManuallySet] = useState(false)
 
   if (mode === 'edit' && !shift) {
     return null
   }
 
-  const diffs = shift ? getChangedFields(shift.extracted, form) : []
+  const diffsFromExtracted = shift ? getChangedFields(shift.extracted, form) : []
+  const editsFromCurrent = shift ? getChangedFields(shift.current, form) : []
+  const requiresRenewedConfirmation =
+    mode === 'edit' &&
+    shift?.confirmation_status === 'confirmed' &&
+    editsFromCurrent.length > 0
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -59,7 +65,18 @@ export function ShiftEditModal({
     field: K,
     value: EditableShiftValues[K],
   ) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [field]: value }
+      if (
+        mode === 'edit' &&
+        shift?.confirmation_status === 'confirmed' &&
+        !confirmationManuallySet
+      ) {
+        const hasEdits = getChangedFields(shift.current, next).length > 0
+        setConfirmationStatus(hasEdits ? 'unconfirmed' : 'confirmed')
+      }
+      return next
+    })
   }
 
   return (
@@ -95,6 +112,18 @@ export function ShiftEditModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 p-5">
+          {requiresRenewedConfirmation && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>
+                You edited a previously confirmed shift. Saving without
+                re-confirming resets its status to <strong>Unconfirmed</strong>{' '}
+                until you review and confirm the updated pay and hours, or click{' '}
+                <strong>Save &amp; Confirm</strong> to confirm immediately.
+              </span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label
@@ -314,9 +343,10 @@ export function ShiftEditModal({
                 <select
                   id="edit-confirmation-status"
                   value={confirmationStatus}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setConfirmationManuallySet(true)
                     setConfirmationStatus(e.target.value as ConfirmationStatus)
-                  }
+                  }}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 focus:outline-none"
                 >
                   <option value="confirmed">Confirmed</option>
@@ -341,9 +371,10 @@ export function ShiftEditModal({
                 <code className="block overflow-x-auto whitespace-nowrap font-mono text-[11px] text-slate-700">
                   {shift.source_line}
                 </code>
-                {diffs.length > 0 && (
+                {diffsFromExtracted.length > 0 && (
                   <p className="text-teal-800">
-                    {diffs.length} modification(s) from original uploaded values.
+                    {diffsFromExtracted.length} modification(s) from original
+                    uploaded values.
                   </p>
                 )}
               </div>
@@ -393,7 +424,7 @@ export function ShiftEditModal({
                     }}
                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
-                    Save & Confirm
+                    Save &amp; Confirm
                   </button>
                 </>
               ) : (

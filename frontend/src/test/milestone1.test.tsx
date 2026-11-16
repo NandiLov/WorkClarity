@@ -55,6 +55,91 @@ describe('CSV parsing and contract preservation', () => {
     expect(badHeaders.ok).toBe(false)
     expect(badHeaders.errors[0]).toMatch(/shift_date/)
   })
+
+  it('rejects malformed quoted fields, duplicate or alias-colliding headers, and column-count mismatches', () => {
+    const unclosedQuote = parseScheduleCsv(
+      [
+        'shift_date,start_time,end_time,employer_name',
+        '2026-11-09,09:00,17:00,"BrightMart',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'unclosed.csv' },
+    )
+    expect(unclosedQuote.ok).toBe(false)
+    expect(unclosedQuote.errors[0]).toMatch(/unclosed quotation mark/i)
+
+    const strayMidQuote = parseScheduleCsv(
+      [
+        'shift_date,start_time,end_time,employer_name',
+        '2026-11-09,09:00,17:00,Bright"Mart',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'stray_quote.csv' },
+    )
+    expect(strayMidQuote.ok).toBe(false)
+    expect(strayMidQuote.errors[0]).toMatch(/malformed csv quote/i)
+
+    const trailingAfterQuote = parseScheduleCsv(
+      [
+        'shift_date,start_time,end_time,employer_name',
+        '2026-11-09,09:00,17:00,"BrightMart"Co',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'trailing_quote.csv' },
+    )
+    expect(trailingAfterQuote.ok).toBe(false)
+    expect(trailingAfterQuote.errors[0]).toMatch(/unexpected character/i)
+
+    const dupHeader = parseScheduleCsv(
+      [
+        'shift_date,start_time,end_time,hourly_rate,hourly_rate',
+        '2026-11-09,09:00,17:00,15.00,16.00',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'dup_header.csv' },
+    )
+    expect(dupHeader.ok).toBe(false)
+    expect(dupHeader.errors[0]).toMatch(/duplicate or conflicting csv header/i)
+
+    const aliasCollision = parseScheduleCsv(
+      [
+        'date,shift_date,start_time,end_time',
+        '2026-11-09,2026-11-10,09:00,17:00',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'alias_collision.csv' },
+    )
+    expect(aliasCollision.ok).toBe(false)
+    expect(aliasCollision.errors[0]).toMatch(/date & shift_date/i)
+
+    const unquotedCommaShift = parseScheduleCsv(
+      [
+        'shift_date,start_time,end_time,employer_name,hourly_rate,currency',
+        '2026-11-09,09:00,17:00,Bright, Mart,15.00,USD',
+      ].join('\n'),
+      { workerId: 'W001', fileName: 'misaligned.csv' },
+    )
+    expect(unquotedCommaShift.ok).toBe(false)
+    expect(unquotedCommaShift.errors[0]).toMatch(/column\(s\), but the header/i)
+  })
+
+  it('produces unique schedule_id and shift_id values across repeated uploads of the same file', () => {
+    const csv = [
+      'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency',
+      '2026-11-09,09:00,17:00,30,"BrightMart, Inc.",Store A,15.00,USD',
+    ].join('\n')
+
+    const first = parseScheduleCsv(csv, {
+      workerId: 'W001',
+      fileName: 'weekly.csv',
+    })
+    const second = parseScheduleCsv(csv, {
+      workerId: 'W001',
+      fileName: 'weekly.csv',
+      existingScheduleIds: new Set([first.scheduleId]),
+    })
+
+    expect(first.ok).toBe(true)
+    expect(second.ok).toBe(true)
+    expect(first.shifts[0].extracted.employer_name).toBe('BrightMart, Inc.')
+    expect(first.scheduleId).not.toBe(second.scheduleId)
+    expect(first.shifts[0].shift_id).not.toBe(second.shifts[0].shift_id)
+  })
 })
 
 describe('Backend payload serialization', () => {

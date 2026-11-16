@@ -21,6 +21,7 @@ import type {
   HealthResponse,
   ShiftConflict,
   ShiftRecord,
+  UploadMode,
   WeeklySummaryItem,
 } from '../types/shift'
 import { parseScheduleCsv } from '../utils/csvParser'
@@ -36,9 +37,70 @@ const ACTIVE_WORKER_KEY = 'workclarity_dev_active_worker_v1'
 interface PersistedWorkerState {
   workerId: string
   activeFileName: string | null
+  uploadedFiles?: string[]
   shifts: ShiftRecord[]
   selectedWeek: string | null
   savedAt: string
+}
+
+const EDITABLE_KEYS: Array<keyof EditableShiftValues> = [
+  'shift_date',
+  'start_time',
+  'end_time',
+  'end_date',
+  'break_minutes',
+  'employer_name',
+  'location',
+  'department',
+  'hourly_rate',
+  'currency',
+  'shift_status',
+  'stated_hours',
+]
+
+function haveShiftValuesChanged(
+  a: EditableShiftValues,
+  b: EditableShiftValues,
+): boolean {
+  return EDITABLE_KEYS.some((key) => a[key] !== b[key])
+}
+
+function isShiftReadyForBulkConfirm(rec: ShiftRecord): boolean {
+  if (rec.confirmation_status !== 'unconfirmed') return false
+  if (!rec.calculated) return false
+  if (rec.calculated.validation_status === 'invalid') return false
+  const hasBlockingFlag = rec.calculated.flags.some(
+    (f) => f.code === 'POSSIBLE_DUPLICATE' || f.code === 'OVERLAP',
+  )
+  if (hasBlockingFlag) return false
+
+  const c = rec.current
+  if (
+    c.shift_date.trim() === '' ||
+    c.start_time.trim() === '' ||
+    c.end_time.trim() === '' ||
+    c.break_minutes.trim() === '' ||
+    c.hourly_rate.trim() === '' ||
+    c.currency.trim() === ''
+  ) {
+    return false
+  }
+  return true
+}
+
+function shiftDuplicateKey(v: EditableShiftValues): string {
+  return [
+    v.shift_date.trim(),
+    v.start_time.trim(),
+    v.end_time.trim(),
+    v.location.trim().toLowerCase(),
+  ].join('|')
+}
+
+function formatUploadedFilesSummary(files: string[]): string | null {
+  if (files.length === 0) return null
+  if (files.length === 1) return files[0]
+  return `${files.length} schedules: ${files.join(', ')}`
 }
 
 function getStorageKey(workerId: string): string {
@@ -63,9 +125,16 @@ function loadPersistedWorkerState(workerId: string): PersistedWorkerState {
     if (raw) {
       const parsed = JSON.parse(raw) as PersistedWorkerState
       if (parsed && Array.isArray(parsed.shifts)) {
+        const files = Array.isArray(parsed.uploadedFiles)
+          ? parsed.uploadedFiles
+          : parsed.activeFileName
+            ? [parsed.activeFileName]
+            : []
         return {
           workerId,
-          activeFileName: parsed.activeFileName ?? null,
+          activeFileName:
+            parsed.activeFileName ?? formatUploadedFilesSummary(files),
+          uploadedFiles: files,
           shifts: parsed.shifts,
           selectedWeek: parsed.selectedWeek ?? null,
           savedAt: parsed.savedAt ?? new Date().toISOString(),
@@ -78,6 +147,7 @@ function loadPersistedWorkerState(workerId: string): PersistedWorkerState {
   return {
     workerId,
     activeFileName: null,
+    uploadedFiles: [],
     shifts: [],
     selectedWeek: null,
     savedAt: new Date().toISOString(),
@@ -99,6 +169,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>(
+    initialState.uploadedFiles ?? [],
+  )
   const [activeFileName, setActiveFileName] = useState<string | null>(
     initialState.activeFileName,
   )
@@ -146,15 +219,21 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     shiftsSnapshotRef.current = shifts
   }, [shifts])
 
+  const uploadedFilesSnapshotRef = useRef<string[]>(uploadedFiles)
+  useEffect(() => {
+    uploadedFilesSnapshotRef.current = uploadedFiles
+  }, [uploadedFiles])
+
   useEffect(() => {
     persistWorkerState({
       workerId,
       activeFileName,
+      uploadedFiles,
       shifts,
       selectedWeek,
       savedAt: new Date().toISOString(),
     })
-  }, [workerId, activeFileName, shifts, selectedWeek])
+  }, [workerId, activeFileName, uploadedFiles, shifts, selectedWeek])
 
   useEffect(() => {
     try {
@@ -273,6 +352,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       if (newWorkerId === workerId) return
       const loaded = loadPersistedWorkerState(newWorkerId)
       setWorkerId(newWorkerId)
+      setUploadedFiles(loaded.uploadedFiles ?? [])
       setActiveFileName(loaded.activeFileName)
       setShifts(loaded.shifts)
       setSelectedWeek(loaded.selectedWeek)
@@ -290,18 +370,55 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       csvText: string,
       fileName: string,
       options?: {
+        mode?: UploadMode
         initialConfirmations?: ConfirmationStatus[]
         useCsvConfirmationColumn?: boolean
       },
     ): CsvParseResult => {
+      const existingShifts = shiftsSnapshotRef.current
+      const mode: UploadMode =
+        existingShifts.length === 0 ? 'replace' : (options?.mode ?? 'append')
+      const existingScheduleIds =
+        mode === 'append'
+          ? new Set(existingShifts.map((s) => s.schedule_id))
+          : undefined
+
       const result = parseScheduleCsv(csvText, {
         workerId,
         fileName,
+        existingScheduleIds,
         initialConfirmations: options?.initialConfirmations,
         useCsvConfirmationColumn: options?.useCsvConfirmationColumn,
       })
-      if (result.ok) {
+
+      if (!result.ok) {
+        return result
+      }
+
+      if (mode === 'append' && existingShifts.length > 0) {
+        const existingKeys = new Set(
+          existingShifts
+            .filter((s) => s.confirmation_status !== 'rejected')
+            .map((s) => shiftDuplicateKey(s.current)),
+        )
+        const matchingDuplicates = result.shifts.filter((s) =>
+          existingKeys.has(shiftDuplicateKey(s.current)),
+        ).length
+        if (matchingDuplicates > 0) {
+          result.warnings.push(
+            `${matchingDuplicates} imported shift(s) match existing shifts (same date, times, and location) and will be held for review so earnings are never double-counted.`,
+          )
+        }
+
+        const nextFiles = [...uploadedFilesSnapshotRef.current, fileName]
         setIsCalculationStale(true)
+        setUploadedFiles(nextFiles)
+        setActiveFileName(formatUploadedFilesSummary(nextFiles))
+        setShifts((prev) => [...prev, ...result.shifts])
+      } else {
+        const nextFiles = [fileName]
+        setIsCalculationStale(true)
+        setUploadedFiles(nextFiles)
         setActiveFileName(fileName)
         setShifts(result.shifts)
         setSelectedWeek(null)
@@ -309,6 +426,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         setConflicts([])
         setCommuteNotAssessed([])
       }
+
       return result
     },
     [workerId],
@@ -327,6 +445,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       })
       if (result.ok) {
         setIsCalculationStale(true)
+        setUploadedFiles([preset.fileName])
         setActiveFileName(preset.fileName)
         setShifts(result.shifts)
         setSelectedWeek(null)
@@ -343,18 +462,33 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     (
       shiftId: string,
       changes: Partial<EditableShiftValues>,
-      confirmationStatus?: ConfirmationStatus,
+      explicitConfirmationStatus?: ConfirmationStatus,
     ) => {
       setIsCalculationStale(true)
       const now = new Date().toISOString()
       setShifts((prev) =>
         prev.map((rec) => {
           if (rec.shift_id !== shiftId) return rec
+          const nextCurrent: EditableShiftValues = { ...rec.current, ...changes }
+          const detailChanged = haveShiftValuesChanged(rec.current, nextCurrent)
+
+          let nextStatus: ConfirmationStatus
+          if (explicitConfirmationStatus !== undefined) {
+            nextStatus = explicitConfirmationStatus
+          } else if (detailChanged && rec.confirmation_status === 'confirmed') {
+            // Any edit to details of a previously confirmed shift requires renewed confirmation
+            nextStatus = 'unconfirmed'
+          } else {
+            nextStatus = rec.confirmation_status
+          }
+
           return {
             ...rec,
-            current: { ...rec.current, ...changes },
-            confirmation_status:
-              confirmationStatus ?? rec.confirmation_status,
+            previous_current: detailChanged
+              ? { ...rec.current }
+              : rec.previous_current,
+            current: nextCurrent,
+            confirmation_status: nextStatus,
             updated_at: now,
           }
         }),
@@ -378,36 +512,41 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const readyToConfirmCount = useMemo(
+    () => shifts.filter(isShiftReadyForBulkConfirm).length,
+    [shifts],
+  )
+
+  const canBulkConfirm =
+    !isRecalculating &&
+    !isCalculationStale &&
+    backendStatus === 'online' &&
+    readyToConfirmCount > 0
+
   const confirmReadyShifts = useCallback((): number => {
-    let count = 0
+    if (isRecalculating || isCalculationStale || backendStatus !== 'online') {
+      return 0
+    }
+    const eligibleIds = new Set(
+      shiftsSnapshotRef.current
+        .filter(isShiftReadyForBulkConfirm)
+        .map((s) => s.shift_id),
+    )
+    if (eligibleIds.size === 0) {
+      return 0
+    }
+
+    setIsCalculationStale(true)
     const now = new Date().toISOString()
     setShifts((prev) =>
-      prev.map((rec) => {
-        if (rec.confirmation_status !== 'unconfirmed') return rec
-        const hasError = rec.calculated?.validation_status === 'invalid'
-        const isDuplicate = rec.calculated?.flags.some(
-          (f) => f.code === 'POSSIBLE_DUPLICATE',
-        )
-        const missingEssential =
-          rec.current.break_minutes.trim() === '' ||
-          rec.current.hourly_rate.trim() === '' ||
-          rec.current.currency.trim() === ''
-        if (hasError || isDuplicate || missingEssential) {
-          return rec
-        }
-        count += 1
-        return {
-          ...rec,
-          confirmation_status: 'confirmed',
-          updated_at: now,
-        }
-      }),
+      prev.map((rec) =>
+        eligibleIds.has(rec.shift_id)
+          ? { ...rec, confirmation_status: 'confirmed', updated_at: now }
+          : rec,
+      ),
     )
-    if (count > 0) {
-      setIsCalculationStale(true)
-    }
-    return count
-  }, [])
+    return eligibleIds.size
+  }, [isRecalculating, isCalculationStale, backendStatus])
 
   const resetShiftToExtracted = useCallback((shiftId: string) => {
     setIsCalculationStale(true)
@@ -417,6 +556,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         rec.shift_id === shiftId
           ? {
               ...rec,
+              previous_current: undefined,
               current: { ...rec.extracted },
               confirmation_status: 'unconfirmed',
               updated_at: now,
@@ -449,6 +589,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   )
 
   const clearWorkerSchedule = useCallback(() => {
+    setUploadedFiles([])
     setActiveFileName(null)
     setShifts([])
     setSelectedWeek(null)
@@ -507,6 +648,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     workerId,
     workers: DEMO_WORKERS,
     activeFileName,
+    uploadedFiles,
     shifts,
     weeklySummary,
     conflicts,
@@ -523,6 +665,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     reviewQueueCount,
     warningsCount,
     needsAttentionCount: reviewQueueCount,
+    readyToConfirmCount,
+    canBulkConfirm,
     selectWorker,
     uploadCsvText,
     loadPresetSchedule,

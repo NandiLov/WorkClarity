@@ -66,11 +66,14 @@ export interface ShiftRecord {
   line_no: number
   source_line: string
   extracted: EditableShiftValues
+  previous_current?: EditableShiftValues
   current: EditableShiftValues
   confirmation_status: ConfirmationStatus
   calculated: BackendShiftResult | null
   updated_at: string
 }
+
+export type UploadMode = 'append' | 'replace'
 
 export interface WeeklySummaryItem {
   week_start: string

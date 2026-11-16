@@ -13,8 +13,8 @@
 | Check | Command | Outcome | Details |
 |---|---|---|---|
 | ESLint | `npm run lint` (`eslint .`) | **PASS** | 0 errors, 0 warnings |
-| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `710ms` |
-| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (24 / 24)** | `src/test/milestone1.test.tsx` (7/7) + `src/test/e2e_backend.test.tsx` (17/17 against live FastAPI backend) |
+| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `733ms` |
+| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (31 / 31)** | `src/test/milestone1.test.tsx` (9/9) + `src/test/e2e_backend.test.tsx` (22/22 against live FastAPI backend) |
 | Live Browser Verification | Chromium (`http://localhost:5173`) | **PASS** | Zero console errors; HTTP 200 on `/health` and `/api/v1/shifts/calculate`; zero horizontal overflow at `375px`, `390px`, `768px`, and `1280px` |
 
 ---
@@ -45,6 +45,12 @@ All dataset scenarios were verified directly against `data_validation/test_data/
 | 17 | Original Value Preservation & Reset | Spec §6.1 (`30` min edit → `"Reset to original"`) | Edit moves total to `$352.00` (`22 hrs`) with diff; reset restores `(empty)` break, `unconfirmed`, `$232.00` | `$352.00 (USD)` (`22 hrs`), diff pill shown; `"Reset to original"` restores `$232.00 (USD)` (`14.5 hrs`) | **PASS** |
 | 18 | Mobile & Desktop Responsiveness | `375×812`, `390×844`, `768×1024`, `1280×800` | Mobile bottom nav (`lg:hidden`), desktop sidebar (`hidden lg:flex`), collapsed technical IDs, zero horizontal overflow | Confirmed in Vitest and live browser (`scrollWidth <= innerWidth` on all viewports; `"Technical details"` collapsed) | **PASS** |
 | 19 | Invalid Duration & Break Edge Cases | `S026` (`>16h`, `0h`) & `S027` (`-15`, `600` min) | `INVALID_DURATION` and `INVALID_BREAK` mark shifts `excluded` (`gross_earnings: null`) | All 4 invalid shifts returned `excluded` with exact backend codes | **PASS** |
+| 20 | Multi-Employer Append & Cross-Employer Conflicts | `employer_a.csv` (`BrightMart`, `CityCare Hospital`) + `employer_b.csv` (`Diner Y Co`, `Central Cafe Group`) | Both schedules preserved with unique IDs; FastAPI detects cross-employer overlap and 15m commute gap; combined gross `$239.75` (`16.75 hrs`) | All 4 shifts preserved across 2 unique `schedule_id`s and 4 unique `shift_id`s; overlap + 15m commute conflict detected; `$239.75 (USD)` calculated | **PASS** |
+| 21 | Duplicate Schedule Re-Import Protection | `S001_schedule.csv` imported twice in Append mode | 6 unique `shift_id`s; duplicates flagged `POSSIBLE_DUPLICATE`, blocked from bulk confirm, and held out of earnings (`$384.00`, not `$768.00`) | 6 unique `shift_id`s preserved; `Confirm All Valid Shifts (0)` disabled; earnings remained `$384.00 (USD)` even after single-shift confirm attempts | **PASS** |
+| 22 | Explicit Replace Confirmation Warning | `S001_schedule.csv` replaced with `S004_schedule.csv` | Warning shown and upload disabled until confirmation checkbox is checked | Warning rendered, upload disabled until checked, then cleanly replaced `S001` with 3 `S004` shifts | **PASS** |
+| 23 | Confirmation Integrity on Edit | Confirmed `$128.00` shift edited via `Save Changes`, then `Save & Confirm` | Editing details resets `confirmation_status` to `unconfirmed` (`Not counted yet`); `Save & Confirm` re-confirms (`$112.00`) while retaining `extracted` (`0`), `previous_current` (`30`), and `current` (`60`) | Modal warned & reset status to `unconfirmed`; earnings changed to `"Not counted yet"`; `Save & Confirm` restored `$112.00 (USD)` with all 3 break values preserved | **PASS** |
+| 24 | Bulk Confirmation Safety | `S001_schedule.csv` with delayed validation & offline fault | `Confirm All Valid Shifts` disabled while validation pending, stale, or offline; enabled with exact count (`3`) once validated | Button remained disabled while pending and offline; enabled at `(3)` on valid backend response and showed `"Confirmed 3 validated shift(s) and updated earnings."` | **PASS** |
+| 25 | CSV Quote, Header & Column-Count Robustness | Unclosed quotes, mid-field quotes, trailing chars, `hourly_rate` duplicate, `date`/`shift_date` alias collision, unquoted comma shift, repeated filenames | All malformed CSVs rejected (`ok: false`) without silent column corruption; repeated filenames get distinct IDs | All 6 malformed CSV cases returned explicit errors; repeated uploads generated distinct `schedule_id` and `shift_id` values | **PASS** |
 
 ---
 

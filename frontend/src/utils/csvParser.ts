@@ -32,16 +32,31 @@ const HEADER_ALIASES: Record<string, string> = {
   confirmation_status: 'confirmation_status',
 }
 
+let scheduleBatchSeq = 0
+
+interface StrictCsvLineResult {
+  cells: string[]
+  error?: string
+}
+
 /**
- * Parse a single CSV line according to RFC-4180 (handles quoted fields and escaped "" quotes).
+ * Parse a single CSV line strictly according to RFC-4180.
+ * Detects unclosed quotes, stray unescaped quotes inside unquoted fields,
+ * and unexpected trailing characters after closing quotes.
  */
-export function parseCsvLine(line: string): string[] {
+export function parseCsvLineStrict(
+  line: string,
+  rowLabel = 'row',
+): StrictCsvLineResult {
   const cells: string[] = []
   let current = ''
   let inQuotes = false
+  let atFieldStart = true
+  let justClosedQuote = false
 
   for (let i = 0; i < line.length; i += 1) {
     const ch = line[i]
+
     if (inQuotes) {
       if (ch === '"') {
         if (i + 1 < line.length && line[i + 1] === '"') {
@@ -49,40 +64,96 @@ export function parseCsvLine(line: string): string[] {
           i += 1
         } else {
           inQuotes = false
+          justClosedQuote = true
         }
       } else {
         current += ch
       }
-    } else if (ch === '"') {
+      continue
+    }
+
+    if (justClosedQuote) {
+      if (ch === ',') {
+        cells.push(current)
+        current = ''
+        atFieldStart = true
+        justClosedQuote = false
+      } else {
+        return {
+          cells,
+          error: `Malformed CSV quote in ${rowLabel}: unexpected character "${ch}" after closing quote.`,
+        }
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      if (!atFieldStart) {
+        return {
+          cells,
+          error: `Malformed CSV quote in ${rowLabel}: unexpected quotation mark inside unquoted field.`,
+        }
+      }
       inQuotes = true
+      atFieldStart = false
     } else if (ch === ',') {
       cells.push(current)
       current = ''
+      atFieldStart = true
     } else {
       current += ch
+      atFieldStart = false
     }
   }
+
+  if (inQuotes) {
+    return {
+      cells,
+      error: `Malformed CSV quote in ${rowLabel}: unclosed quotation mark.`,
+    }
+  }
+
   cells.push(current)
-  return cells
+  return { cells }
 }
 
-function splitCsvLines(rawText: string): string[] {
+/**
+ * Convenience parser for well-formed CSV lines (used by fixtures/tests).
+ */
+export function parseCsvLine(line: string): string[] {
+  return parseCsvLineStrict(line).cells
+}
+
+function splitCsvLinesStrict(rawText: string): {
+  lines: string[]
+  error?: string
+} {
   const cleaned = rawText.replace(/^\uFEFF/, '')
   const lines: string[] = []
   let current = ''
   let inQuotes = false
+  let atFieldStart = true
+  let justClosedQuote = false
 
   for (let i = 0; i < cleaned.length; i += 1) {
     const ch = cleaned[i]
-    if (ch === '"') {
-      if (inQuotes && i + 1 < cleaned.length && cleaned[i + 1] === '"') {
-        current += '""'
-        i += 1
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < cleaned.length && cleaned[i + 1] === '"') {
+          current += '""'
+          i += 1
+        } else {
+          inQuotes = false
+          justClosedQuote = true
+          current += ch
+        }
       } else {
-        inQuotes = !inQuotes
         current += ch
       }
-    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      continue
+    }
+
+    if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && i + 1 < cleaned.length && cleaned[i + 1] === '\n') {
         i += 1
       }
@@ -90,14 +161,55 @@ function splitCsvLines(rawText: string): string[] {
         lines.push(current)
       }
       current = ''
-    } else {
+      atFieldStart = true
+      justClosedQuote = false
+      continue
+    }
+
+    if (justClosedQuote) {
+      if (ch === ',') {
+        atFieldStart = true
+        justClosedQuote = false
+      } else {
+        return {
+          lines,
+          error: `Malformed CSV quote on line ${lines.length + 1}: unexpected character "${ch}" after closing quote.`,
+        }
+      }
       current += ch
+      continue
+    }
+
+    if (ch === '"') {
+      if (!atFieldStart) {
+        return {
+          lines,
+          error: `Malformed CSV quote on line ${lines.length + 1}: unexpected quotation mark inside unquoted field.`,
+        }
+      }
+      inQuotes = true
+      atFieldStart = false
+    } else if (ch === ',') {
+      atFieldStart = true
+    } else {
+      atFieldStart = false
+    }
+    current += ch
+  }
+
+  if (inQuotes) {
+    return {
+      lines,
+      error:
+        'Malformed CSV file: unclosed quotation mark detected. Ensure every quoted field has a matching closing quote.',
     }
   }
+
   if (current.trim().length > 0) {
     lines.push(current)
   }
-  return lines
+
+  return { lines }
 }
 
 function normalizeShiftStatus(raw: string): ShiftStatus {
@@ -115,8 +227,12 @@ function normalizeConfirmationStatus(raw: string): ConfirmationStatus {
   return 'unconfirmed'
 }
 
-function createScheduleId(fileName: string, overrideId?: string): string {
-  if (overrideId) {
+function createScheduleId(
+  fileName: string,
+  overrideId?: string,
+  existingScheduleIds?: Set<string>,
+): string {
+  if (overrideId && !existingScheduleIds?.has(overrideId)) {
     return overrideId
   }
   const stem = fileName
@@ -124,14 +240,22 @@ function createScheduleId(fileName: string, overrideId?: string): string {
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 20)
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase()
-  return `${stem || 'CSV'}-${suffix}`
+
+  let candidate: string
+  do {
+    scheduleBatchSeq += 1
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase()
+    candidate = `${stem || 'CSV'}-${scheduleBatchSeq}-${suffix}`
+  } while (existingScheduleIds?.has(candidate))
+
+  return candidate
 }
 
 export interface ParseScheduleCsvOptions {
   workerId: string
   fileName: string
   scheduleId?: string
+  existingScheduleIds?: Set<string>
   initialConfirmations?: ConfirmationStatus[]
   useCsvConfirmationColumn?: boolean
 }
@@ -140,7 +264,11 @@ export function parseScheduleCsv(
   rawText: string,
   options: ParseScheduleCsvOptions,
 ): CsvParseResult {
-  const scheduleId = createScheduleId(options.fileName, options.scheduleId)
+  const scheduleId = createScheduleId(
+    options.fileName,
+    options.scheduleId,
+    options.existingScheduleIds,
+  )
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -168,7 +296,19 @@ export function parseScheduleCsv(
     }
   }
 
-  const lines = splitCsvLines(rawText)
+  const splitResult = splitCsvLinesStrict(rawText)
+  if (splitResult.error) {
+    return {
+      ok: false,
+      scheduleId,
+      fileName: options.fileName,
+      shifts: [],
+      errors: [splitResult.error],
+      warnings,
+    }
+  }
+
+  const lines = splitResult.lines
   if (lines.length < 2) {
     return {
       ok: false,
@@ -182,8 +322,60 @@ export function parseScheduleCsv(
     }
   }
 
-  const rawHeaders = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase())
+  const headerParse = parseCsvLineStrict(lines[0], 'header row')
+  if (headerParse.error) {
+    return {
+      ok: false,
+      scheduleId,
+      fileName: options.fileName,
+      shifts: [],
+      errors: [headerParse.error],
+      warnings,
+    }
+  }
+
+  const rawHeaders = headerParse.cells.map((h) => h.trim().toLowerCase())
+  if (rawHeaders.some((h) => h === '')) {
+    return {
+      ok: false,
+      scheduleId,
+      fileName: options.fileName,
+      shifts: [],
+      errors: [
+        'CSV header contains an empty column name. Ensure every column has a valid header.',
+      ],
+      warnings,
+    }
+  }
+
   const canonicalHeaders = rawHeaders.map((h) => HEADER_ALIASES[h] ?? h)
+  const seenCanonical = new Map<string, string>()
+  const duplicateHeaders: string[] = []
+  for (let idx = 0; idx < canonicalHeaders.length; idx += 1) {
+    const canon = canonicalHeaders[idx]
+    const raw = rawHeaders[idx]
+    const existingRaw = seenCanonical.get(canon)
+    if (existingRaw !== undefined) {
+      duplicateHeaders.push(
+        existingRaw === raw ? raw : `${existingRaw} & ${raw} (${canon})`,
+      )
+    } else {
+      seenCanonical.set(canon, raw)
+    }
+  }
+
+  if (duplicateHeaders.length > 0) {
+    return {
+      ok: false,
+      scheduleId,
+      fileName: options.fileName,
+      shifts: [],
+      errors: [
+        `Duplicate or conflicting CSV header column(s): ${duplicateHeaders.join(', ')}. Each column header must appear only once.`,
+      ],
+      warnings,
+    }
+  }
 
   const requiredColumns = ['shift_date', 'start_time', 'end_time']
   const missingHeaders = requiredColumns.filter(
@@ -208,18 +400,36 @@ export function parseScheduleCsv(
 
   for (let i = 1; i < lines.length; i += 1) {
     const rawLine = lines[i]
-    const cells = parseCsvLine(rawLine)
-    const rowMap: Record<string, string> = {}
+    const parsedRow = parseCsvLineStrict(rawLine, `row ${i}`)
+    if (parsedRow.error) {
+      return {
+        ok: false,
+        scheduleId,
+        fileName: options.fileName,
+        shifts: [],
+        errors: [parsedRow.error],
+        warnings,
+      }
+    }
 
+    const cells = parsedRow.cells
+    if (cells.length !== canonicalHeaders.length) {
+      return {
+        ok: false,
+        scheduleId,
+        fileName: options.fileName,
+        shifts: [],
+        errors: [
+          `Row ${i} has ${cells.length} column(s), but the header defines ${canonicalHeaders.length}. Check for unquoted commas or missing fields so shift values are not misaligned.`,
+        ],
+        warnings,
+      }
+    }
+
+    const rowMap: Record<string, string> = {}
     for (let colIdx = 0; colIdx < canonicalHeaders.length; colIdx += 1) {
       const key = canonicalHeaders[colIdx]
       rowMap[key] = (cells[colIdx] ?? '').trim()
-    }
-
-    if (cells.length > canonicalHeaders.length) {
-      warnings.push(
-        `Row ${i} has more columns than the header; extra trailing values were ignored.`,
-      )
     }
 
     const extracted: EditableShiftValues = {

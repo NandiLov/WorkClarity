@@ -8,6 +8,7 @@ import type {
   HealthResponse,
   ShiftConflict,
   ShiftRecord,
+  UploadMode,
   WeeklySummaryItem,
 } from '../types/shift'
 
@@ -17,6 +18,7 @@ export interface ScheduleContextValue {
   workerId: string
   workers: typeof DEMO_WORKERS
   activeFileName: string | null
+  uploadedFiles: string[]
   shifts: ShiftRecord[]
   weeklySummary: WeeklySummaryItem[]
   conflicts: ShiftConflict[]
@@ -33,10 +35,12 @@ export interface ScheduleContextValue {
   calculationError: string | null
   lastCalculatedAt: string | null
 
-  // Derived badge counts for navigation
+  // Derived badge & bulk-confirm counts
   reviewQueueCount: number
   warningsCount: number
   needsAttentionCount: number
+  readyToConfirmCount: number
+  canBulkConfirm: boolean
 
   // Actions
   selectWorker: (newWorkerId: string) => void
@@ -44,6 +48,7 @@ export interface ScheduleContextValue {
     csvText: string,
     fileName: string,
     options?: {
+      mode?: UploadMode
       initialConfirmations?: ConfirmationStatus[]
       useCsvConfirmationColumn?: boolean
     },

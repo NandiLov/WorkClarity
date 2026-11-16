@@ -4,6 +4,7 @@ import { getChangedFields } from '../../utils/formatters'
 
 interface DiffPillProps {
   extracted: EditableShiftValues
+  previousCurrent?: EditableShiftValues
   current: EditableShiftValues
   onReset?: () => void
   compact?: boolean
@@ -11,6 +12,7 @@ interface DiffPillProps {
 
 export function DiffPill({
   extracted,
+  previousCurrent,
   current,
   onReset,
   compact = false,
@@ -53,18 +55,39 @@ export function DiffPill({
         )}
       </div>
       <ul className="mt-1.5 space-y-1">
-        {diffs.map((diff) => (
-          <li key={diff.field} className="flex flex-wrap items-center gap-1.5">
-            <span className="font-medium text-slate-600">{diff.label}:</span>
-            <span className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 line-through">
-              {diff.originalValue}
-            </span>
-            <span className="text-slate-400">→</span>
-            <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-900">
-              {diff.currentValue}
-            </span>
-          </li>
-        ))}
+        {diffs.map((diff) => {
+          const prevRaw = previousCurrent
+            ? (previousCurrent[diff.field] ?? '').trim() || '(empty)'
+            : null
+          const showPreviousStep =
+            prevRaw !== null &&
+            prevRaw !== diff.originalValue &&
+            prevRaw !== diff.currentValue
+
+          return (
+            <li
+              key={diff.field}
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              <span className="font-medium text-slate-600">{diff.label}:</span>
+              <span className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 line-through">
+                {diff.originalValue}
+              </span>
+              {showPreviousStep && (
+                <>
+                  <span className="text-slate-400">→</span>
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[11px] text-amber-900 line-through">
+                    {prevRaw}
+                  </span>
+                </>
+              )}
+              <span className="text-slate-400">→</span>
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-900">
+                {diff.currentValue}
+              </span>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

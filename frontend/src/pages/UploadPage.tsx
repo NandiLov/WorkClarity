@@ -1,11 +1,13 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Download,
   FileSpreadsheet,
   FileWarning,
   Image as ImageIcon,
+  Layers,
   Sparkles,
   Trash2,
   Upload,
@@ -13,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useSchedule } from '../context/scheduleContextStore'
 import { SCHEDULE_PRESETS } from '../data/syntheticSchedules'
+import type { UploadMode } from '../types/shift'
 import { CSV_TEMPLATE_CONTENT } from '../utils/csvParser'
 
 export function UploadPage() {
@@ -21,24 +24,42 @@ export function UploadPage() {
   const {
     workerId,
     shifts,
-    activeFileName,
+    uploadedFiles,
     uploadCsvText,
     loadPresetSchedule,
     clearWorkerSchedule,
   } = useSchedule()
 
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadMode, setUploadMode] = useState<UploadMode>('append')
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [uploadErrors, setUploadErrors] = useState<string[]>([])
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([])
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const hasExistingShifts = shifts.length > 0
+  const effectiveMode: UploadMode = hasExistingShifts ? uploadMode : 'replace'
+  const replaceBlocked =
+    hasExistingShifts && effectiveMode === 'replace' && !replaceConfirmed
 
   const processFile = async (file: File) => {
     setUploadErrors([])
     setUploadWarnings([])
     setSuccessMessage(null)
 
+    if (replaceBlocked) {
+      setUploadErrors([
+        'Please check the replacement confirmation box before replacing your existing schedule.',
+      ])
+      return
+    }
+
     const lowerName = file.name.toLowerCase()
-    if (lowerName.endsWith('.pdf') || /\.(png|jpe?g|webp|gif|heic)$/i.test(lowerName)) {
+    if (
+      lowerName.endsWith('.pdf') ||
+      /\.(png|jpe?g|webp|gif|heic)$/i.test(lowerName)
+    ) {
       setUploadErrors([
         `"${file.name}" is an unstructured ${lowerName.endsWith('.pdf') ? 'PDF' : 'image'} file. Per MVP policy, CSV schedules are processed first; PDF and image extraction remains conditional until the backend extraction integration is ready.`,
       ])
@@ -62,14 +83,17 @@ export function UploadPage() {
               reader.onerror = () => reject(reader.error)
               reader.readAsText(file)
             })
-      const result = uploadCsvText(text, file.name)
+      const result = uploadCsvText(text, file.name, { mode: effectiveMode })
       if (!result.ok) {
         setUploadErrors(result.errors)
         return
       }
       setUploadWarnings(result.warnings)
+      setReplaceConfirmed(false)
       setSuccessMessage(
-        `Extracted ${result.shifts.length} shift(s) from "${file.name}". All newly uploaded shifts start as unconfirmed for your review.`,
+        effectiveMode === 'append' && hasExistingShifts
+          ? `Added ${result.shifts.length} shift(s) from "${file.name}" to your existing schedule. New shifts start as unconfirmed for review.`
+          : `Imported ${result.shifts.length} shift(s) from "${file.name}". All newly uploaded shifts start as unconfirmed for your review.`,
       )
       navigate('/review')
     } catch {
@@ -113,6 +137,7 @@ export function UploadPage() {
   const handlePresetClick = (presetId: string) => {
     setUploadErrors([])
     setUploadWarnings([])
+    setReplaceConfirmed(false)
     const result = loadPresetSchedule(presetId)
     if (result?.ok) {
       navigate('/review')
@@ -127,12 +152,12 @@ export function UploadPage() {
             Upload Schedule
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Upload a CSV schedule for worker{' '}
+            Upload one or more CSV schedules (including separate files from
+            different employers) for{' '}
             <span className="font-mono font-semibold text-slate-800">
               {workerId}
             </span>
-            . Newly extracted shifts stay unconfirmed until you review and
-            approve them.
+            . Newly imported shifts stay unconfirmed until you review them.
           </p>
         </div>
 
@@ -145,10 +170,10 @@ export function UploadPage() {
             <Download className="h-4 w-4 text-slate-500" />
             Download CSV Template
           </button>
-          {shifts.length > 0 && (
+          {hasExistingShifts && !confirmClearOpen && (
             <button
               type="button"
-              onClick={clearWorkerSchedule}
+              onClick={() => setConfirmClearOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs hover:bg-rose-50"
             >
               <Trash2 className="h-4 w-4" />
@@ -157,6 +182,153 @@ export function UploadPage() {
           )}
         </div>
       </div>
+
+      {confirmClearOpen && hasExistingShifts && (
+        <div
+          role="alert"
+          className="flex flex-col justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 sm:flex-row sm:items-center"
+        >
+          <span>
+            Clear all <strong>{shifts.length}</strong> shift(s) and edits for{' '}
+            <strong>{workerId}</strong>? This cannot be undone.
+          </span>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmClearOpen(false)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearWorkerSchedule()
+                setConfirmClearOpen(false)
+                setReplaceConfirmed(false)
+                setUploadMode('append')
+              }}
+              className="rounded-lg bg-rose-700 px-3 py-1.5 font-semibold text-white hover:bg-rose-800"
+            >
+              Confirm Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Employer Upload Mode Controls */}
+      {hasExistingShifts && (
+        <section
+          aria-label="Import mode"
+          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
+        >
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Layers className="h-4 w-4 text-teal-600" />
+            <span>
+              You already have {shifts.length} active shift(s) loaded
+            </span>
+          </div>
+          {uploadedFiles.length > 0 && (
+            <p className="mt-1 text-xs text-slate-500">
+              Loaded schedules:{' '}
+              <span className="font-medium text-slate-700">
+                {uploadedFiles.join(', ')}
+              </span>
+            </p>
+          )}
+
+          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <label
+              className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-xs transition ${
+                uploadMode === 'append'
+                  ? 'border-emerald-500 bg-emerald-50/50 text-slate-900'
+                  : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              <input
+                type="radio"
+                name="upload-mode"
+                value="append"
+                checked={uploadMode === 'append'}
+                onChange={() => {
+                  setUploadMode('append')
+                  setReplaceConfirmed(false)
+                  setUploadErrors([])
+                }}
+                className="mt-0.5 accent-emerald-600"
+              />
+              <div>
+                <div className="font-semibold text-slate-900">
+                  Add to existing schedule (recommended)
+                </div>
+                <div className="mt-0.5 text-slate-600">
+                  Keep your {shifts.length} existing shift(s) and combine shifts
+                  from another employer or week. Duplicate shifts are held
+                  automatically.
+                </div>
+              </div>
+            </label>
+
+            <label
+              className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-xs transition ${
+                uploadMode === 'replace'
+                  ? 'border-amber-500 bg-amber-50/60 text-slate-900'
+                  : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              <input
+                type="radio"
+                name="upload-mode"
+                value="replace"
+                checked={uploadMode === 'replace'}
+                onChange={() => {
+                  setUploadMode('replace')
+                  setReplaceConfirmed(false)
+                  setUploadErrors([])
+                }}
+                className="mt-0.5 accent-amber-600"
+              />
+              <div>
+                <div className="font-semibold text-slate-900">
+                  Replace existing schedule
+                </div>
+                <div className="mt-0.5 text-slate-600">
+                  Discard all current shifts and worker edits for {workerId} and
+                  start fresh with the new CSV file.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          {uploadMode === 'replace' && (
+            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div className="space-y-2">
+                  <p className="font-semibold">
+                    Warning: Replacing will permanently remove {shifts.length}{' '}
+                    existing shift(s) and any corrections you made.
+                  </p>
+                  <label className="flex cursor-pointer items-center gap-2 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={replaceConfirmed}
+                      onChange={(e) => {
+                        setReplaceConfirmed(e.target.checked)
+                        if (e.target.checked) setUploadErrors([])
+                      }}
+                      className="h-4 w-4 rounded border-amber-400 accent-amber-600"
+                    />
+                    <span>
+                      Confirm: replace all existing shifts for {workerId}
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Upload Dropzone */}
       <div
@@ -176,7 +348,9 @@ export function UploadPage() {
           <Upload className="h-6 w-6" />
         </div>
         <h2 className="mt-4 text-base font-semibold text-slate-900">
-          Drop your CSV schedule file here
+          {hasExistingShifts && effectiveMode === 'append'
+            ? 'Drop another employer or week CSV file to add shifts'
+            : 'Drop your CSV schedule file here'}
         </h2>
         <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
           Supports UTF-8 comma-separated CSV files with{' '}
@@ -196,6 +370,7 @@ export function UploadPage() {
           type="file"
           accept=".csv,text/csv"
           onChange={handleFileChange}
+          disabled={replaceBlocked}
           className="sr-only"
           aria-label="Choose CSV schedule file"
         />
@@ -203,21 +378,20 @@ export function UploadPage() {
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
+            disabled={replaceBlocked}
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
           >
             <FileSpreadsheet className="h-4 w-4" />
-            Select CSV File
+            {hasExistingShifts && effectiveMode === 'append'
+              ? 'Select CSV File to Add'
+              : 'Select CSV File'}
           </button>
         </div>
 
-        {activeFileName && shifts.length > 0 && (
-          <p className="mt-4 text-xs text-slate-500">
-            Currently loaded:{' '}
-            <span className="font-semibold text-slate-800">
-              {activeFileName}
-            </span>{' '}
-            ({shifts.length} shifts)
+        {replaceBlocked && (
+          <p className="mt-3 text-xs font-medium text-amber-800">
+            Check the replacement confirmation box above to enable upload.
           </p>
         )}
       </div>
@@ -244,7 +418,7 @@ export function UploadPage() {
 
       {uploadWarnings.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
-          <p className="font-semibold">CSV parsing notes</p>
+          <p className="font-semibold">CSV import notes</p>
           <ul className="mt-1 list-disc pl-4">
             {uploadWarnings.map((w, i) => (
               <li key={i}>{w}</li>
@@ -272,7 +446,7 @@ export function UploadPage() {
             </div>
             <p className="mt-1 text-xs text-slate-500">
               Load curated synthetic test schedules from the WorkClarity dataset
-              to verify every MVP business rule with the FastAPI backend.
+              to verify every MVP business rule with the calculation service.
             </p>
           </div>
         </div>
