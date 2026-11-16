@@ -1,0 +1,340 @@
+import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  FileSpreadsheet,
+  FileWarning,
+  Image as ImageIcon,
+  Sparkles,
+  Trash2,
+  Upload,
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useSchedule } from '../context/scheduleContextStore'
+import { SCHEDULE_PRESETS } from '../data/syntheticSchedules'
+import { CSV_TEMPLATE_CONTENT } from '../utils/csvParser'
+
+export function UploadPage() {
+  const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const {
+    workerId,
+    shifts,
+    activeFileName,
+    uploadCsvText,
+    loadPresetSchedule,
+    clearWorkerSchedule,
+  } = useSchedule()
+
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadErrors, setUploadErrors] = useState<string[]>([])
+  const [uploadWarnings, setUploadWarnings] = useState<string[]>([])
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const processFile = async (file: File) => {
+    setUploadErrors([])
+    setUploadWarnings([])
+    setSuccessMessage(null)
+
+    const lowerName = file.name.toLowerCase()
+    if (lowerName.endsWith('.pdf') || /\.(png|jpe?g|webp|gif|heic)$/i.test(lowerName)) {
+      setUploadErrors([
+        `"${file.name}" is an unstructured ${lowerName.endsWith('.pdf') ? 'PDF' : 'image'} file. Per MVP policy, CSV schedules are processed first; PDF and image extraction remains conditional until the backend extraction integration is ready.`,
+      ])
+      return
+    }
+
+    if (!lowerName.endsWith('.csv') && file.type !== 'text/csv') {
+      setUploadErrors([
+        `Unsupported file format "${file.name}". Please upload a UTF-8 .csv schedule file matching the WorkClarity CSV contract.`,
+      ])
+      return
+    }
+
+    try {
+      const text =
+        typeof file.text === 'function'
+          ? await file.text()
+          : await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(String(reader.result ?? ''))
+              reader.onerror = () => reject(reader.error)
+              reader.readAsText(file)
+            })
+      const result = uploadCsvText(text, file.name)
+      if (!result.ok) {
+        setUploadErrors(result.errors)
+        return
+      }
+      setUploadWarnings(result.warnings)
+      setSuccessMessage(
+        `Extracted ${result.shifts.length} shift(s) from "${file.name}". All newly uploaded shifts start as unconfirmed for your review.`,
+      )
+      navigate('/review')
+    } catch {
+      setUploadErrors([
+        `Unable to read "${file.name}". Ensure it is a readable UTF-8 CSV file.`,
+      ])
+    }
+  }
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      void processFile(file)
+    }
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      void processFile(file)
+    }
+  }
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE_CONTENT], {
+      type: 'text/csv;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'workclarity_schedule_template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePresetClick = (presetId: string) => {
+    setUploadErrors([])
+    setUploadWarnings([])
+    const result = loadPresetSchedule(presetId)
+    if (result?.ok) {
+      navigate('/review')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Upload Schedule
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Upload a CSV schedule for worker{' '}
+            <span className="font-mono font-semibold text-slate-800">
+              {workerId}
+            </span>
+            . Newly extracted shifts stay unconfirmed until you review and
+            approve them.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4 text-slate-500" />
+            Download CSV Template
+          </button>
+          {shifts.length > 0 && (
+            <button
+              type="button"
+              onClick={clearWorkerSchedule}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 shadow-xs hover:bg-rose-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear Schedule
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Upload Dropzone */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDragging(true)
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
+          isDragging
+            ? 'border-emerald-500 bg-emerald-50/70'
+            : 'border-slate-300 bg-white hover:border-slate-400'
+        }`}
+      >
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-emerald-400">
+          <Upload className="h-6 w-6" />
+        </div>
+        <h2 className="mt-4 text-base font-semibold text-slate-900">
+          Drop your CSV schedule file here
+        </h2>
+        <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
+          Supports UTF-8 comma-separated CSV files with{' '}
+          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-slate-700">
+            shift_date, start_time, end_time
+          </code>{' '}
+          plus optional{' '}
+          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-slate-700">
+            end_date, break_minutes, employer_name, location, hourly_rate,
+            currency
+          </code>
+          .
+        </p>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleFileChange}
+          className="sr-only"
+          aria-label="Choose CSV schedule file"
+        />
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Select CSV File
+          </button>
+        </div>
+
+        {activeFileName && shifts.length > 0 && (
+          <p className="mt-4 text-xs text-slate-500">
+            Currently loaded:{' '}
+            <span className="font-semibold text-slate-800">
+              {activeFileName}
+            </span>{' '}
+            ({shifts.length} shifts)
+          </p>
+        )}
+      </div>
+
+      {/* Feedback Alerts */}
+      {uploadErrors.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <div className="space-y-1">
+              <p className="font-semibold">Unable to process schedule file</p>
+              <ul className="list-disc pl-4 text-xs text-rose-800">
+                {uploadErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadWarnings.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+          <p className="font-semibold">CSV parsing notes</p>
+          <ul className="mt-1 list-disc pl-4">
+            {uploadWarnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {/* Synthetic Demo Schedules */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-teal-600" />
+              <h2 className="text-base font-semibold text-slate-900">
+                Synthetic Demonstration Schedules
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Load curated synthetic test schedules from the WorkClarity dataset
+              to verify every MVP business rule with the FastAPI backend.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {SCHEDULE_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => handlePresetClick(preset.id)}
+              className="group flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-left transition hover:border-emerald-400 hover:bg-emerald-50/30"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-slate-900 group-hover:text-emerald-900">
+                    {preset.title}
+                  </span>
+                  <span className="shrink-0 rounded-md bg-slate-200/80 px-2 py-0.5 font-mono text-[11px] font-medium text-slate-700">
+                    {preset.workerId}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">{preset.subtitle}</p>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800 ring-1 ring-teal-600/20">
+                  {preset.scenarioTag}
+                </span>
+                <span className="text-xs font-semibold text-emerald-700 group-hover:underline">
+                  Load &amp; Review →
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Conditional Format Notice */}
+      <section className="rounded-2xl border border-slate-200 bg-slate-100/70 p-4 text-xs text-slate-600">
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-600">
+            <ImageIcon className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-slate-800">
+                PDF &amp; Image Extraction (Conditional MVP Feature)
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                <FileWarning className="h-3 w-3" />
+                Not yet connected
+              </span>
+            </div>
+            <p className="mt-1 leading-relaxed">
+              Per the WorkClarity MVP specification, reliable end-to-end CSV
+              validation and earnings calculation take priority. NVIDIA-assisted
+              PDF and photo extraction will be enabled once the backend
+              extraction endpoints are integrated and verified against the
+              unstructured sample key.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
