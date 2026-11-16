@@ -636,3 +636,144 @@ def test_confirmed_shifts_with_unresolved_problems_are_available_for_the_review_
     assert [s["shift_id"] for s in out["shifts"] if s["earnings_status"] in need_attention] == ["A", "B"]
     reasons = {s["shift_id"]: [f["reason"] for f in s["flags"]] for s in out["shifts"] if s["flags"]}
     assert all(reasons[k] for k in ("A", "B"))
+
+
+def test_weekly_hours_separate_eligible_from_incomplete_and_waiting():
+    out = calc([
+        backend_shift(
+            shift_id="A",
+            date="2026-11-09",
+            start_time="09:00",
+            end_time="17:00",
+            break_minutes=30,
+            hourly_rate="16",
+        ),
+        backend_shift(
+            shift_id="B",
+            date="2026-11-10",
+            start_time="09:00",
+            end_time="17:00",
+            break_minutes=30,
+            hourly_rate=None,
+        ),
+        backend_shift(
+            shift_id="C",
+            date="2026-11-11",
+            start_time="09:00",
+            end_time="17:00",
+            break_minutes=30,
+            hourly_rate="16",
+            confirmation_status="unconfirmed",
+        ),
+    ])
+
+    week = out["weekly_summary"][0]
+
+    assert week["paid_hours"] == 7.5
+    assert week["gross_earnings"] == 120.0
+    assert week["incomplete_hours"] == 7.5
+    assert week["pending_hours"] == 7.5
+    assert week["earnings_incomplete"] is True
+
+
+def test_earnings_use_exact_minutes_and_round_only_the_money():
+    # 12:10 to 17:00 is 4 hours 50 minutes.
+    # At $13/hour, the correct earnings are $62.83.
+    shift = calc([
+        backend_shift(
+            start_time="12:10",
+            end_time="17:00",
+            break_minutes=0,
+            hourly_rate="13.00",
+        )
+    ])["shifts"][0]
+
+    assert shift["paid_hours"] == 4.83
+    assert shift["gross_earnings"] == 62.83
+
+
+def test_a_missing_hourly_rate_is_a_warning_and_the_shift_is_not_counted():
+    out = calc([backend_shift(hourly_rate=None)])
+    shift, week = out["shifts"][0], out["weekly_summary"][0]
+
+    assert shift["validation_status"] == "warning"
+    assert shift["earnings_status"] == "incomplete"
+    assert shift["gross_earnings"] is None
+    assert next(
+        f for f in shift["flags"] if f["code"] == "MISSING_RATE"
+    )["severity"] == "warning"
+    assert week["earnings_incomplete"] is True
+    assert week["gross_earnings"] is None
+
+
+def test_a_week_with_nothing_counted_yet_shows_null_not_zero():
+    out = calc([backend_shift(confirmation_status="unconfirmed")])
+    week = out["weekly_summary"][0]
+
+    assert week["gross_earnings"] is None
+    assert week["earnings_incomplete"] is True
+
+
+def test_a_week_where_every_shift_is_cancelled_is_a_real_zero():
+    out = calc([backend_shift(shift_status="cancelled")])
+    week = out["weekly_summary"][0]
+
+    assert week["gross_earnings"] == 0.0
+    assert week["earnings_incomplete"] is False
+    assert week["cancelled_shifts"] == 1
+
+  
+def test_a_rejected_shift_does_not_block_its_twin():
+    for order in (("rejected", "confirmed"), ("confirmed", "rejected")):
+        out = calc([
+            backend_shift(shift_id="A", confirmation_status=order[0]),
+            backend_shift(shift_id="B", confirmation_status=order[1]),
+        ])
+
+        by_id = {s["shift_id"]: s for s in out["shifts"]}
+        kept = by_id["A"] if order[0] == "confirmed" else by_id["B"]
+
+        assert kept["earnings_status"] == "counted"
+        assert kept["gross_earnings"] == 123.75
+        assert "POSSIBLE_DUPLICATE" not in {
+            f["code"] for f in kept["flags"]
+        }
+        assert out["weekly_summary"][0]["gross_earnings"] == 123.75
+
+  
+def test_spec_acceptance_example_232():
+    out = calc([
+        backend_shift(
+            shift_id="M",
+            date="2026-11-09",
+            start_time="09:00",
+            end_time="17:00",
+            break_minutes=30,
+            hourly_rate="16",
+            currency="USD",
+        ),
+        backend_shift(
+            shift_id="T",
+            date="2026-11-10",
+            start_time="10:00",
+            end_time="18:00",
+            break_minutes=60,
+            hourly_rate="16",
+            currency="USD",
+        ),
+        backend_shift(
+            shift_id="W",
+            date="2026-11-11",
+            start_time="09:00",
+            end_time="17:00",
+            break_minutes=None,
+            hourly_rate="16",
+            currency="USD",
+        ),
+    ])
+
+    week = out["weekly_summary"][0]
+    assert week["paid_hours"] == 14.5
+    assert week["gross_earnings"] == 232.0
+    assert week["earnings_incomplete"] is True
+    assert week["incomplete_shifts"] == 1
