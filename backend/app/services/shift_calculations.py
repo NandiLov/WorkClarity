@@ -432,14 +432,14 @@ def _weekly(results, rules):
     for (worker, week, cur), items in sorted(groups.items(), key=lambda kv: (str(kv[0][0]), kv[0][1], str(kv[0][2]))):
         counted = [i for i in items if i["status"] == "counted"]
         incomplete = [i for i in items if i["status"] == "incomplete"]
-        pending = [i for i in items if i["status"] in ("unconfirmed", "needs_review")]
+        pending = [i for i in items if i["status"] in ("unconfirmed", "needs_review", "excluded")]
         def _hours_of(group):
             return sum((i["_exact_hours"] for i in group if i["_exact_hours"] is not None), Decimal("0"))
         # paid_hours = eligible hours only: the hours that make up gross_earnings.
         # Hours of incomplete and waiting shifts are reported apart so they are never mixed in.
         hours = _hours_of(counted)
         incomplete_hours = _hours_of(incomplete)
-        pending_hours = _hours_of(pending)
+        pending_hours = _hours_of([i for i in pending if i["status"] != "excluded"])
         gross = sum((Decimal(str(i["gross_earnings"])) for i in counted), Decimal("0"))
         # "Not counted yet": nothing counted but shifts are still waiting, so the total is null, not 0.00.
         # A genuine zero (for example every shift cancelled) stays 0.00.
@@ -597,7 +597,7 @@ def calculate_shifts(
     weekly = [dict(week_start=w["pay_week_start"], currency=w["currency"], shifts=w["shifts"],
                    paid_hours=w["paid_hours"], incomplete_hours=w["incomplete_hours"],
                    pending_hours=w["pending_hours"], gross_earnings=w["gross_earnings"],
-                   incomplete_shifts=w["incomplete_shifts"], earnings_incomplete=(w["incomplete_shifts"] + w["pending_shifts"]) > 0,
+                   incomplete_shifts=w["incomplete_shifts"], pending_shifts=w["pending_shifts"], earnings_incomplete=(w["incomplete_shifts"] + w["pending_shifts"]) > 0,
                    cancelled_shifts=w["cancelled_shifts"])
               for w in result["weekly_summary"]]
 

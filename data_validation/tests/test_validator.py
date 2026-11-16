@@ -388,7 +388,7 @@ def test_earnings_use_confirmed_validated_shifts_only():
     week = run(shifts)["weekly_summary"][0]
     assert week["gross_earnings"] == 123.75
     assert week["paid_hours"] == 7.5
-    assert week["pending_shifts"] == 2
+    assert week["pending_shifts"] == 3
     assert week["pending_hours"] == 15.0
     assert week["incomplete_shifts"] == 0
 
@@ -429,6 +429,7 @@ def test_backend_shape_in_and_out():
         "gross_earnings": 123.75,
         "incomplete_shifts": 0,
         "earnings_incomplete": False,
+        "pending_shifts": 0,
         "cancelled_shifts": 0,
     }
 
@@ -636,6 +637,24 @@ def test_confirmed_shifts_with_unresolved_problems_are_available_for_the_review_
     assert [s["shift_id"] for s in out["shifts"] if s["earnings_status"] in need_attention] == ["A", "B"]
     reasons = {s["shift_id"]: [f["reason"] for f in s["flags"]] for s in out["shifts"] if s["flags"]}
     assert all(reasons[k] for k in ("A", "B"))
+
+
+def test_excluded_shift_appears_in_weekly_pending_count_without_adding_hours():
+    out = calc([
+        backend_shift(
+            shift_id="EXCLUDED",
+            date="2026-11-10",
+            start_time="xx",
+        )
+    ])
+
+    week = out["weekly_summary"][0]
+
+    assert out["shifts"][0]["earnings_status"] == "excluded"
+    assert week["pending_shifts"] == 1
+    assert week["pending_hours"] == 0.0
+    assert week["gross_earnings"] is None
+    assert week["earnings_incomplete"] is True
 
 
 def test_weekly_hours_separate_eligible_from_incomplete_and_waiting():
