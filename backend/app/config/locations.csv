@@ -1,0 +1,17 @@
+location_id,employer_id,location_name,area
+L01,E01,Store A,Central
+L02,E02,Warehouse B,East
+L03,E03,Cafe Central,Central
+L04,E02,Night Warehouse,East
+L05,E01,Retail X,North
+L06,E04,Diner Y,North
+L07,E05,Hospital Annex,West
+L08,E03,Cafe Downtown,West
+L09,E02,Warehouse,East
+L10,E06,Clinic Front Desk,South
+L11,E07,Restaurant Bar,South
+L12,E02,Depot,East
+L13,E08,Mall Kiosk,Central
+L14,E09,Hotel Front,Central
+L15,E10,Gym Reception,North
+L16,E11,Packing Plant,East
