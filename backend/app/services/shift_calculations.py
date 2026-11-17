@@ -137,6 +137,7 @@ INCOMPLETE_CODES = ("MISSING_RATE", "MISSING_BREAK", "MISSING_CURRENCY")
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 CENT = Decimal("0.01")
+MAX_HOURLY_RATE = Decimal("1000000")   # anything above this is a typing or reading mistake, and would overflow the money maths
 
 
 # ------------------------------------------------------------------ loading reference files
@@ -205,7 +206,7 @@ def _parse_time(v):
 def _to_int(v):
     try:
         return int(float(str(v).strip()))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):   # OverflowError: "Infinity" or a number too large for a float
         return None
 
 
@@ -213,9 +214,10 @@ def _to_decimal(v):
     if _blank(v):
         return None
     try:
-        return Decimal(str(v).strip())
+        d = Decimal(str(v).strip())
     except Exception:
         return None
+    return d if d.is_finite() else None   # "NaN" and "Infinity" are not usable amounts
 
 
 def _currency(v):
@@ -292,7 +294,7 @@ def _check_shift(shift, index, rules, known_locations):
         brk = None
 
     rate = _to_decimal(_get(shift, "hourly_rate"))
-    if rate is None or rate < 0:
+    if rate is None or rate < 0 or rate > MAX_HOURLY_RATE:
         issue("MISSING_RATE")
         rate = None
 
