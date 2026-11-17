@@ -54,7 +54,7 @@ Status: draft by Ololade, 2026-11-05, updated after Castro's review on 2026-11-0
 | --- | --- |
 | Paid hours per shift | truth_shifts.paid_hours |
 | Gross earnings per shift, from exact minutes, rounded to 2 decimals | truth_shifts.gross_earnings |
-| Weekly total from the per shift amounts | expected_weekly_earnings.expected_gross_mvp. Checked: all 32 weekly rows match |
+| Weekly total: the exact, unrounded earnings of the eligible shifts are added up, and only the final weekly total is rounded to 2 decimals. The rounded shift amounts are not added | expected_weekly_earnings.expected_gross_mvp. Checked: all 32 weekly rows match. Because of this, a weekly total can differ by one cent from the sum of the displayed shift amounts |
 | Totals per currency, no mixed currency | expected_weekly_earnings has a currency column. S028 has one USD row and one EUR row |
 | Earnings incomplete count | expected_weekly_earnings.incomplete_shifts. S029 has 1 |
 | Label "Estimated gross earnings (before tax or deductions)" | Display text for the app, not stored in the data |
