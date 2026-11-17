@@ -630,7 +630,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     }).length
   }, [shifts])
 
-  const warningsCount = useMemo(() => {
+  const scheduleAlertsCount = useMemo(
+    () => conflicts.length + commuteNotAssessed.length,
+    [conflicts.length, commuteNotAssessed.length],
+  )
+
+  const flaggedShiftsCount = useMemo(() => {
     const flaggedShiftIds = new Set<string>()
     for (const s of shifts) {
       if (s.confirmation_status === 'rejected') continue
@@ -641,8 +646,10 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         flaggedShiftIds.add(s.shift_id)
       }
     }
-    return conflicts.length + commuteNotAssessed.length + flaggedShiftIds.size
-  }, [shifts, conflicts.length, commuteNotAssessed.length])
+    return flaggedShiftIds.size
+  }, [shifts])
+
+  const warningsCount = scheduleAlertsCount + flaggedShiftsCount
 
   const value: ScheduleContextValue = {
     workerId,
@@ -663,6 +670,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     calculationError,
     lastCalculatedAt,
     reviewQueueCount,
+    scheduleAlertsCount,
+    flaggedShiftsCount,
     warningsCount,
     needsAttentionCount: reviewQueueCount,
     readyToConfirmCount,

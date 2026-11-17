@@ -1203,4 +1203,118 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       expect(screen.getAllByText(/\$384\.00 \(USD\)/).length).toBeGreaterThan(0)
     })
   })
+
+  it('24. Schedule Overview distinguishes scheduling/commute alerts (1) and shifts requiring attention (3) with 4 total attention items matching sidebar badge and hides stale counts', async () => {
+    const user = userEvent.setup()
+    const s005Csv = readRepoFile('schedule_inputs/S005_schedule.csv')
+    const realFetch = globalThis.fetch.bind(globalThis)
+
+    render(<App />)
+
+    // S005 has 1 commute gap (Hospital Annex -> Cafe Downtown, 10 min) and 3 unconfirmed shifts (FL06 warning)
+    await uploadCsvFileInUi(user, 'S005_schedule.csv', s005Csv)
+
+    const overviewRegion = await screen.findByRole('region', {
+      name: /Worker schedule overview/i,
+    })
+    const overviewWarningsLink = within(overviewRegion).getByRole('link', {
+      name: /Warnings & Conflicts/i,
+    })
+
+    await waitFor(() => {
+      expect(overviewWarningsLink).toHaveTextContent(/4\s+total attention items/i)
+      expect(overviewWarningsLink).toHaveTextContent(
+        /1\s+scheduling & commute alert(?!s)/i,
+      )
+      expect(overviewWarningsLink).toHaveTextContent(
+        /3\s+shifts requiring attention/i,
+      )
+    })
+
+    // Sidebar badge and mobile nav badge both match total attention items (4)
+    const primaryNav = screen.getByRole('navigation', {
+      name: /Primary navigation/i,
+    })
+    const sidebarWarningsLink = within(primaryNav).getByRole('link', {
+      name: /Warnings & Conflicts/i,
+    })
+    expect(within(sidebarWarningsLink).getByText('4')).toBeInTheDocument()
+
+    const mobileNav = screen.getByRole('navigation', {
+      name: /Mobile navigation/i,
+    })
+    const mobileWarningsLink = within(mobileNav).getByRole('link', {
+      name: /Warnings/i,
+    })
+    expect(within(mobileWarningsLink).getByText('4')).toBeInTheDocument()
+
+    // While a recalculation is in-flight (stale), stale counts must not appear as current
+    let releaseRecalc!: () => void
+    let holdRecalc = true
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/shifts/calculate') && holdRecalc) {
+        holdRecalc = false
+        return new Promise<Response>((resolve) => {
+          releaseRecalc = () => {
+            void realFetch(input, init).then(resolve)
+          }
+        })
+      }
+      return realFetch(input, init)
+    })
+
+    await user.click(
+      screen.getByRole('button', { name: /Confirm All Valid Shifts \(3\)/i }),
+    )
+
+    await waitFor(() => {
+      expect(overviewWarningsLink).toHaveTextContent(/—\s+total attention items/i)
+      expect(overviewWarningsLink).toHaveTextContent(
+        /—\s+scheduling & commute alerts/i,
+      )
+      expect(overviewWarningsLink).toHaveTextContent(
+        /—\s+shifts requiring attention/i,
+      )
+      expect(within(sidebarWarningsLink).queryByText('4')).not.toBeInTheDocument()
+      expect(within(mobileWarningsLink).queryByText('4')).not.toBeInTheDocument()
+    })
+
+    await act(async () => {
+      releaseRecalc()
+    })
+
+    // After confirmation recalculates, 0 shifts require attention while 1 commute alert stays -> 1 total item
+    await waitFor(() => {
+      expect(overviewWarningsLink).toHaveTextContent(
+        /1\s+total attention item(?!s)/i,
+      )
+      expect(overviewWarningsLink).toHaveTextContent(
+        /1\s+scheduling & commute alert(?!s)/i,
+      )
+      expect(overviewWarningsLink).toHaveTextContent(
+        /0\s+shifts requiring attention/i,
+      )
+      expect(within(sidebarWarningsLink).getByText('1')).toBeInTheDocument()
+      expect(within(mobileWarningsLink).getByText('1')).toBeInTheDocument()
+    })
+
+    // If backend becomes unavailable after an edit, Overview cards hide and sidebar badge does not show stale count
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+      new TypeError('Backend unreachable'),
+    )
+    await user.click(
+      screen.getByRole('button', { name: /Confirmed & Counted/i }),
+    )
+    await user.click(screen.getAllByRole('button', { name: /Edit Details/i })[0])
+    await user.type(screen.getByLabelText(/Employer/i), ' Edited')
+    await user.click(screen.getByRole('button', { name: /^Save Changes$/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Calculation service unavailable/i),
+      ).toBeInTheDocument()
+      expect(within(sidebarWarningsLink).queryByText('1')).not.toBeInTheDocument()
+    })
+  })
 })

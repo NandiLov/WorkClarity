@@ -29,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     workers,
     selectWorker,
     backendStatus,
+    isCalculationStale,
     reviewQueueCount,
     warningsCount,
     activeFileName,
@@ -54,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: 'Warnings & Conflicts',
       shortLabel: 'Warnings',
       icon: AlertTriangle,
-      badge: warningsCount > 0 ? warningsCount : undefined,
+      badge: !isCalculationStale && warningsCount > 0 ? warningsCount : undefined,
       badgeTone: 'rose',
     },
     {

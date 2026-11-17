@@ -16,8 +16,6 @@ export function OverviewBar() {
     workers,
     shifts,
     weeklySummary,
-    conflicts,
-    commuteNotAssessed,
     availableWeeks,
     selectedWeek,
     setSelectedWeek,
@@ -25,6 +23,9 @@ export function OverviewBar() {
     isCalculationStale,
     calculationError,
     reviewQueueCount,
+    scheduleAlertsCount,
+    flaggedShiftsCount,
+    warningsCount,
     retryCalculation,
   } = useSchedule()
 
@@ -38,7 +39,6 @@ export function OverviewBar() {
     (sum, w) => sum + w.paid_hours,
     0,
   )
-  const totalConflictCount = conflicts.length + commuteNotAssessed.length
 
   if (isCalculationStale && calculationError) {
     return (
@@ -227,19 +227,45 @@ export function OverviewBar() {
               className="group rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 transition hover:border-amber-300 hover:bg-amber-50/30"
             >
               <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                <span>Conflicts &amp; Commute</span>
+                <span>Warnings &amp; Conflicts</span>
                 <AlertTriangle
                   className={`h-4 w-4 ${
-                    totalConflictCount > 0 ? 'text-amber-600' : 'text-slate-400'
+                    !isCalculationStale && warningsCount > 0
+                      ? 'text-rose-600'
+                      : 'text-slate-400'
                   }`}
                 />
               </div>
-              <p className="mt-1.5 text-lg font-bold tabular-nums text-slate-900">
-                {isCalculationStale ? '—' : totalConflictCount}{' '}
+              <p
+                className={`mt-1.5 text-lg font-bold tabular-nums ${
+                  !isCalculationStale && warningsCount > 0
+                    ? 'text-rose-700'
+                    : 'text-slate-900'
+                }`}
+              >
+                {isCalculationStale ? '—' : warningsCount}{' '}
                 <span className="text-xs font-normal text-slate-500">
-                  schedule alert{totalConflictCount === 1 ? '' : 's'}
+                  total attention item
+                  {!isCalculationStale && warningsCount === 1 ? '' : 's'}
                 </span>
               </p>
+              <div className="mt-1 space-y-0.5 text-[11px] text-slate-600">
+                <p>
+                  <span className="font-semibold tabular-nums text-slate-800">
+                    {isCalculationStale ? '—' : scheduleAlertsCount}
+                  </span>{' '}
+                  scheduling &amp; commute alert
+                  {!isCalculationStale && scheduleAlertsCount === 1 ? '' : 's'}
+                </p>
+                <p>
+                  <span className="font-semibold tabular-nums text-slate-800">
+                    {isCalculationStale ? '—' : flaggedShiftsCount}
+                  </span>{' '}
+                  shift
+                  {!isCalculationStale && flaggedShiftsCount === 1 ? '' : 's'}{' '}
+                  requiring attention
+                </p>
+              </div>
               <p className="mt-1 text-[11px] font-medium text-slate-600 group-hover:underline">
                 Inspect warnings &amp; conflicts →
               </p>

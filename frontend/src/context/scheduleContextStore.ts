@@ -37,6 +37,8 @@ export interface ScheduleContextValue {
 
   // Derived badge & bulk-confirm counts
   reviewQueueCount: number
+  scheduleAlertsCount: number
+  flaggedShiftsCount: number
   warningsCount: number
   needsAttentionCount: number
   readyToConfirmCount: number

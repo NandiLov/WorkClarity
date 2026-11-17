@@ -4,7 +4,7 @@
 **Base Main Commit:** `24c8e9c`  
 **Backend Under Test:** FastAPI `0.162.5` + Uvicorn `0.54.0` (`http://127.0.0.1:8000`, unmodified)  
 **Frontend Stack:** React `19.3.1`, Vite `8.3.6`, TypeScript `6.0.3`, Tailwind CSS `4.3.5`, Vitest `5.1.0`  
-**Test Execution Date:** 2026-11-16  
+**Test Execution Date:** 2026-11-17
 
 ---
 
@@ -13,8 +13,8 @@
 | Check | Command | Outcome | Details |
 |---|---|---|---|
 | ESLint | `npm run lint` (`eslint .`) | **PASS** | 0 errors, 0 warnings |
-| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `733ms` |
-| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (31 / 31)** | `src/test/milestone1.test.tsx` (9/9) + `src/test/e2e_backend.test.tsx` (22/22 against live FastAPI backend) |
+| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `684ms` |
+| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (32 / 32)** | `src/test/milestone1.test.tsx` (9/9) + `src/test/e2e_backend.test.tsx` (23/23 against live FastAPI backend) |
 | Live Browser Verification | Chromium (`http://localhost:5173`) | **PASS** | Zero console errors; HTTP 200 on `/health` and `/api/v1/shifts/calculate`; zero horizontal overflow at `375px`, `390px`, `768px`, and `1280px` |
 
 ---
@@ -51,6 +51,7 @@ All dataset scenarios were verified directly against `data_validation/test_data/
 | 23 | Confirmation Integrity on Edit | Confirmed `$128.00` shift edited via `Save Changes`, then `Save & Confirm` | Editing details resets `confirmation_status` to `unconfirmed` (`Not counted yet`); `Save & Confirm` re-confirms (`$112.00`) while retaining `extracted` (`0`), `previous_current` (`30`), and `current` (`60`) | Modal warned & reset status to `unconfirmed`; earnings changed to `"Not counted yet"`; `Save & Confirm` restored `$112.00 (USD)` with all 3 break values preserved | **PASS** |
 | 24 | Bulk Confirmation Safety | `S001_schedule.csv` with delayed validation & offline fault | `Confirm All Valid Shifts` disabled while validation pending, stale, or offline; enabled with exact count (`3`) once validated | Button remained disabled while pending and offline; enabled at `(3)` on valid backend response and showed `"Confirmed 3 validated shift(s) and updated earnings."` | **PASS** |
 | 25 | CSV Quote, Header & Column-Count Robustness | Unclosed quotes, mid-field quotes, trailing chars, `hourly_rate` duplicate, `date`/`shift_date` alias collision, unquoted comma shift, repeated filenames | All malformed CSVs rejected (`ok: false`) without silent column corruption; repeated filenames get distinct IDs | All 6 malformed CSV cases returned explicit errors; repeated uploads generated distinct `schedule_id` and `shift_id` values | **PASS** |
+| 26 | Overview vs. Sidebar Attention Count Parity & Stale Guard | `schedule_inputs/S005_schedule.csv` (1 commute gap + 3 unconfirmed shifts) | Overview distinguishes `1` scheduling & commute alert, `3` shifts requiring attention, and `4` total attention items matching sidebar/mobile badges; post-confirm shows `1` total (`1` alert + `0` flagged shifts); stale/offline states never show stale counts | Overview rendered `4 total attention items` (`1 scheduling & commute alert`, `3 shifts requiring attention`) matching nav badge `4`; post-confirm updated both to `1`; in-flight stale showed `—` and offline hid stale badge/cards | **PASS** |
 
 ---
 
