@@ -1218,6 +1218,31 @@ def _normalise_segments(
             records.append(rec)
 
     records, conflict_groups = _annotate_conflicting_duplicates(records)
+    if rejected_records and records:
+        rejected_warn = (
+            "Document contained rejected invalid/empty shift record(s); "
+            "verify that no shifts from the source schedule are missing."
+        )
+        records = [
+            rec.model_copy(
+                update={
+                    "confidence": "low",
+                    "review_reasons": list(
+                        dict.fromkeys(
+                            [
+                                *rec.review_reasons,
+                                "partial_extraction_with_rejected_records",
+                                "low_or_medium_confidence",
+                            ]
+                        )
+                    ),
+                    "validation_warnings": list(
+                        dict.fromkeys([*rec.validation_warnings, rejected_warn])
+                    ),
+                }
+            )
+            for rec in records
+        ]
     combined_week_of = " | ".join(week_labels) if week_labels else None
     return (
         combined_week_of,

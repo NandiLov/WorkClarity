@@ -1170,6 +1170,41 @@ def preprocess_image_bytes(
     return out_bytes, out_mime, diag.applied_transformations
 
 
+def _prepare_page_from_bytes(
+    raw_bytes: bytes,
+    *,
+    mime_type: str,
+    page_number: int,
+    total_pages: int,
+    preprocess_images: bool,
+    deskew: bool,
+    perspective_correct: bool,
+    enhance_contrast: bool,
+) -> PreparedDocumentPage:
+    steps: tuple[str, ...] = ()
+    diag: ImagePreprocessingDiagnostics | None = None
+    out_bytes = raw_bytes
+    out_mime = mime_type
+    if preprocess_images:
+        out_bytes, out_mime, diag = inspect_and_preprocess_image(
+            raw_bytes,
+            mime_type=mime_type,
+            deskew=deskew,
+            perspective_correct=perspective_correct,
+            enhance_contrast=enhance_contrast,
+        )
+        steps = diag.applied_transformations
+    return PreparedDocumentPage(
+        page_number=page_number,
+        total_pages=total_pages,
+        mime_type=out_mime,
+        image_bytes=out_bytes,
+        base64_data=base64.b64encode(out_bytes).decode("ascii"),
+        preprocessing_applied=steps,
+        preprocessing_diagnostics=diag,
+    )
+
+
 def load_document_pages(
     file_path: str | Path,
     *,
@@ -1194,56 +1229,78 @@ def load_document_pages(
         raw_bytes = path.read_bytes()
         if not raw_bytes:
             raise ValueError(f"Image document is empty: {path}")
-        mime = IMAGE_MIME_TYPES[ext]
-        steps: tuple[str, ...] = ()
-        diag: ImagePreprocessingDiagnostics | None = None
-        if preprocess_images:
-            raw_bytes, mime, diag = inspect_and_preprocess_image(
+        return [
+            _prepare_page_from_bytes(
                 raw_bytes,
-                mime_type=mime,
+                mime_type=IMAGE_MIME_TYPES[ext],
+                page_number=1,
+                total_pages=1,
+                preprocess_images=preprocess_images,
                 deskew=deskew,
                 perspective_correct=perspective_correct,
                 enhance_contrast=enhance_contrast,
-            )
-            steps = diag.applied_transformations
-        encoded = base64.b64encode(raw_bytes).decode("ascii")
-        return [
-            PreparedDocumentPage(
-                page_number=1,
-                total_pages=1,
-                mime_type=mime,
-                image_bytes=raw_bytes,
-                base64_data=encoded,
-                preprocessing_applied=steps,
-                preprocessing_diagnostics=diag,
             )
         ]
 
     png_pages = render_pdf_to_png_pages(path, dpi=dpi)
     total = len(png_pages)
-    prepared: list[PreparedDocumentPage] = []
-    for idx, page_bytes in enumerate(png_pages, start=1):
-        mime = "image/png"
-        steps = ()
-        diag = None
-        if preprocess_images:
-            page_bytes, mime, diag = inspect_and_preprocess_image(
-                page_bytes,
-                mime_type=mime,
+    return [
+        _prepare_page_from_bytes(
+            page_bytes,
+            mime_type="image/png",
+            page_number=idx,
+            total_pages=total,
+            preprocess_images=preprocess_images,
+            deskew=deskew,
+            perspective_correct=perspective_correct,
+            enhance_contrast=enhance_contrast,
+        )
+        for idx, page_bytes in enumerate(png_pages, start=1)
+    ]
+
+
+def load_document_pages_from_bytes(
+    file_bytes: bytes,
+    *,
+    file_name: str,
+    dpi: int = DEFAULT_PDF_DPI,
+    preprocess_images: bool = False,
+    deskew: bool = True,
+    perspective_correct: bool = False,
+    enhance_contrast: bool = False,
+) -> list[PreparedDocumentPage]:
+    """Load PNG, JPG, or multi-page PDF documents directly from uploaded in-memory bytes."""
+    if not file_bytes:
+        raise ValueError(f"Document byte stream is empty: {file_name}")
+
+    ext = Path(file_name).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported schedule document format {ext!r}; supported: {sorted(SUPPORTED_EXTENSIONS)}"
+        )
+
+    if ext in IMAGE_MIME_TYPES:
+        return [
+            _prepare_page_from_bytes(
+                file_bytes,
+                mime_type=IMAGE_MIME_TYPES[ext],
+                page_number=1,
+                total_pages=1,
+                preprocess_images=preprocess_images,
                 deskew=deskew,
                 perspective_correct=perspective_correct,
                 enhance_contrast=enhance_contrast,
             )
-            steps = diag.applied_transformations
-        prepared.append(
-            PreparedDocumentPage(
-                page_number=idx,
-                total_pages=total,
-                mime_type=mime,
-                image_bytes=page_bytes,
-                base64_data=base64.b64encode(page_bytes).decode("ascii"),
-                preprocessing_applied=steps,
-                preprocessing_diagnostics=diag,
-            )
+        ]
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_pdf = Path(tmp_dir) / "upload_source.pdf"
+        tmp_pdf.write_bytes(file_bytes)
+        return load_document_pages(
+            tmp_pdf,
+            dpi=dpi,
+            preprocess_images=preprocess_images,
+            deskew=deskew,
+            perspective_correct=perspective_correct,
+            enhance_contrast=enhance_contrast,
         )
-    return prepared

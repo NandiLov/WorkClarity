@@ -149,6 +149,11 @@ class NvidiaExtractionAdapter(ExtractionAdapter):
 
         secret_for_redaction: str | None = self._explicit_api_key
         payload = self.build_payload(request)
+        effective_timeout = (
+            self._timeout_seconds
+            if request.timeout_seconds is None
+            else max(0.001, min(self._timeout_seconds, float(request.timeout_seconds)))
+        )
         t0 = time.perf_counter()
 
         try:
@@ -159,7 +164,7 @@ class NvidiaExtractionAdapter(ExtractionAdapter):
                     else {}
                 )
                 response_json = self._http_sender(
-                    self._endpoint, headers, payload, self._timeout_seconds
+                    self._endpoint, headers, payload, effective_timeout
                 )
             else:
                 api_key = self._resolve_api_key()
@@ -169,7 +174,7 @@ class NvidiaExtractionAdapter(ExtractionAdapter):
                     self._endpoint,
                     headers,
                     payload,
-                    self._timeout_seconds,
+                    effective_timeout,
                     secret_to_redact=api_key,
                 )
         except ProviderRequestError:

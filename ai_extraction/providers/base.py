@@ -132,9 +132,12 @@ class RequestAttemptRecord:
     succeeded: bool = False
     failure_reason: str | None = None
     transient_error: bool = False
+    provider_name: str | None = None
+    model_id: str | None = None
+    failure_category: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "attempt_number": self.attempt_number,
             "elapsed_seconds": round(self.elapsed_seconds, 4),
             "token_usage": self.token_usage.to_dict(),
@@ -143,6 +146,13 @@ class RequestAttemptRecord:
             "failure_reason": self.failure_reason,
             "transient_error": self.transient_error,
         }
+        if self.provider_name is not None:
+            data["provider_name"] = self.provider_name
+        if self.model_id is not None:
+            data["model_id"] = self.model_id
+        if self.failure_category is not None:
+            data["failure_category"] = self.failure_category
+        return data
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +164,7 @@ class ProviderExtractionRequest:
     system_prompt: str
     user_prompt: str
     target_worker: str | None = None
+    timeout_seconds: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

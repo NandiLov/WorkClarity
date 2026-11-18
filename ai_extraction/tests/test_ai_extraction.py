@@ -33,6 +33,15 @@ from ai_extraction.benchmark import (
     resolve_versioned_output_dir,
     run_benchmark,
 )
+from ai_extraction.orchestrator import (
+    DEFAULT_FALLBACK_MODEL,
+    DEFAULT_FALLBACK_PROVIDER,
+    DEFAULT_PRIMARY_MODEL,
+    DEFAULT_PRIMARY_PROVIDER,
+    ExtractionOrchestrator,
+    ExtractionServiceConfig,
+    OrchestratedExtractionResult,
+)
 from ai_extraction.pdf_utils import (
     ImagePreprocessingDiagnostics,
     _decode_png_rgba,
@@ -47,6 +56,7 @@ from ai_extraction.pdf_utils import (
 )
 from ai_extraction.prompt import SYSTEM_PROMPT, build_user_prompt
 from ai_extraction.providers import (
+    DEFAULT_GEMINI_MODEL,
     DEFAULT_NVIDIA_ENDPOINT,
     DEFAULT_NVIDIA_MAX_RETRIES,
     DEFAULT_NVIDIA_MAX_TOKENS,
@@ -2168,6 +2178,1530 @@ class V31ConflictAndPreprocessingRegressionTests(unittest.TestCase):
         self.assertGreater(pre_diag.output_width, pre_diag.original_width)
         self.assertGreater(pre_diag.output_height, pre_diag.original_height)
         self.assertEqual(img07_path.read_bytes(), orig_disk_bytes)
+
+
+class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
+    SAMPLE_IMAGE = UNSTRUCTURED_DIR / "images" / "img_01_screenshot_clean.png"
+
+    @staticmethod
+    def _shift_dict(
+        *,
+        shift_date: str = "2026-11-16",
+        start_time: str = "09:00",
+        end_time: str = "17:00",
+        break_minutes: int | None = 30,
+        employer_name: str | None = "BrightMart",
+        location: str | None = "Store A",
+        department: str | None = "sales floor",
+        hourly_rate: float | None = 15.0,
+        currency: str | None = "USD",
+        shift_status: str = "scheduled",
+        confidence: str = "high",
+        source_page: int = 1,
+        source_row: int = 1,
+    ) -> dict[str, Any]:
+        return {
+            "shift_date": shift_date,
+            "start_time": start_time,
+            "end_time": end_time,
+            "break_minutes": break_minutes,
+            "employer_name": employer_name,
+            "location": location,
+            "department": department,
+            "hourly_rate": hourly_rate,
+            "currency": currency,
+            "shift_status": shift_status,
+            "confidence": confidence,
+            "uncertain_fields": [],
+            "source_page": source_page,
+            "source_row": source_row,
+            "worker_name": None,
+        }
+
+    @staticmethod
+    def _load_backend_calc():
+        spec = importlib.util.spec_from_file_location(
+            "shift_calculations", BACKEND_CALC_PATH
+        )
+        assert spec is not None and spec.loader is not None
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_01_primary_success_without_fallback(self) -> None:
+        cfg = ExtractionServiceConfig()
+        self.assertEqual(DEFAULT_GEMINI_MODEL, "gemini-3.5-flash-lite")
+        self.assertEqual(cfg.resolved_primary_provider, DEFAULT_PRIMARY_PROVIDER)
+        self.assertEqual(cfg.resolved_primary_provider, "gemini")
+        self.assertEqual(cfg.resolved_primary_model_id, DEFAULT_PRIMARY_MODEL)
+        self.assertEqual(cfg.resolved_primary_model_id, "gemini-3.5-flash-lite")
+        self.assertEqual(cfg.resolved_fallback_provider, DEFAULT_FALLBACK_PROVIDER)
+        self.assertEqual(cfg.resolved_fallback_provider, "nvidia")
+        self.assertEqual(cfg.resolved_fallback_model_id, DEFAULT_FALLBACK_MODEL)
+        self.assertEqual(
+            cfg.resolved_fallback_model_id,
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        )
+
+        primary_calls = 0
+        fallback_calls = 0
+
+        def primary_sender(url, headers, payload, timeout):
+            nonlocal primary_calls
+            primary_calls += 1
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "week_of": "Week of 16 November 2026",
+                                            "shifts": [self._shift_dict()],
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 900,
+                    "candidatesTokenCount": 140,
+                    "totalTokenCount": 1040,
+                },
+            }
+
+        def fallback_sender(url, headers, payload, timeout):
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("Fallback must not be called when primary succeeds!")
+
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                model_id=DEFAULT_PRIMARY_MODEL,
+                api_key="test-gem",
+                http_sender=primary_sender,
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                model_id=DEFAULT_FALLBACK_MODEL,
+                api_key="test-nvd",
+                http_sender=fallback_sender,
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertIsInstance(res, OrchestratedExtractionResult)
+        self.assertEqual(primary_calls, 1)
+        self.assertEqual(fallback_calls, 0)
+        self.assertEqual(res.extraction_status, "complete")
+        self.assertTrue(res.succeeded)
+        self.assertTrue(res.is_complete)
+        self.assertFalse(res.fallback_triggered)
+        self.assertEqual(res.active_provider, "gemini")
+        self.assertEqual(res.active_model_id, "gemini-3.5-flash-lite")
+        self.assertEqual(res.token_usage.total_tokens, 1040)
+        self.assertEqual(len(res.shifts), 1)
+        self.assertEqual(res.shifts[0].confirmation_status, "needs_review")
+        self.assertTrue(res.shifts[0].requires_worker_confirmation)
+        self.assertFalse(res.shifts[0].eligible_for_bulk_confirmation)
+
+    def test_02_transient_primary_failure_followed_by_successful_retry(self) -> None:
+        calls = {"primary": 0, "fallback": 0}
+        sleeps: list[float] = []
+
+        def primary_sender(url, headers, payload, timeout):
+            calls["primary"] += 1
+            if calls["primary"] == 1:
+                raise ProviderRequestError(
+                    "HTTP 429 Too Many Requests", status_code=429, is_transient=True
+                )
+            if calls["primary"] == 2:
+                raise ProviderRequestError(
+                    "HTTP 503 Service Unavailable", status_code=503, is_transient=True
+                )
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "week_of": "Week of 16 November 2026",
+                                            "shifts": [self._shift_dict()],
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 800,
+                    "candidatesTokenCount": 120,
+                    "totalTokenCount": 920,
+                },
+            }
+
+        def fallback_sender(*_args):
+            calls["fallback"] += 1
+            raise AssertionError("Fallback must not be called when primary retry succeeds")
+
+        cfg = ExtractionServiceConfig(
+            primary_max_retries=2, retry_backoff_seconds=1.0
+        )
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+            sleep_fn=sleeps.append,
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(calls["primary"], 3)
+        self.assertEqual(calls["fallback"], 0)
+        self.assertEqual(sleeps, [1.0, 2.0])
+        self.assertTrue(res.is_complete)
+        self.assertFalse(res.fallback_triggered)
+        self.assertEqual(res.request_attempts, 3)
+        self.assertEqual(res.attempt_history[0]["failure_category"], "rate_limit_429")
+        self.assertEqual(res.attempt_history[1]["failure_category"], "transient_http_5xx")
+        self.assertTrue(res.attempt_history[2]["succeeded"])
+
+    def test_03_primary_retries_exhausted_followed_by_fallback_success(self) -> None:
+        calls = {"primary": 0, "fallback": 0}
+        sleeps: list[float] = []
+
+        def primary_sender(*_args):
+            calls["primary"] += 1
+            raise ProviderRequestError(
+                "HTTP 503 Upstream overloaded", status_code=503, is_transient=True
+            )
+
+        def fallback_sender(*_args):
+            calls["fallback"] += 1
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [
+                                        self._shift_dict(
+                                            employer_name="Harbor Bistro",
+                                            location="Harbor Main",
+                                            hourly_rate=16.5,
+                                        )
+                                    ],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 1100,
+                    "completion_tokens": 350,
+                    "completion_tokens_details": {"reasoning_tokens": 150},
+                    "total_tokens": 1450,
+                },
+            }
+
+        cfg = ExtractionServiceConfig(
+            primary_max_retries=2, fallback_max_retries=1, retry_backoff_seconds=0.5
+        )
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+            sleep_fn=sleeps.append,
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(calls["primary"], 3)
+        self.assertEqual(calls["fallback"], 1)
+        self.assertEqual(sleeps, [0.5, 1.0])
+        self.assertTrue(res.is_complete)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(res.fallback_trigger_category, "transient_http_5xx")
+        self.assertIn("HTTP 503", res.fallback_trigger_reason or "")
+        self.assertEqual(res.active_provider, "nvidia")
+        self.assertEqual(res.active_model_id, DEFAULT_NVIDIA_MODEL)
+        self.assertEqual(res.request_attempts, 4)
+        self.assertEqual(res.token_usage.total_tokens, 1450)
+        self.assertEqual(res.shifts[0].normalised.employer_name, "Harbor Bistro")
+
+    def test_04_invalid_json_followed_by_fallback_success(self) -> None:
+        calls = {"primary": 0, "fallback": 0}
+
+        def primary_sender(*_args):
+            calls["primary"] += 1
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {"parts": [{"text": "{broken json payload"}]},
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 500,
+                    "candidatesTokenCount": 30,
+                    "totalTokenCount": 530,
+                },
+            }
+
+        def fallback_sender(*_args):
+            calls["fallback"] += 1
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [self._shift_dict()],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 900, "completion_tokens": 200, "total_tokens": 1100},
+            }
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(calls["primary"], 2)
+        self.assertEqual(calls["fallback"], 1)
+        self.assertTrue(res.is_complete)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(
+            res.fallback_trigger_category, "malformed_or_empty_response"
+        )
+        self.assertEqual(res.active_provider, "nvidia")
+        self.assertEqual(res.token_usage.total_tokens, 2 * 530 + 1100)
+
+    def test_05_both_providers_failing_requires_manual_entry_and_not_empty_schedule(
+        self,
+    ) -> None:
+        calls = {"primary": 0, "fallback": 0}
+
+        def primary_sender(*_args):
+            calls["primary"] += 1
+            raise ProviderRequestError(
+                "Network error calling Gemini: connection reset", is_transient=True
+            )
+
+        def fallback_sender(*_args):
+            calls["fallback"] += 1
+            raise ProviderRequestError(
+                "HTTP 502 Bad Gateway", status_code=502, is_transient=True
+            )
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=1, fallback_max_retries=1, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(calls["primary"], 2)
+        self.assertEqual(calls["fallback"], 2)
+        self.assertEqual(res.extraction_status, "failed")
+        self.assertFalse(res.succeeded)
+        self.assertTrue(res.is_failed)
+        self.assertFalse(res.is_complete)
+        self.assertFalse(res.is_partial)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+        self.assertIn("connection reset", res.manual_entry_reason or "")
+        self.assertIn("HTTP 502", res.manual_entry_reason or "")
+        self.assertEqual(res.shifts, [])
+        self.assertEqual(res.primary_failure_category, "timeout_or_connection_error")
+        self.assertEqual(res.fallback_failure_category, "transient_http_5xx")
+
+    def test_06_invalid_or_missing_primary_credentials_failover_without_primary_retry(
+        self,
+    ) -> None:
+        sleeps: list[float] = []
+        captured_fallback_headers: dict[str, str] = {}
+
+        def fallback_sender(url, headers, payload, timeout):
+            captured_fallback_headers.update(headers)
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [self._shift_dict()],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 800, "completion_tokens": 180, "total_tokens": 980},
+            }
+
+        # Case A: Missing GEMINI_API_KEY -> primary makes 1 attempt, no retries, fails over to NVIDIA
+        orig_is_file = Path.is_file
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            Path,
+            "is_file",
+            autospec=True,
+            side_effect=lambda p: False if p.name == ".env" else orig_is_file(p),
+        ):
+            orchestrator_missing = ExtractionOrchestrator(
+                ExtractionServiceConfig(primary_max_retries=2, retry_backoff_seconds=2.0),
+                primary_adapter=GeminiExtractionAdapter(api_key=None),
+                fallback_adapter=NvidiaExtractionAdapter(
+                    api_key="fallback-fixture-key", http_sender=fallback_sender
+                ),
+                sleep_fn=sleeps.append,
+            )
+            res_missing = orchestrator_missing.extract_file(self.SAMPLE_IMAGE)
+
+        self.assertEqual(sleeps, [])
+        self.assertTrue(res_missing.is_complete)
+        self.assertTrue(res_missing.fallback_triggered)
+        self.assertEqual(res_missing.primary_failure_category, "missing_credentials")
+        self.assertEqual(res_missing.request_attempts, 2)
+        self.assertNotIn("x-goog-api-key", captured_fallback_headers)
+        self.assertEqual(
+            captured_fallback_headers.get("Authorization"),
+            "Bearer fallback-fixture-key",
+        )
+
+        # Case B: HTTP 401 on primary -> short-circuits retries (1 attempt), fails over immediately
+        primary_401_calls = 0
+
+        def primary_401(*_args):
+            nonlocal primary_401_calls
+            primary_401_calls += 1
+            raise ProviderRequestError(
+                "HTTP 401 Unauthorized: invalid key", status_code=401, is_transient=False
+            )
+
+        sleeps.clear()
+        orchestrator_401 = ExtractionOrchestrator(
+            ExtractionServiceConfig(primary_max_retries=2, retry_backoff_seconds=2.0),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="bad-gem-fixture", http_sender=primary_401
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="fallback-fixture-key", http_sender=fallback_sender
+            ),
+            sleep_fn=sleeps.append,
+        )
+        res_401 = orchestrator_401.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(primary_401_calls, 1)
+        self.assertEqual(sleeps, [])
+        self.assertTrue(res_401.is_complete)
+        self.assertTrue(res_401.fallback_triggered)
+        self.assertEqual(res_401.primary_failure_category, "authentication_error")
+
+    def test_07_fallback_disabled_stops_after_primary_failure(self) -> None:
+        calls = {"primary": 0, "fallback": 0}
+
+        def primary_sender(*_args):
+            calls["primary"] += 1
+            raise ProviderRequestError(
+                "HTTP 500 Internal Server Error", status_code=500, is_transient=True
+            )
+
+        def fallback_sender(*_args):
+            calls["fallback"] += 1
+            raise AssertionError("Fallback must NEVER run when fallback_enabled=False")
+
+        cfg = ExtractionServiceConfig(
+            fallback_enabled=False,
+            primary_max_retries=1,
+            retry_backoff_seconds=0.0,
+        )
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertIsNone(orchestrator.fallback_adapter)
+        self.assertEqual(calls["primary"], 2)
+        self.assertEqual(calls["fallback"], 0)
+        self.assertFalse(res.fallback_triggered)
+        self.assertTrue(res.is_failed)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+
+    def test_08_missing_fallback_credentials_fails_cleanly_without_fallback_retry(
+        self,
+    ) -> None:
+        primary_calls = 0
+
+        def primary_sender(*_args):
+            nonlocal primary_calls
+            primary_calls += 1
+            raise ProviderRequestError(
+                "HTTP 503 Unavailable", status_code=503, is_transient=True
+            )
+
+        orig_is_file = Path.is_file
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            Path,
+            "is_file",
+            autospec=True,
+            side_effect=lambda p: False if p.name == ".env" else orig_is_file(p),
+        ):
+            orchestrator = ExtractionOrchestrator(
+                ExtractionServiceConfig(
+                    primary_max_retries=1,
+                    fallback_max_retries=2,
+                    retry_backoff_seconds=0.0,
+                ),
+                primary_adapter=GeminiExtractionAdapter(
+                    api_key="test-gem", http_sender=primary_sender
+                ),
+                fallback_adapter=NvidiaExtractionAdapter(api_key=None),
+            )
+            res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+
+        self.assertEqual(primary_calls, 2)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(res.request_attempts, 3)
+        self.assertEqual(res.fallback_failure_category, "missing_credentials")
+        self.assertTrue(res.is_failed)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+        self.assertIn("NVIDIA_API_KEY", res.fallback_failure_reason or "")
+        self.assertIn("HTTP 503", res.primary_failure_reason or "")
+
+    def test_09_valid_extraction_with_missing_financial_fields_does_not_failover(
+        self,
+    ) -> None:
+        fallback_calls = 0
+
+        def primary_sender(*_args):
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "week_of": "Week of 16 November 2026",
+                                            "shifts": [
+                                                self._shift_dict(
+                                                    break_minutes=None,
+                                                    hourly_rate=None,
+                                                    currency=None,
+                                                )
+                                            ],
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 700,
+                    "candidatesTokenCount": 110,
+                    "totalTokenCount": 810,
+                },
+            }
+
+        def fallback_sender(*_args):
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("Legitimately missing fields must NOT trigger failover!")
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(fallback_calls, 0)
+        self.assertFalse(res.fallback_triggered)
+        self.assertTrue(res.is_complete)
+        self.assertEqual(len(res.shifts), 1)
+        s = res.shifts[0]
+        self.assertIsNone(s.normalised.break_minutes)
+        self.assertIsNone(s.normalised.hourly_rate)
+        self.assertIsNone(s.normalised.currency)
+        self.assertEqual(s.confirmation_status, "needs_review")
+        self.assertIn("missing_money_field:break_minutes", s.review_reasons)
+        self.assertIn("missing_money_field:hourly_rate", s.review_reasons)
+        self.assertIn("missing_money_field:currency", s.review_reasons)
+
+    def test_10_conflicting_duplicates_preserved_and_require_worker_resolution(
+        self,
+    ) -> None:
+        def primary_sender(*_args):
+            raise ProviderRequestError(
+                "HTTP 429 rate limited", status_code=429, is_transient=True
+            )
+
+        def fallback_sender(*_args):
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [
+                                        self._shift_dict(
+                                            shift_date="2026-11-20",
+                                            start_time="13:00",
+                                            end_time="21:00",
+                                            break_minutes=45,
+                                            hourly_rate=14.25,
+                                            currency="GBP",
+                                            source_row=4,
+                                        ),
+                                        self._shift_dict(
+                                            shift_date="2026-11-20",
+                                            start_time="13:00",
+                                            end_time="21:00",
+                                            break_minutes=0,
+                                            hourly_rate=16.00,
+                                            currency="GBP",
+                                            source_row=5,
+                                        ),
+                                    ],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 900, "completion_tokens": 250, "total_tokens": 1150},
+            }
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(primary_max_retries=0, retry_backoff_seconds=0.0),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertTrue(res.fallback_triggered)
+        self.assertIsNotNone(res.document_result)
+        self.assertEqual(res.document_result.conflicting_duplicate_count, 2)
+        self.assertEqual(len(res.shifts), 2)
+        self.assertTrue(all(s.requires_conflict_resolution for s in res.shifts))
+
+        det = _evaluate_deterministic_validation(
+            [(res.file_name, rec) for rec in res.shifts]
+        )
+        self.assertEqual(det["unresolved_conflict_records"], 2)
+        self.assertEqual(
+            det["if_individually_confirmed"]["eligible_for_earnings_count"], 0
+        )
+
+    def test_11_unconfirmed_high_confidence_shifts_excluded_from_earnings(self) -> None:
+        def primary_sender(*_args):
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "week_of": "Week of 16 November 2026",
+                                            "shifts": [
+                                                self._shift_dict(confidence="high")
+                                            ],
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 700,
+                    "candidatesTokenCount": 130,
+                    "totalTokenCount": 830,
+                },
+            }
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(fallback_enabled=False),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        shift = res.shifts[0]
+        self.assertEqual(shift.confidence, "high")
+        self.assertEqual(shift.confirmation_status, "needs_review")
+        self.assertTrue(shift.requires_worker_confirmation)
+        self.assertTrue(shift.requires_individual_review)
+        self.assertFalse(shift.eligible_for_bulk_confirmation)
+
+        calc_mod = self._load_backend_calc()
+        out = calc_mod.calculate_shifts(
+            {
+                "worker_id": "W_HIGH_CONF",
+                "shifts": [
+                    {
+                        "shift_id": "S1",
+                        "shift_date": shift.effective_values().shift_date,
+                        "start_time": shift.effective_values().start_time,
+                        "end_time": shift.effective_values().end_time,
+                        "break_minutes": shift.effective_values().break_minutes,
+                        "employer_name": shift.effective_values().employer_name,
+                        "location": shift.effective_values().location,
+                        "hourly_rate": shift.effective_values().hourly_rate,
+                        "currency": shift.effective_values().currency,
+                        "shift_status": shift.effective_values().shift_status,
+                        "confirmation_status": shift.confirmation_status,
+                    }
+                ],
+            },
+            flag_messages=calc_mod.load_flag_messages(str(FLAG_TYPES_PATH)),
+            known_locations=calc_mod.load_known_locations(str(BACKEND_LOCATIONS_PATH)),
+            rules=calc_mod.load_rules(str(BACKEND_RULES_PATH)),
+        )
+        self.assertEqual(out["shifts"][0]["earnings_status"], "needs_review")
+        self.assertFalse(out["shifts"][0]["eligible_for_earnings"])
+        self.assertIsNone(out["weekly_summary"][0]["gross_earnings"])
+
+    def test_12_credential_and_reasoning_redaction_across_both_providers(self) -> None:
+        primary_secret = "synthetic-gem-" + "fixture-987654"
+        fallback_secret = "synthetic-nvd-" + "fixture-123456"
+        sensitive_reasoning = "SENSITIVE_CHAIN_OF_THOUGHT_DO_NOT_LOG_SALARY_999"
+
+        def primary_urlopen(req, timeout=120):
+            raise urllib.error.HTTPError(
+                req.full_url,
+                503,
+                f"Service unavailable key={primary_secret}",
+                hdrs=None,
+                fp=io.BytesIO(f"Bad header {primary_secret}".encode("utf-8")),
+            )
+
+        def fallback_sender(url, headers, payload, timeout):
+            # Fallback must never receive primary's credential
+            self.assertNotIn(primary_secret, json.dumps(headers))
+            self.assertNotIn(primary_secret, json.dumps(payload))
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "reasoning_content": sensitive_reasoning,
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [self._shift_dict()],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 900, "completion_tokens": 200, "total_tokens": 1100},
+            }
+
+        with patch("urllib.request.urlopen", side_effect=primary_urlopen):
+            orchestrator = ExtractionOrchestrator(
+                ExtractionServiceConfig(
+                    primary_max_retries=0, retry_backoff_seconds=0.0
+                ),
+                primary_adapter=GeminiExtractionAdapter(api_key=primary_secret),
+                fallback_adapter=NvidiaExtractionAdapter(
+                    api_key=fallback_secret, http_sender=fallback_sender
+                ),
+            )
+            with self.assertLogs("ai_extraction.orchestrator", level="INFO") as log_ctx:
+                res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+
+        joined_logs = "\n".join(log_ctx.output)
+        summary_json = json.dumps(res.to_public_summary())
+        payload_json = json.dumps(res.to_payload_dict())
+
+        for haystack in (joined_logs, summary_json, payload_json):
+            self.assertNotIn(primary_secret, haystack)
+            self.assertNotIn(fallback_secret, haystack)
+            self.assertNotIn(sensitive_reasoning, haystack)
+        self.assertIn("[REDACTED]", res.primary_failure_reason or "")
+
+    def test_13_bounded_retry_backoff_and_per_attempt_timeout_enforcement(self) -> None:
+        observed_timeouts: list[float | None] = []
+        sleeps: list[float] = []
+
+        def primary_sender(url, headers, payload, timeout):
+            observed_timeouts.append(timeout)
+            raise ProviderRequestError(
+                "Timeout calling primary", is_transient=True
+            )
+
+        def fallback_sender(url, headers, payload, timeout):
+            observed_timeouts.append(timeout)
+            raise ProviderRequestError(
+                "HTTP 503 fallback error", status_code=503, is_transient=True
+            )
+
+        cfg = ExtractionServiceConfig(
+            primary_max_retries=2,
+            fallback_max_retries=1,
+            retry_backoff_seconds=1.5,
+            per_attempt_timeout_seconds=12.0,
+            total_deadline_seconds=100.0,
+        )
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+            sleep_fn=sleeps.append,
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        # Primary: 1 + 2 = 3 attempts (sleeps 1.5, 3.0); Fallback: 1 + 1 = 2 attempts (sleep 1.5)
+        self.assertEqual(len(observed_timeouts), 5)
+        self.assertTrue(all(t is not None and t <= 12.0 for t in observed_timeouts))
+        self.assertEqual(sleeps, [1.5, 3.0, 1.5])
+        self.assertEqual(res.request_attempts, 5)
+        self.assertTrue(res.is_failed)
+
+    def test_14_no_duplicate_shifts_introduced_across_retries_or_failover(self) -> None:
+        primary_calls = 0
+
+        partial_one = (
+            '{\n  "week_of": "Week of 16 November 2026",\n  "shifts": [\n'
+            + json.dumps(self._shift_dict(shift_date="2026-11-16", source_row=1))
+            + ',\n    {"shift_date": "2026-11-17"'
+        )
+        partial_two = (
+            '{\n  "week_of": "Week of 16 November 2026",\n  "shifts": [\n'
+            + json.dumps(self._shift_dict(shift_date="2026-11-16", source_row=1))
+            + ",\n"
+            + json.dumps(self._shift_dict(shift_date="2026-11-17", source_row=2))
+            + ',\n    {"shift_date": "2026-11-18"'
+        )
+
+        def primary_sender(*_args):
+            nonlocal primary_calls
+            primary_calls += 1
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "MAX_TOKENS",
+                        "content": {
+                            "parts": [
+                                {"text": partial_one if primary_calls == 1 else partial_two}
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 700,
+                    "candidatesTokenCount": 200,
+                    "totalTokenCount": 900,
+                },
+            }
+
+        def fallback_sender(*_args):
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [
+                                        self._shift_dict(
+                                            shift_date="2026-11-16", source_row=1
+                                        ),
+                                        self._shift_dict(
+                                            shift_date="2026-11-17", source_row=2
+                                        ),
+                                        self._shift_dict(
+                                            shift_date="2026-11-18", source_row=3
+                                        ),
+                                    ],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 900, "completion_tokens": 300, "total_tokens": 1200},
+            }
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        self.assertTrue(res.is_complete)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(res.active_provider, "nvidia")
+        # Exactly the 3 fallback shifts (never merged with primary's 1 + 2 partial shifts)
+        self.assertEqual(
+            [s.normalised.shift_date for s in res.shifts],
+            ["2026-11-16", "2026-11-17", "2026-11-18"],
+        )
+
+    def test_15_partial_extraction_and_recovery_explicitly_represented(self) -> None:
+        partial_payload = (
+            '{\n  "week_of": "Week of 16 November 2026",\n  "shifts": [\n'
+            + json.dumps(self._shift_dict(shift_date="2026-11-16", source_row=1))
+            + ",\n"
+            + json.dumps(self._shift_dict(shift_date="2026-11-17", source_row=2))
+            + ',\n    {"shift_date": "2026-11-18", "start_time": "09:'
+        )
+
+        def primary_sender(*_args):
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "MAX_TOKENS",
+                        "content": {"parts": [{"text": partial_payload}]},
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 800,
+                    "candidatesTokenCount": 300,
+                    "totalTokenCount": 1100,
+                },
+            }
+
+        def fallback_sender(*_args):
+            raise ProviderRequestError(
+                "HTTP 503 Unavailable", status_code=503, is_transient=True
+            )
+
+        orchestrator = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+        )
+        image_bytes = self.SAMPLE_IMAGE.read_bytes()
+        res = orchestrator.extract_bytes(
+            image_bytes, file_name="img_01_screenshot_clean.png"
+        )
+        self.assertEqual(res.extraction_status, "partial")
+        self.assertTrue(res.is_partial)
+        self.assertFalse(res.is_complete)
+        self.assertFalse(res.succeeded)
+        self.assertFalse(res.is_failed)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(len(res.shifts), 2)
+        self.assertTrue(all(s.partially_recovered for s in res.shifts))
+        self.assertTrue(all(s.confidence == "low" for s in res.shifts))
+        self.assertTrue(
+            all(s.confirmation_status == "needs_review" for s in res.shifts)
+        )
+        summary = res.to_public_summary()
+        self.assertFalse(summary["is_complete"])
+        self.assertTrue(summary["is_partial"])
+
+    def test_16_exhausted_overall_processing_deadline_aborts_retries_and_failover(
+        self,
+    ) -> None:
+        now = {"t": 100.0}
+        observed_timeouts: list[float | None] = []
+        primary_calls = 0
+        fallback_calls = 0
+
+        def fake_clock() -> float:
+            return now["t"]
+
+        def fake_sleep(secs: float) -> None:
+            now["t"] += secs
+
+        def primary_sender(url, headers, payload, timeout):
+            nonlocal primary_calls
+            primary_calls += 1
+            observed_timeouts.append(timeout)
+            if primary_calls == 1:
+                now["t"] += 6.0  # Clock now at 106.0 (4.0s left before 110.0 deadline)
+                raise ProviderRequestError(
+                    "HTTP 503 Primary temporary outage", status_code=503, is_transient=True
+                )
+            now["t"] += 2.5  # After 2.0s sleep -> 108.0 + 2.5 = 110.5 (exceeds 110.0 deadline)
+            raise ProviderRequestError(
+                "Timeout calling primary", is_transient=True
+            )
+
+        def fallback_sender(*_args):
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("Fallback must not start after total deadline is exhausted")
+
+        cfg = ExtractionServiceConfig(
+            primary_max_retries=2,
+            fallback_max_retries=2,
+            retry_backoff_seconds=2.0,
+            per_attempt_timeout_seconds=8.0,
+            total_deadline_seconds=10.0,
+        )
+        orchestrator = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_sender
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_sender
+            ),
+            clock_fn=fake_clock,
+            sleep_fn=fake_sleep,
+        )
+        res = orchestrator.extract_file(self.SAMPLE_IMAGE)
+        # Attempt 1 timeout = min(8.0, 10.0) = 8.0; Attempt 2 timeout = min(8.0, 2.0) = 2.0
+        self.assertEqual(observed_timeouts, [8.0, 2.0])
+        self.assertEqual(primary_calls, 2)
+        self.assertEqual(fallback_calls, 0)
+        self.assertTrue(res.deadline_exhausted)
+        self.assertFalse(res.fallback_triggered)
+        self.assertTrue(res.is_failed)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+        self.assertIn("deadline exhausted", (res.manual_entry_reason or "").lower())
+
+    def test_17_suspicious_empty_shifts_triggers_failover_and_distinguishes_corroborated_empty_schedule(
+        self,
+    ) -> None:
+        # Subcase A: Primary returns uncontextualised {"week_of": null, "shifts": []} ->
+        # retries & fails over to Fallback, which recovers the real shifts.
+        prim_calls_a = 0
+        fb_calls_a = 0
+
+        def prim_empty_a(*_args):
+            nonlocal prim_calls_a
+            prim_calls_a += 1
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [{"text": json.dumps({"week_of": None, "shifts": []})}]
+                        },
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 600,
+                    "candidatesTokenCount": 15,
+                    "totalTokenCount": 615,
+                },
+            }
+
+        def fb_valid_a(*_args):
+            nonlocal fb_calls_a
+            fb_calls_a += 1
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "week_of": "Week of 16 November 2026",
+                                    "shifts": [self._shift_dict()],
+                                }
+                            ),
+                        },
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 800,
+                    "completion_tokens": 180,
+                    "total_tokens": 980,
+                },
+            }
+
+        orch_a = ExtractionOrchestrator(
+            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=prim_empty_a
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fb_valid_a
+            ),
+        )
+        res_a = orch_a.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(prim_calls_a, 2)
+        self.assertEqual(fb_calls_a, 1)
+        self.assertEqual(res_a.extraction_status, "complete")
+        self.assertFalse(res_a.is_empty_schedule)
+        self.assertTrue(res_a.fallback_triggered)
+        self.assertEqual(res_a.fallback_trigger_category, "suspicious_empty_shifts")
+        self.assertEqual(res_a.active_provider, "nvidia")
+        self.assertEqual(len(res_a.shifts), 1)
+
+        # Subcase B: Both Primary & Fallback return uncontextualised {"week_of": null, "shifts": []} ->
+        # MUST fail rather than misreporting a genuinely empty schedule.
+        def fb_empty_uncontextualised(*_args):
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps({"week_of": None, "shifts": []}),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 800, "completion_tokens": 15, "total_tokens": 815},
+            }
+
+        orch_b = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=prim_empty_a
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fb_empty_uncontextualised
+            ),
+        )
+        res_b = orch_b.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(res_b.extraction_status, "failed")
+        self.assertFalse(res_b.succeeded)
+        self.assertTrue(res_b.is_failed)
+        self.assertFalse(res_b.is_empty_schedule)
+        self.assertTrue(res_b.manual_entry_required)
+
+        # Subcase C: Both Primary & Fallback independently return contextualised 0-shift roster
+        # responses (colleague filtered out) -> corroborated empty schedule requiring worker confirmation.
+        colleague_payload = {
+            "week_of": "Week of 16 November 2026",
+            "shifts": [
+                {
+                    **self._shift_dict(),
+                    "worker_name": "James Okoro",
+                }
+            ],
+        }
+
+        def prim_corroborated_c(*_args):
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {"parts": [{"text": json.dumps(colleague_payload)}]},
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 700,
+                    "candidatesTokenCount": 90,
+                    "totalTokenCount": 790,
+                },
+            }
+
+        def fb_corroborated_c(*_args):
+            return {
+                "model": DEFAULT_NVIDIA_MODEL,
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(colleague_payload),
+                        },
+                    }
+                ],
+                "usage": {"prompt_tokens": 800, "completion_tokens": 90, "total_tokens": 890},
+            }
+
+        orch_c = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=prim_corroborated_c
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fb_corroborated_c
+            ),
+        )
+        res_c = orch_c.extract_file(self.SAMPLE_IMAGE, target_worker="Maria Santos")
+        self.assertEqual(res_c.extraction_status, "complete")
+        self.assertTrue(res_c.succeeded)
+        self.assertTrue(res_c.is_complete)
+        self.assertTrue(res_c.is_empty_schedule)
+        self.assertTrue(res_c.manual_entry_required)
+        self.assertEqual(res_c.shifts, [])
+
+    def test_18_mixed_valid_and_rejected_records_never_reported_as_complete_and_preserve_safeguards(
+        self,
+    ) -> None:
+        # Response contains 1 valid shift + 1 empty {} record AND also 2 conflicting duplicates
+        # in the second scenario to ensure partial results enforce both individual review & conflict blocking.
+        mixed_payload = json.dumps(
+            {
+                "week_of": "Week of 16 November 2026",
+                "shifts": [
+                    self._shift_dict(source_row=1, confidence="high"),
+                    {},
+                ],
+            }
+        )
+
+        def primary_mixed(*_args):
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {"parts": [{"text": mixed_payload}]},
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 700,
+                    "candidatesTokenCount": 140,
+                    "totalTokenCount": 840,
+                },
+            }
+
+        def fallback_fail(*_args):
+            raise ProviderRequestError(
+                "HTTP 503 Unavailable", status_code=503, is_transient=True
+            )
+
+        orch = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=primary_mixed
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fallback_fail
+            ),
+        )
+        res = orch.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(res.extraction_status, "partial")
+        self.assertFalse(res.is_complete)
+        self.assertTrue(res.is_partial)
+        self.assertFalse(res.succeeded)
+        self.assertTrue(res.manual_entry_required)
+        self.assertTrue(res.fallback_triggered)
+        self.assertEqual(res.fallback_trigger_category, "partially_invalid_response")
+        self.assertIn("invalid/empty", res.manual_entry_reason or "")
+        self.assertEqual(len(res.shifts), 1)
+        surviving = res.shifts[0]
+        self.assertEqual(surviving.confidence, "low")
+        self.assertIn("partial_extraction_with_rejected_records", surviving.review_reasons)
+        self.assertEqual(surviving.confirmation_status, "needs_review")
+        self.assertFalse(surviving.eligible_for_bulk_confirmation)
+
+        # Partial shifts remain excluded from backend earnings unless explicitly confirmed
+        calc_mod = self._load_backend_calc()
+        out_unconf = calc_mod.calculate_shifts(
+            res.to_backend_calculation_payload(worker_id="W_MIXED"),
+            flag_messages=calc_mod.load_flag_messages(str(FLAG_TYPES_PATH)),
+            known_locations=calc_mod.load_known_locations(str(BACKEND_LOCATIONS_PATH)),
+            rules=calc_mod.load_rules(str(BACKEND_RULES_PATH)),
+        )
+        self.assertFalse(out_unconf["shifts"][0]["eligible_for_earnings"])
+        self.assertIsNone(out_unconf["weekly_summary"][0]["gross_earnings"])
+
+        # Mixed response containing conflicting duplicates in surviving partial shifts must stay blocked
+        mixed_conflict_payload = json.dumps(
+            {
+                "week_of": "Week of 16 November 2026",
+                "shifts": [
+                    self._shift_dict(
+                        shift_date="2026-11-20",
+                        start_time="13:00",
+                        end_time="21:00",
+                        break_minutes=45,
+                        hourly_rate=14.25,
+                        currency="GBP",
+                        source_row=1,
+                    ),
+                    self._shift_dict(
+                        shift_date="2026-11-20",
+                        start_time="13:00",
+                        end_time="21:00",
+                        break_minutes=0,
+                        hourly_rate=16.0,
+                        currency="GBP",
+                        source_row=2,
+                    ),
+                    {},
+                ],
+            }
+        )
+        orch_conf = ExtractionOrchestrator(
+            ExtractionServiceConfig(
+                primary_max_retries=0, fallback_enabled=False, retry_backoff_seconds=0.0
+            ),
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem",
+                http_sender=lambda *_args: {
+                    "candidates": [
+                        {
+                            "finishReason": "STOP",
+                            "content": {"parts": [{"text": mixed_conflict_payload}]},
+                        }
+                    ],
+                    "usageMetadata": {
+                        "promptTokenCount": 700,
+                        "candidatesTokenCount": 200,
+                        "totalTokenCount": 900,
+                    },
+                },
+            ),
+        )
+        res_conf = orch_conf.extract_file(self.SAMPLE_IMAGE)
+        self.assertEqual(res_conf.extraction_status, "partial")
+        out_sim = calc_mod.calculate_shifts(
+            res_conf.to_backend_calculation_payload(
+                worker_id="W_MIXED_CONFLICT", simulate_individual_confirmation=True
+            ),
+            flag_messages=calc_mod.load_flag_messages(str(FLAG_TYPES_PATH)),
+            known_locations=calc_mod.load_known_locations(str(BACKEND_LOCATIONS_PATH)),
+            rules=calc_mod.load_rules(str(BACKEND_RULES_PATH)),
+        )
+        self.assertEqual(
+            sum(1 for s in out_sim["shifts"] if s["eligible_for_earnings"]), 0
+        )
+
+    def test_19_deadline_enforcement_includes_preprocessing_time(self) -> None:
+        now = {"t": 100.0}
+        primary_calls = 0
+        fallback_calls = 0
+
+        def fake_clock() -> float:
+            return now["t"]
+
+        def slow_load_pages(*_args, **_kwargs):
+            now["t"] += 11.0  # Simulate slow PDF rasterization / image deskewing (> 10s deadline)
+            return load_document_pages(self.SAMPLE_IMAGE)
+
+        def fail_if_called(*_args):
+            nonlocal primary_calls
+            primary_calls += 1
+            raise AssertionError("Primary must not be called once preprocessing exhausts deadline")
+
+        def fb_fail_if_called(*_args):
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("Fallback must not be called once deadline is exhausted")
+
+        cfg = ExtractionServiceConfig(
+            total_deadline_seconds=10.0,
+            per_attempt_timeout_seconds=8.0,
+        )
+        orch = ExtractionOrchestrator(
+            cfg,
+            primary_adapter=GeminiExtractionAdapter(
+                api_key="test-gem", http_sender=fail_if_called
+            ),
+            fallback_adapter=NvidiaExtractionAdapter(
+                api_key="test-nvd", http_sender=fb_fail_if_called
+            ),
+            clock_fn=fake_clock,
+        )
+        with patch(
+            "ai_extraction.orchestrator.load_document_pages",
+            side_effect=slow_load_pages,
+        ):
+            res = orch.extract_file(self.SAMPLE_IMAGE)
+
+        self.assertEqual(primary_calls, 0)
+        self.assertEqual(fallback_calls, 0)
+        self.assertTrue(res.deadline_exhausted)
+        self.assertTrue(res.is_failed)
+        self.assertFalse(res.is_empty_schedule)
+        self.assertTrue(res.manual_entry_required)
+        self.assertEqual(res.primary_failure_category, "deadline_exhausted")
+        self.assertGreaterEqual(res.preprocessing_time_seconds, 11.0)
+        self.assertGreaterEqual(res.processing_time_seconds, 11.0)
+
+    def test_20_invalid_configuration_values_unsupported_providers_and_log_sanitization(
+        self,
+    ) -> None:
+        # Unsupported providers
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(primary_provider="anthropic")
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(fallback_provider="openai")
+
+        # Invalid numeric configuration bounds
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(primary_max_retries=-1)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(fallback_max_retries=-1)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(per_attempt_timeout_seconds=0.0)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(total_deadline_seconds=-1.0)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(max_tokens=0)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(reasoning_budget=-5)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(temperature=-0.1)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(temperature=2.5)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(temperature=math.nan)
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(pdf_dpi=50)
+
+        # Identical primary + fallback provider/model must be rejected when fallback is enabled
+        with self.assertRaises(ValueError):
+            ExtractionServiceConfig(
+                primary_provider="gemini",
+                fallback_enabled=True,
+                fallback_provider="gemini",
+            )
+        # Same provider as fallback IS allowed cleanly when explicitly disabled
+        cfg_disabled = ExtractionServiceConfig(
+            primary_provider="nvidia",
+            fallback_enabled=False,
+            fallback_provider=None,
+        )
+        self.assertIsNone(cfg_disabled.resolved_fallback_provider)
+
+        # Env loader selects distinct opposite default fallback when primary is nvidia
+        with patch.dict(
+            os.environ,
+            {"AI_EXTRACTION_PRIMARY_PROVIDER": "nvidia"},
+            clear=True,
+        ):
+            env_cfg = ExtractionServiceConfig.from_env()
+            self.assertEqual(env_cfg.resolved_primary_provider, "nvidia")
+            self.assertEqual(env_cfg.resolved_fallback_provider, "gemini")
+            self.assertEqual(env_cfg.resolved_fallback_model_id, "gemini-3.5-flash-lite")
+
+        # Operational logs must exclude local filesystem paths, raw responses, reasoning text, and shifts
+        sensitive_shift_employer = "SUPER_PRIVATE_CLINIC_EMPLOYER_777"
+        sensitive_reasoning = "INTERNAL_REASONING_CHAIN_XYZ_888"
+        with tempfile.TemporaryDirectory(prefix="secret_dir_marker_") as tmp:
+            img_copy = Path(tmp) / "worker_schedule.png"
+            img_copy.write_bytes(self.SAMPLE_IMAGE.read_bytes())
+
+            orch = ExtractionOrchestrator(
+                ExtractionServiceConfig(fallback_enabled=False),
+                primary_adapter=GeminiExtractionAdapter(
+                    api_key="test-gem",
+                    http_sender=lambda *_args: {
+                        "candidates": [
+                            {
+                                "finishReason": "STOP",
+                                "content": {
+                                    "parts": [
+                                        {
+                                            "text": json.dumps(
+                                                {
+                                                    "week_of": "Week of 16 November 2026",
+                                                    "shifts": [
+                                                        self._shift_dict(
+                                                            employer_name=sensitive_shift_employer
+                                                        )
+                                                    ],
+                                                }
+                                            )
+                                        }
+                                    ]
+                                },
+                            }
+                        ],
+                        "usageMetadata": {
+                            "promptTokenCount": 500,
+                            "candidatesTokenCount": 120,
+                            "totalTokenCount": 620,
+                        },
+                    },
+                ),
+            )
+            with self.assertLogs("ai_extraction.orchestrator", level="INFO") as logs:
+                res = orch.extract_file(img_copy)
+
+            joined_logs = "\n".join(logs.output)
+            log_summary_str = json.dumps(res.to_log_summary())
+            self.assertNotIn("secret_dir_marker_", joined_logs)
+            self.assertNotIn(sensitive_shift_employer, joined_logs)
+            self.assertNotIn(sensitive_reasoning, joined_logs)
+            self.assertNotIn(sensitive_shift_employer, log_summary_str)
+            self.assertNotIn("shifts", res.to_log_summary())
+            self.assertNotIn("raw_response", res.to_log_summary())
+            self.assertNotIn("reasoning_text", res.to_log_summary())
+
+            # Missing file warning also excludes local directory path
+            missing_file = Path(tmp) / "does_not_exist.png"
+            with self.assertLogs("ai_extraction.orchestrator", level="WARNING") as err_logs:
+                err_res = orch.extract_file(missing_file)
+            self.assertTrue(err_res.is_failed)
+            self.assertNotIn("secret_dir_marker_", "\n".join(err_logs.output))
 
 
 if __name__ == "__main__":

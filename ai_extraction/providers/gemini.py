@@ -20,7 +20,7 @@ from ai_extraction.providers.base import (
 DEFAULT_GEMINI_ENDPOINT_TEMPLATE = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 )
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 # Gemini OpenAPI-subset structured output schema requiring top-level {week_of, shifts}
 GEMINI_RESPONSE_SCHEMA: dict[str, Any] = {
@@ -179,6 +179,11 @@ class GeminiExtractionAdapter(ExtractionAdapter):
 
         endpoint = self._endpoint_template.format(model=self._model_id)
         payload = self.build_payload(request)
+        effective_timeout = (
+            self._timeout_seconds
+            if request.timeout_seconds is None
+            else max(0.001, min(self._timeout_seconds, float(request.timeout_seconds)))
+        )
         secret_for_redaction = self._explicit_api_key
         t0 = time.perf_counter()
 
@@ -190,7 +195,7 @@ class GeminiExtractionAdapter(ExtractionAdapter):
                     else {}
                 )
                 response_json = self._http_sender(
-                    endpoint, headers, payload, self._timeout_seconds
+                    endpoint, headers, payload, effective_timeout
                 )
             else:
                 api_key = self._resolve_api_key()
@@ -199,7 +204,7 @@ class GeminiExtractionAdapter(ExtractionAdapter):
                     endpoint,
                     {"x-goog-api-key": api_key},
                     payload,
-                    self._timeout_seconds,
+                    effective_timeout,
                     secret_to_redact=api_key,
                 )
         except ProviderRequestError:

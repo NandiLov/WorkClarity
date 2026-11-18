@@ -18,6 +18,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from ai_extraction.orchestrator import run_provider_attempts
 from ai_extraction.pdf_utils import DEFAULT_PDF_DPI, load_document_pages
 from ai_extraction.prompt import SYSTEM_PROMPT, build_user_prompt
 from ai_extraction.providers import (
@@ -30,17 +31,13 @@ from ai_extraction.providers import (
     DEFAULT_NVIDIA_TEMPERATURE,
     ExtractionAdapter,
     ProviderExtractionRequest,
-    ProviderRawResponse,
-    ProviderRequestError,
     RequestAttemptRecord,
     TokenUsage,
     create_adapter,
-    sum_token_usage,
 )
 from ai_extraction.schema import (
     CONFIRMATION_CSV_COLUMNS,
     CSV_COLUMNS,
-    TRUNCATION_FINISH_REASONS,
     DocumentExtractionResult,
     ExtractedShiftRecord,
     parse_and_validate_model_json,
@@ -461,149 +458,26 @@ def extract_single_document(
         target_worker=target_worker,
     )
 
-    allowed_retries = adapter.max_retries if max_retries is None else max_retries
-    if allowed_retries < 0:
-        raise ValueError("max_retries must be >= 0")
-    base_backoff = (
-        adapter.retry_backoff_seconds if backoff_seconds is None else backoff_seconds
+    outcome = run_provider_attempts(
+        adapter,
+        request,
+        max_retries=max_retries,
+        backoff_seconds=backoff_seconds,
+        sleep_fn=sleep_fn,
     )
-
-    attempt_records: list[RequestAttemptRecord] = []
-    usage_history: list[TokenUsage] = []
-
-    best_raw: ProviderRawResponse | None = None
-    best_parsed: DocumentExtractionResult | None = None
-    final_request_failure = False
-    final_request_error: str | None = None
-
-    max_attempts = 1 + allowed_retries
-    for attempt_idx in range(max_attempts):
-        attempt_num = attempt_idx + 1
-        t_start = time.perf_counter()
-        try:
-            raw_resp = adapter.extract(request)
-        except ProviderRequestError as exc:
-            attempt_elapsed = time.perf_counter() - t_start
-            attempt_records.append(
-                RequestAttemptRecord(
-                    attempt_number=attempt_num,
-                    elapsed_seconds=attempt_elapsed,
-                    token_usage=TokenUsage(),
-                    finish_reason=None,
-                    succeeded=False,
-                    failure_reason=str(exc),
-                    transient_error=exc.is_transient,
-                )
-            )
-            usage_history.append(TokenUsage())
-            final_request_failure = True
-            final_request_error = str(exc)
-            if exc.is_transient and attempt_num < max_attempts:
-                if base_backoff > 0:
-                    sleep_fn(base_backoff * (2**attempt_idx))
-                continue
-            break
-        except Exception as exc:
-            attempt_elapsed = time.perf_counter() - t_start
-            err_msg = f"Unexpected provider failure: {exc}"
-            attempt_records.append(
-                RequestAttemptRecord(
-                    attempt_number=attempt_num,
-                    elapsed_seconds=attempt_elapsed,
-                    token_usage=TokenUsage(),
-                    finish_reason=None,
-                    succeeded=False,
-                    failure_reason=err_msg,
-                    transient_error=False,
-                )
-            )
-            usage_history.append(TokenUsage())
-            final_request_failure = True
-            final_request_error = err_msg
-            break
-
-        usage_history.append(raw_resp.token_usage)
-        parsed_doc = parse_and_validate_model_json(
-            raw_resp.raw_text,
-            file_name=file_name,
-            model_id=raw_resp.model_id,
-            target_worker=target_worker,
-            finish_reason=raw_resp.finish_reason,
-            allow_partial_recovery=True,
-        )
-
-        is_truncated = bool(
-            raw_resp.finish_reason in TRUNCATION_FINISH_REASONS
-            or parsed_doc.incomplete_extraction
-        )
-        is_empty = not raw_resp.raw_text.strip()
-        needs_retry = bool(is_empty or is_truncated or parsed_doc.json_validation_failure)
-
-        attempt_failure_reason: str | None = None
-        if is_empty:
-            attempt_failure_reason = (
-                "Empty model response content"
-                + (
-                    f" (finish_reason={raw_resp.finish_reason})"
-                    if raw_resp.finish_reason
-                    else ""
-                )
-            )
-        elif parsed_doc.json_validation_failure:
-            attempt_failure_reason = "; ".join(parsed_doc.json_validation_errors)
-        elif is_truncated:
-            attempt_failure_reason = (
-                f"Response truncated (finish_reason={raw_resp.finish_reason})"
-            )
-
-        attempt_records.append(
-            RequestAttemptRecord(
-                attempt_number=attempt_num,
-                elapsed_seconds=raw_resp.elapsed_seconds,
-                token_usage=raw_resp.token_usage,
-                finish_reason=raw_resp.finish_reason,
-                succeeded=not needs_retry,
-                failure_reason=attempt_failure_reason,
-                transient_error=False,
-            )
-        )
-
-        final_request_failure = False
-        final_request_error = None
-
-        # Choose ONLY one attempt's parsed output (never merge shifts across attempts).
-        if not needs_retry:
-            best_raw = raw_resp
-            best_parsed = parsed_doc
-            break
-
-        cand_rank = (len(parsed_doc.shifts), -parsed_doc.invalid_or_empty_records)
-        best_rank = (
-            (len(best_parsed.shifts), -best_parsed.invalid_or_empty_records)
-            if best_parsed is not None
-            else (-1, -10**9)
-        )
-        if best_parsed is None or cand_rank > best_rank:
-            best_raw = raw_resp
-            best_parsed = parsed_doc
-
-        if attempt_num < max_attempts and base_backoff > 0:
-            sleep_fn(base_backoff * (2**attempt_idx))
-
-    total_usage = sum_token_usage(usage_history)
-    total_elapsed = sum(rec.elapsed_seconds for rec in attempt_records)
+    best_raw = outcome.raw_response
 
     return (
         len(pages),
         best_raw.raw_text if best_raw is not None else "",
         best_raw.reasoning_text if best_raw is not None else None,
         best_raw.finish_reason if best_raw is not None else None,
-        total_elapsed,
-        total_usage,
-        attempt_records,
-        final_request_failure,
-        final_request_error,
-        best_parsed,
+        outcome.elapsed_seconds,
+        outcome.token_usage,
+        outcome.attempt_records,
+        outcome.final_request_failure,
+        outcome.final_request_error,
+        outcome.parsed_result,
     )
 
 
