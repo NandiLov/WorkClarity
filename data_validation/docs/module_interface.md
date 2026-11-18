@@ -43,6 +43,7 @@ One dictionary per worker:
   ],
   "weekly_summary": [
     { "week_start": "2026-11-09", "currency": "USD", "shifts": 1, "paid_hours": 7.5,
+      "incomplete_hours": 0.0, "pending_hours": 0.0,
       "gross_earnings": 123.75, "incomplete_shifts": 0, "earnings_incomplete": false,
       "cancelled_shifts": 0 }
   ],
@@ -56,9 +57,15 @@ One dictionary per worker:
 - Only valid, worker-confirmed shifts count towards final earnings (`eligible_for_earnings`).
 - A missing employer or location is a warning and the shift still counts. A missing date is a blocking error.
 - needs_review, rejected, unconfirmed and cancelled shifts are left out of final earnings. Rejected shifts are also left out of the schedule and conflicts.
-- A confirmed shift with no rate, no break or no currency stays visible and is counted in `incomplete_shifts`. A missing break is never treated as zero: the worker confirms no break (0) or enters one first. With no currency, no total is produced.
+- Earnings use exact minutes. Only the final money amount is rounded to 2 decimals (4h50m at 13.00 pays 62.83). `paid_hours` is rounded for display only.
+- Weekly `paid_hours` is eligible hours only: the hours of counted shifts, which are the hours behind `gross_earnings`. Hours of shifts that are incomplete (for example no rate or currency) are reported in `incomplete_hours`, and hours of shifts waiting for confirmation or review in `pending_hours`. Shifts with an unknown break have no paid hours yet, so they add nothing to any of the three.
+- A week with nothing counted yet, because shifts are unconfirmed, held for review or incomplete, has `gross_earnings` null and `earnings_incomplete` true. The app shows "Not counted yet". A real zero, such as every shift cancelled, stays 0.00 with `earnings_incomplete` false.
+- A rejected shift is ignored everywhere, including duplicate detection, so it never holds back a retained shift.
+- A confirmed shift with no rate, no break or no currency stays visible and is counted in `incomplete_shifts`. A missing rate is a warning (`validation_status` warning), not an error; the shift is still not counted. A missing break is never treated as zero: the worker confirms no break (0) or enters one first. With no currency, no total is produced.
 - A possible duplicate is held for review and not counted, so the same shift never counts twice.
 - For the review queue, use `earnings_status` of needs_review, unconfirmed, incomplete or excluded. That includes confirmed shifts that still have a missing rate or an error. Each flag carries a `reason` that explains why earnings are incomplete or excluded.
+- The 30 minute commute rule is a scheduling heuristic, not a verified travel time estimate. A commute conflict means the gap looks too short to travel between different locations, and the worker decides. The minimum comes from `min_commute_gap_minutes`.
+- The maximum shift length is 16 hours (PR07) for the MVP and can be made configurable later through the rules.
 - Overtime is not applied. Weekly totals are kept per currency and never added together.
 - An `end_date` later than the date makes an overnight shift exact. Without it, an end time earlier than the start time means the next day.
 
