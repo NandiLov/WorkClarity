@@ -287,7 +287,7 @@ def run(shifts, **kw):
 def test_rules_file_holds_castros_decisions():
     assert RULES["pay_week_start"] == "monday"
     assert RULES["min_commute_gap_minutes"] == "30"
-    assert RULES["second_mvp_format"] == "pdf"
+    assert RULES["second_mvp_format"] == "pdf_and_image"
     assert RULES["valid_break"] == "nonnegative_and_shorter_than_shift"
     assert RULES["missing_employer_or_location"] == "warning_not_blocking"
     assert RULES["missing_date"] == "blocking_error"
@@ -821,3 +821,17 @@ def test_spec_acceptance_example_232():
     assert week["gross_earnings"] == 232.0
     assert week["earnings_incomplete"] is True
     assert week["incomplete_shifts"] == 1
+
+def test_answer_key_amounts_use_exact_minutes_and_round_only_the_money():
+    # Castro's PR 3 decision: 12:10 to 17:00 at 13.00 is 62.83, not 4.83 hours times 13.00 = 62.79.
+    for table in ("truth_shifts.csv", "shift_details.csv"):
+        for r in read(table):
+            if r["shift_status"] == "cancelled":
+                assert float(r["gross_earnings"]) == 0.0
+                continue
+            start = int(r["start_time"][:2]) * 60 + int(r["start_time"][3:])
+            end = int(r["end_time"][:2]) * 60 + int(r["end_time"][3:])
+            if r["ends_next_day"] == "true":
+                end += 24 * 60
+            exact = (end - start - int(r["break_minutes"])) / 60 * float(r["hourly_rate"])
+            assert abs(float(r["gross_earnings"]) - exact) <= 0.005 + 1e-9, (table, r["shift_id"] if "shift_id" in r else r.get("id"))

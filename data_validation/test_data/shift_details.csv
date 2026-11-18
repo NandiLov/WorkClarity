@@ -14,7 +14,7 @@ S004-01,S004,W004,E01,L05,CT04,Dev Patel,BrightMart,Retail X,sales floor,2026-11
 S004-02,S004,W004,E04,L06,CT04,Dev Patel,Diner Y Co,Diner Y,kitchen,2026-11-03,12:00,18:00,false,0,15.0,USD,regular,scheduled,true,6.0,90.0,overlap
 S004-03,S004,W004,E01,L05,CT04,Dev Patel,BrightMart,Retail X,sales floor,2026-11-05,09:00,13:00,false,0,14.0,USD,regular,scheduled,true,4.0,56.0,overlap
 S005-01,S005,W005,E05,L07,CT05,Elena Rossi,CityCare Hospital,Hospital Annex,patient support,2026-11-04,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
-S005-02,S005,W005,E03,L08,CT05,Elena Rossi,Central Cafe Group,Cafe Downtown,counter,2026-11-04,12:10,17:00,false,0,13.0,USD,regular,scheduled,true,4.83,62.79,commute_conflict
+S005-02,S005,W005,E03,L08,CT05,Elena Rossi,Central Cafe Group,Cafe Downtown,counter,2026-11-04,12:10,17:00,false,0,13.0,USD,regular,scheduled,true,4.83,62.83,commute_conflict
 S005-03,S005,W005,E05,L07,CT05,Elena Rossi,CityCare Hospital,Hospital Annex,patient support,2026-11-06,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,commute_conflict
 S006-01,S006,W006,E02,L09,CT06,Femi Adeyemi,SwiftLogistics,Warehouse,inventory,2026-11-02,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
 S006-02,S006,W006,E02,L09,CT06,Femi Adeyemi,SwiftLogistics,Warehouse,inventory,2026-11-03,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
@@ -62,7 +62,7 @@ S017-05,S017,W016,E04,L06,CT04,Priya Shah,Diner Y Co,Diner Y,kitchen,2026-11-12,
 S018-01,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-09,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
 S018-02,S018,W017,E03,L08,CT05,Quinn Foster,Central Cafe Group,Cafe Downtown,counter,2026-11-09,12:15,17:00,false,0,13.0,USD,regular,scheduled,true,4.75,61.75,commute_conflict
 S018-03,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-11,07:00,12:00,false,0,15.0,USD,regular,scheduled,true,5.0,75.0,commute_conflict
-S018-04,S018,W017,E03,L08,CT05,Quinn Foster,Central Cafe Group,Cafe Downtown,counter,2026-11-11,12:20,17:00,false,0,13.0,USD,regular,scheduled,true,4.67,60.71,commute_conflict
+S018-04,S018,W017,E03,L08,CT05,Quinn Foster,Central Cafe Group,Cafe Downtown,counter,2026-11-11,12:20,17:00,false,0,13.0,USD,regular,scheduled,true,4.67,60.67,commute_conflict
 S018-05,S018,W017,E05,L07,CT05,Quinn Foster,CityCare Hospital,Hospital Annex,patient support,2026-11-13,08:00,16:00,false,30,15.0,USD,regular,scheduled,true,7.5,112.5,commute_conflict
 S019-01,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-09,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
 S019-02,S019,W018,E02,L09,CT06,Rosa Diaz,SwiftLogistics,Warehouse,inventory,2026-11-10,10:00,18:00,false,30,12.0,USD,regular,scheduled,true,7.5,90.0,incomplete
