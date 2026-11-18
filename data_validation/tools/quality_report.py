@@ -142,11 +142,12 @@ def write_report(data, path):
     add("")
     add("## The numbers")
     add("")
-    add(f"- **{s['caught']} of {s['planted']}** planted errors raised the expected flag ({pct(s['caught'], s['planted'])}).")
-    add(f"- **{s['held_out']} of {s['planted']}** were kept out of the earnings total as delivered.")
+    add(f"- **All {s['planted']} planted errors were flagged and held out of the earnings total as delivered, but only "
+        f"{s['by_rule']} were identified by specific validation rules.** "
+        f"{s['caught']} of {s['planted']} raised the flag expected for their error type ({pct(s['caught'], s['planted'])}).")
     add(f"- **{s['by_rule']} of {s['planted']}** were found by a specific rule that looks at the shift itself: a time that "
         f"cannot be read, a missing date or rate, an impossible length or break, a duplicate, an unknown location.")
-    add(f"- **{s['general_only']} of {s['planted']}** look like normal shifts (a wrong date, an old time after a change, "
+    add(f"- **{s['general_only']} of {s['planted']}** are held by the general safeguards only, not by a rule that understands the error. They look like normal shifts (a wrong date, an old time after a change, "
         f"an AM and PM mix up, a shift that is not on the schedule). No rule can see that they are wrong. They are held back "
         f"only because the worker has not confirmed them and the extraction was low confidence.")
     add(f"- **{s['false_alarms']} of {s['clean']}** clean shifts got a missing, invalid or duplicate flag.")
@@ -185,8 +186,8 @@ def write_report(data, path):
     add("")
     add("- The test data is synthetic. The rules and the planted errors were written by the same team, so this measures "
         "that the rules keep doing what we designed, not how they do on real schedules.")
-    add("- It checks the rules, not the AI extraction. How accurately NVIDIA reads PDFs and images is measured with "
-        "`tools/compare_extraction.py` and the samples in `test_data/unstructured`.")
+    add("- It checks the validation rules, not the AI extraction itself. Extraction accuracy for PDFs and images is "
+        "evaluated separately using `tools/compare_extraction.py` and the samples in `test_data/unstructured`.")
     add("- A shift can look normal and still be wrong. For those, the worker's confirmation is the safeguard, as the table above shows.")
     add("")
     add(f"False alarms are counted as clean shifts with a missing, invalid or duplicate flag. Clean shifts as delivered: "

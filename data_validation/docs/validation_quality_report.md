@@ -4,10 +4,9 @@ How well do the validation rules catch the errors planted in the test data? The 
 
 ## The numbers
 
-- **33 of 33** planted errors raised the expected flag (100%).
-- **33 of 33** were kept out of the earnings total as delivered.
+- **All 33 planted errors were flagged and held out of the earnings total as delivered, but only 25 were identified by specific validation rules.** 33 of 33 raised the flag expected for their error type (100%).
 - **25 of 33** were found by a specific rule that looks at the shift itself: a time that cannot be read, a missing date or rate, an impossible length or break, a duplicate, an unknown location.
-- **8 of 33** look like normal shifts (a wrong date, an old time after a change, an AM and PM mix up, a shift that is not on the schedule). No rule can see that they are wrong. They are held back only because the worker has not confirmed them and the extraction was low confidence.
+- **8 of 33** are held by the general safeguards only, not by a rule that understands the error. They look like normal shifts (a wrong date, an old time after a change, an AM and PM mix up, a shift that is not on the schedule). No rule can see that they are wrong. They are held back only because the worker has not confirmed them and the extraction was low confidence.
 - **0 of 95** clean shifts got a missing, invalid or duplicate flag.
 
 ## What the worker's confirmation changes
@@ -80,7 +79,7 @@ The shifts above were not confirmed by the worker, which is why all 33 stay out 
 ## What this does not show
 
 - The test data is synthetic. The rules and the planted errors were written by the same team, so this measures that the rules keep doing what we designed, not how they do on real schedules.
-- It checks the rules, not the AI extraction. How accurately NVIDIA reads PDFs and images is measured with `tools/compare_extraction.py` and the samples in `test_data/unstructured`.
+- It checks the validation rules, not the AI extraction itself. Extraction accuracy for PDFs and images is evaluated separately using `tools/compare_extraction.py` and the samples in `test_data/unstructured`.
 - A shift can look normal and still be wrong. For those, the worker's confirmation is the safeguard, as the table above shows.
 
 False alarms are counted as clean shifts with a missing, invalid or duplicate flag. Clean shifts as delivered: 2 cancelled, 83 counted, 1 needs_review, 1 rejected, 8 unconfirmed.
