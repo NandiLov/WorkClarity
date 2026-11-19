@@ -25,6 +25,7 @@ Status: draft by Ololade, 2026-11-05, updated after Castro's review on 2026-11-0
 | --- | --- | --- | --- |
 | INVALID_TIME | unparseable_time, missing_end_time | missing_or_invalid | A missing time counts as invalid |
 | MISSING_RATE | missing_rate | missing_or_invalid | Warning. The shift is not counted and the week is marked incomplete |
+| RATE_TOO_HIGH | rate above the limit in PR26 max_hourly_rate (default 1000000, or max_hourly_rate_ followed by the currency code) | missing_or_invalid | Warning. The message names the limit and asks the worker to check the rate. The shift is not counted and the week is marked incomplete, as for a missing rate |
 | MISSING_EMPLOYER | missing_employer | missing_or_invalid | Decided by Castro: a warning, the shift still counts |
 | MISSING_LOCATION | missing_location | missing_or_invalid | Decided by Castro: a warning, and the commute check is unavailable |
 | INVALID_BREAK | missing_break, invalid_break (S027) | missing_or_invalid | A missing break is never treated as zero: earnings stay incomplete until the worker confirms no break or enters one (PR23). invalid_break covers a negative break and a break as long as or longer than the shift. Rule PR16, confirmed by Castro |
