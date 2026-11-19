@@ -74,6 +74,7 @@ DEFAULT_RULES = {
     "overtime_multiplier": "1.5",
     "max_shift_hours": "16",
     "min_commute_gap_minutes": "30",
+    "max_hourly_rate": "1000000",
 }
 
 # code -> (flag_type_id, severity)
@@ -85,6 +86,7 @@ ISSUE_FLAGS = {
     "INVALID_BREAK": ("FL03", "error"),
     "MISSING_BREAK": ("FL03", "warning"),
     "MISSING_RATE": ("FL03", "warning"),
+    "RATE_TOO_HIGH": ("FL03", "warning"),
     "MISSING_CURRENCY": ("FL03", "warning"),
     "MISSING_EMPLOYER": ("FL03", "warning"),
     "MISSING_LOCATION": ("FL03", "warning"),
@@ -120,6 +122,7 @@ REASONS = {
     "INVALID_BREAK": "The break is negative or as long as, or longer than, the shift.",
     "MISSING_BREAK": "The break length is missing. Please confirm whether you had no break or enter the break, so earnings are not overstated.",
     "MISSING_RATE": "The hourly rate is missing, so earnings for this shift are incomplete.",
+    "RATE_TOO_HIGH": "The hourly rate entered is above the accepted limit, so earnings for this shift are incomplete. Please check the rate and correct it.",
     "MISSING_CURRENCY": "The currency is missing, so earnings for this shift are incomplete and cannot be added to a total.",
     "MISSING_EMPLOYER": "The employer is missing.",
     "MISSING_LOCATION": "The location is missing, so the commute check is unavailable.",
@@ -133,10 +136,11 @@ REASONS = {
     "COMMUTE_GAP": "The gap to the next shift at a different location is shorter than the minimum.",
 }
 
-INCOMPLETE_CODES = ("MISSING_RATE", "MISSING_BREAK", "MISSING_CURRENCY")
+INCOMPLETE_CODES = ("MISSING_RATE", "RATE_TOO_HIGH", "MISSING_BREAK", "MISSING_CURRENCY")
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 CENT = Decimal("0.01")
+DEFAULT_MAX_HOURLY_RATE = Decimal("1000000")   # used when pay_rules.csv has no usable max_hourly_rate rule
 
 
 # ------------------------------------------------------------------ loading reference files
@@ -205,7 +209,7 @@ def _parse_time(v):
 def _to_int(v):
     try:
         return int(float(str(v).strip()))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):   # OverflowError: "Infinity" or a number too large for a float
         return None
 
 
@@ -213,9 +217,10 @@ def _to_decimal(v):
     if _blank(v):
         return None
     try:
-        return Decimal(str(v).strip())
+        d = Decimal(str(v).strip())
     except Exception:
         return None
+    return d if d.is_finite() else None   # "NaN" and "Infinity" are not usable amounts
 
 
 def _currency(v):
@@ -223,6 +228,20 @@ def _currency(v):
         return None
     s = str(v).strip()
     return "USD" if s == "$" else s.upper()
+
+
+def _max_hourly_rate(rules, currency):
+    """The highest hourly rate accepted for a currency.
+
+    pay_rules.csv holds a default (max_hourly_rate) and optional limits per currency, written as
+    max_hourly_rate_<CURRENCY> (for example max_hourly_rate_NGN). A rate above the limit is a typing or
+    reading mistake, not a real pay rate. A limit that is not a usable positive number falls back to the default.
+    """
+    for name in ((f"max_hourly_rate_{currency}",) if currency else ()) + ("max_hourly_rate",):
+        limit = _to_decimal(rules.get(name))
+        if limit is not None and limit > 0:
+            return limit
+    return DEFAULT_MAX_HOURLY_RATE
 
 
 def _money(d):
@@ -291,12 +310,22 @@ def _check_shift(shift, index, rules, known_locations):
         issue("INVALID_BREAK")
         brk = None
 
+    currency = _currency(_get(shift, "currency"))
+    reason_text = {}   # reasons that name a number, for example the accepted limit
     rate = _to_decimal(_get(shift, "hourly_rate"))
-    if rate is None or rate < 0:
+    limit = _max_hourly_rate(rules, currency)
+    if rate is not None and rate > limit:
+        issue("RATE_TOO_HIGH")
+        reason_text["RATE_TOO_HIGH"] = (
+            f"The hourly rate entered is above the accepted limit of {limit:,.2f}"
+            f"{' ' + currency if currency else ''}, so earnings for this shift are incomplete. "
+            f"Please check the rate and correct it.")
+        rate = None
+    elif rate is None or rate < 0:
         issue("MISSING_RATE")
         rate = None
 
-    if _currency(_get(shift, "currency")) is None:
+    if currency is None:
         issue("MISSING_CURRENCY")
 
     if _get(shift, "employer_name", "employer") is None:
@@ -338,13 +367,13 @@ def _check_shift(shift, index, rules, known_locations):
         location=location, cancelled=cancelled, confirmed=confirmed, rejected=rejected,
         needs_review=needs_review, rate=rate,
         currency=_currency(_get(shift, "currency")), paid_hours=paid_hours, paid_exact=paid_exact,
-        codes=issues, key=(_get(shift, "worker_id"), str(_get(shift, "shift_date", "date")),
+        codes=issues, reason_text=reason_text, key=(_get(shift, "worker_id"), str(_get(shift, "shift_date", "date")),
                            str(start_raw), str(end_raw), _norm(location)),
         valid_times=minutes_ok,
     )
 
 
-def _earnings_reason(status, codes):
+def _earnings_reason(status, codes, texts=None):
     """Plain reason why a shift is not fully counted, or None when it is counted."""
     if status == "counted":
         return None
@@ -356,8 +385,9 @@ def _earnings_reason(status, codes):
         return REASONS["POSSIBLE_DUPLICATE"] if "POSSIBLE_DUPLICATE" in codes else REASONS["NEEDS_REVIEW"]
     if status == "unconfirmed":
         return REASONS["UNCONFIRMED"]
+    texts = texts or {}
     if status == "incomplete":
-        return " ".join(REASONS[c] for c in INCOMPLETE_CODES if c in codes)
+        return " ".join(texts.get(c, REASONS[c]) for c in INCOMPLETE_CODES if c in codes)
     return " ".join(REASONS[c] for c in codes if ISSUE_FLAGS[c][1] == "error")
 
 
@@ -512,10 +542,10 @@ def process_shifts(shifts, rules=None, flag_messages=None, known_locations=None,
         for code in s["codes"]:
             flag_id, severity = ISSUE_FLAGS[code]
             issues.append(dict(code=code, flag_type_id=flag_id, flag_name=FLAG_NAMES[flag_id],
-                               severity=severity, reason=REASONS[code], message=messages[flag_id]))
+                               severity=severity, reason=s["reason_text"].get(code, REASONS[code]), message=messages[flag_id]))
         paid = None if s["paid_hours"] is None else float(s["paid_hours"])
         exact = s["paid_exact"]
-        reason = _earnings_reason(status, s["codes"])
+        reason = _earnings_reason(status, s["codes"], s["reason_text"])
         if status == "cancelled":
             paid = 0.0
         results.append(dict(
