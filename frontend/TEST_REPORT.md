@@ -1,10 +1,10 @@
 # WorkClarity Frontend — Test & Verification Report
 
-**Branch:** `feature/react-frontend`  
+**Branch:** `feature/earnings-ux-refinements`  
 **Base Main Commit:** `24c8e9c`  
 **Backend Under Test:** FastAPI `0.162.5` + Uvicorn `0.54.0` (`http://127.0.0.1:8000`, unmodified)  
 **Frontend Stack:** React `19.3.1`, Vite `8.3.6`, TypeScript `6.0.3`, Tailwind CSS `4.3.5`, Vitest `5.1.0`  
-**Test Execution Date:** 2026-11-17
+**Test Execution Date:** 2026-11-19
 
 ---
 
@@ -13,9 +13,9 @@
 | Check | Command | Outcome | Details |
 |---|---|---|---|
 | ESLint | `npm run lint` (`eslint .`) | **PASS** | 0 errors, 0 warnings |
-| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `684ms` |
-| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (32 / 32)** | `src/test/milestone1.test.tsx` (9/9) + `src/test/e2e_backend.test.tsx` (23/23 against live FastAPI backend) |
-| Live Browser Verification | Chromium (`http://localhost:5173`) | **PASS** | Zero console errors; HTTP 200 on `/health` and `/api/v1/shifts/calculate`; zero horizontal overflow at `375px`, `390px`, `768px`, and `1280px` |
+| TypeScript & Production Build | `npm run build` (`tsc -b && vite build`) | **PASS** | Type-checked `tsconfig.app.json`, `tsconfig.node.json`, `tsconfig.test.json`; built `dist/` in `683ms` |
+| Frontend Unit & Integration Tests | `npm test` (`vitest run`) | **PASS (33 / 33)** | `src/test/milestone1.test.tsx` (9/9) + `src/test/e2e_backend.test.tsx` (24/24 against live FastAPI backend) |
+| Live Browser Verification | Chromium (`http://127.0.0.1:5173`) | **PASS** | Zero console errors; HTTP 200 on `/health`; `/earnings` verified live for Spec §6.1 (`$232.00 (USD)`, `14.5 hrs`, missing-break & confirmation banner for `Wednesday (Nov 11)`, rounding transparency panel) |
 
 ---
 
@@ -35,7 +35,7 @@ All dataset scenarios were verified directly against `data_validation/test_data/
 | 7 | Cancelled Shifts | `schedule_inputs/S015_schedule.csv` (`WK-S015`) + all-cancelled week | 2 cancelled shifts at `$0.00`, `$371.25` total; all-cancelled week shows `$0.00` genuine zero | `$371.25 (USD)` (`22.5 hrs`); all-cancelled week renders `$0.00 (USD)` genuine zero notice | **PASS** |
 | 8 | Missing Hourly Rates & Currencies | `S029` (`WK-S029`) + missing currency CSV | Missing rate yields `$337.50` + 1 incomplete (`7.5 hrs`); missing currency yields `"Not counted yet"` | `$337.50 (USD)` + `1 incomplete shift(s) (7.5 hrs)`; missing currency displays `"CURRENCY MISSING"` & `"Not counted yet"` | **PASS** |
 | 9 | Multiple Currencies | `schedule_inputs/S028_schedule.csv` (`WK-S028-USD`, `WK-S028-EUR`) | Currencies remain strictly separated (`$202.50 USD` and `€180.00 EUR`) | Separate `USD` and `EUR` cards showing `$202.50 (USD)` and `€180.00 (EUR)` | **PASS** |
-| 10 | Exact-Minute & Weekly Rounding | `S005_schedule.csv` (`WK-S005`) + two 1-min shifts at `$100/hr` | `4.83 hrs` → `$62.83` (`$250.33` week); two `$1.67` shifts → `$3.33` weekly total | `$62.83`, `17.33 hrs`, `$250.33 (USD)`; `$1.67` per shift and `$3.33 (USD)` weekly total | **PASS** |
+| 10 | Exact-Minute & Weekly Rounding | `S005_schedule.csv` (`WK-S005`) + two 1-min shifts at `$100/hr` | `4.83 hrs` → `$62.83` (`$250.33` week); two `$1.67` shifts → `$3.33` weekly total; Calculation & Rounding Transparency panel explains weekly earnings are calculated from exact unrounded shift amounts | `$62.83`, `17.33 hrs`, `$250.33 (USD)`; `$1.67` per shift and `$3.33 (USD)` weekly total; transparency notice rendered on `/earnings` | **PASS** |
 | 11 | Explicit Zero-Minute Breaks | Spec §6.1 Wednesday blank break | Blank break excluded; `"Confirm 0 min break"` + confirm counts full 8h (`$360.00`) | Blank break held; `"Confirm 0 min break"` + confirm updates total to `$360.00 (USD)` (`22.5 hrs`) | **PASS** |
 | 12 | Unconfirmed Shifts Excluded | `S001_schedule.csv` on initial upload | Newly uploaded `unconfirmed` shifts show `"Not counted yet"` | Overview and Earnings render `"Not counted yet"` until confirmed | **PASS** |
 | 13 | Persistence After Browser Refresh | `W008` `S028_schedule.csv` across unmount/remount | Worker shifts and edits persist in `localStorage` and re-sync with backend | `$202.50 (USD)` and `€180.00 (EUR)` restored after unmount/remount | **PASS** |
@@ -52,12 +52,16 @@ All dataset scenarios were verified directly against `data_validation/test_data/
 | 24 | Bulk Confirmation Safety | `S001_schedule.csv` with delayed validation & offline fault | `Confirm All Valid Shifts` disabled while validation pending, stale, or offline; enabled with exact count (`3`) once validated | Button remained disabled while pending and offline; enabled at `(3)` on valid backend response and showed `"Confirmed 3 validated shift(s) and updated earnings."` | **PASS** |
 | 25 | CSV Quote, Header & Column-Count Robustness | Unclosed quotes, mid-field quotes, trailing chars, `hourly_rate` duplicate, `date`/`shift_date` alias collision, unquoted comma shift, repeated filenames | All malformed CSVs rejected (`ok: false`) without silent column corruption; repeated filenames get distinct IDs | All 6 malformed CSV cases returned explicit errors; repeated uploads generated distinct `schedule_id` and `shift_id` values | **PASS** |
 | 26 | Overview vs. Sidebar Attention Count Parity & Stale Guard | `schedule_inputs/S005_schedule.csv` (1 commute gap + 3 unconfirmed shifts) | Overview distinguishes `1` scheduling & commute alert, `3` shifts requiring attention, and `4` total attention items matching sidebar/mobile badges; post-confirm shows `1` total (`1` alert + `0` flagged shifts); stale/offline states never show stale counts | Overview rendered `4 total attention items` (`1 scheduling & commute alert`, `3 shifts requiring attention`) matching nav badge `4`; post-confirm updated both to `1`; in-flight stale showed `—` and offline hid stale badge/cards | **PASS** |
+| 27 | Incomplete Week Total Missing-Break Clarification & Scoping | Spec §6.1 (`2026-11-11` blank break) + multi-currency (`USD`/`EUR`) & multi-week (`2026-11-09`/`2026-11-16`) schedule | Preserves `$232.00 (USD)` (`14.5 hrs`) and backend `0 incomplete` / `1 pending` counts; banner explicitly explains unconfirmed missing-break shift (`Wednesday (Nov 11)`) requires break information and confirmation before counting; explicit `0`-min break, rejected, and cancelled shifts never trigger the notice; explanation is strictly scoped to the relevant week and currency | `$232.00 (USD)` (`14.5 hrs`) preserved with `Wednesday (Nov 11)` missing-break & confirmation explanation; `0`-min break, rejected, and cancelled shifts excluded; scoped strictly per `(week_start, currency)` card | **PASS** |
 
 ---
 
 ## 3. Manual Browser Verification (Reported & Confirmed Live)
 
-- **Spec §6.1 Acceptance Walkthrough:**
+- **Earnings UX Refinements Live Check (`2026-11-19` on `http://127.0.0.1:5173`):**
+  - Loaded `MVP Spec Acceptance Example (§6.1)` on `/upload` with `Calculation Service: Connected`, navigated to `/earnings`, and confirmed zero console errors.
+  - Verified `$232.00 (USD)`, `14.5 hrs` eligible hours, `Wednesday` row displaying `Not counted yet`, the `"Missing break & confirmation required:"` clarification for `Wednesday (Nov 11)` inside `"Incomplete week total:"`, and the updated `"How WorkClarity calculates & rounds gross earnings"` transparency notice.
+- **Spec §6.1 Acceptance Walkthrough (Prior Baseline & Automated E2E Regression):**
   - Initial state: `$232.00 (USD)` and `14.5 hrs` eligible paid hours.
   - Worker edit (Wednesday break changed to `30` minutes and confirmed): `$352.00 (USD)` and `22 hrs`.
   - `"Reset to original"`: restored blank break, `needs_review`/`unconfirmed` state, and `$232.00 (USD)` / `14.5 hrs`.
