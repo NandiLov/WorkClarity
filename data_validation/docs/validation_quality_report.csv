@@ -1,0 +1,34 @@
+error_id,raw_id,error_type,expected_flag,caught,caught_by_a_specific_rule,codes_raised,status_as_delivered,status_if_worker_confirms
+ER001,R007,unparseable_time,FL03,yes,yes,INVALID_TIME LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER002,R008,missing_rate,FL03,yes,yes,LOW_CONFIDENCE MISSING_RATE UNCONFIRMED,unconfirmed,incomplete
+ER003,R011,wrong_date,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER004,R019,missing_end_time,FL03,yes,yes,INVALID_TIME LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER005,R020,missing_date,FL03,yes,yes,LOW_CONFIDENCE MISSING_DATE UNCONFIRMED,unconfirmed,excluded
+ER006,R021,stale_schedule_change,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER007,R023,am_pm_error,FL06,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER008,R024,am_pm_error,FL06,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER009,R027,duplicate_row,FL04,yes,yes,LOW_CONFIDENCE POSSIBLE_DUPLICATE UNCONFIRMED,unconfirmed,needs_review
+ER010,R035,missing_break,FL03,yes,yes,LOW_CONFIDENCE MISSING_BREAK UNCONFIRMED,unconfirmed,incomplete
+ER011,R043,missing_location,FL03,yes,yes,LOW_CONFIDENCE MISSING_LOCATION UNCONFIRMED,unconfirmed,counted
+ER012,R045,missing_employer,FL03,yes,yes,LOW_CONFIDENCE MISSING_EMPLOYER UNCONFIRMED,unconfirmed,counted
+ER013,R054,wrong_date,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER014,R060,unparseable_time,FL03,yes,yes,INVALID_TIME LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER015,R068,missing_end_time,FL03,yes,yes,INVALID_TIME LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER016,R070,missing_date,FL03,yes,yes,LOW_CONFIDENCE MISSING_DATE UNCONFIRMED,unconfirmed,excluded
+ER017,R071,missing_rate,FL03,yes,yes,LOW_CONFIDENCE MISSING_RATE UNCONFIRMED,unconfirmed,incomplete
+ER018,R072,am_pm_error,FL06,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER019,R074,am_pm_error,FL06,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER020,R076,am_pm_error,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER021,R079,duplicate_row,FL04,yes,yes,LOW_CONFIDENCE POSSIBLE_DUPLICATE UNCONFIRMED,unconfirmed,needs_review
+ER022,R082,duplicate_row,FL04,yes,yes,LOW_CONFIDENCE POSSIBLE_DUPLICATE UNCONFIRMED,unconfirmed,needs_review
+ER023,R089,stale_schedule_change,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER024,R090,stale_schedule_change,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER025,R098,missing_rate,FL03,yes,yes,LOW_CONFIDENCE MISSING_RATE UNCONFIRMED,unconfirmed,incomplete
+ER026,R104,hallucinated_shift,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER027,R105,hallucinated_shift,FL06,yes,no,LOW_CONFIDENCE UNCONFIRMED,unconfirmed,counted
+ER028,R107,invalid_duration,FL03,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER029,R108,invalid_duration,FL03,yes,yes,INVALID_DURATION LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER030,R111,invalid_break,FL03,yes,yes,INVALID_BREAK LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER031,R112,invalid_break,FL03,yes,yes,INVALID_BREAK LOW_CONFIDENCE UNCONFIRMED,unconfirmed,excluded
+ER032,R119,confirmed_missing_rate,FL03,yes,yes,LOW_CONFIDENCE MISSING_RATE,incomplete,incomplete
+ER033,R123,unknown_location,FL03,yes,yes,LOW_CONFIDENCE UNCONFIRMED UNKNOWN_LOCATION,unconfirmed,counted
