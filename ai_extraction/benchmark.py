@@ -19,7 +19,13 @@ from types import ModuleType
 from typing import Any
 
 from ai_extraction.orchestrator import run_provider_attempts
-from ai_extraction.pdf_utils import DEFAULT_PDF_DPI, load_document_pages
+from ai_extraction.pdf_utils import (
+    DEFAULT_PDF_DPI,
+    MissingRenderingDependencyError,
+    get_available_image_preprocessing_backend,
+    get_available_pdf_rendering_backend,
+    load_document_pages,
+)
 from ai_extraction.prompt import SYSTEM_PROMPT, build_user_prompt
 from ai_extraction.providers import (
     DEFAULT_GEMINI_MODEL,
@@ -248,6 +254,40 @@ def load_files_manifest(
     return entries
 
 
+def ensure_rendering_dependencies(
+    manifest: Sequence[DocumentManifestEntry],
+    *,
+    preprocess_images: bool = False,
+) -> None:
+    """
+    Fail fast before a benchmark run if any selected document requires an unavailable backend.
+
+    Prevents PDF schedules from being silently skipped when running on Windows/Linux
+    without pypdfium2 + Pillow.
+    """
+    has_pdf = any(
+        entry.document_path.suffix.lower() == ".pdf" or entry.kind.lower() == "pdf"
+        for entry in manifest
+    )
+    if has_pdf and get_available_pdf_rendering_backend() is None:
+        raise MissingRenderingDependencyError(
+            "Benchmark includes PDF documents, but no PDF rendering backend is available. "
+            "Install cross-platform extraction dependencies with: "
+            "pip install -r requirements.txt (or: pip install pypdfium2 Pillow)."
+        )
+
+    if preprocess_images:
+        has_jpeg = any(
+            entry.document_path.suffix.lower() in (".jpg", ".jpeg")
+            for entry in manifest
+        )
+        if has_jpeg and get_available_image_preprocessing_backend("image/jpeg") is None:
+            raise MissingRenderingDependencyError(
+                "Benchmark includes JPEG preprocessing, but no JPEG decoding backend is available. "
+                "Install Pillow with: pip install -r requirements.txt (or: pip install Pillow)."
+            )
+
+
 def _compute_percentile(sorted_values: list[float], pct: float) -> float:
     if not sorted_values:
         return 0.0
@@ -432,6 +472,8 @@ def extract_single_document(
             deskew=deskew,
             perspective_correct=perspective_correct,
         )
+    except MissingRenderingDependencyError:
+        raise
     except Exception as exc:
         return (
             0,
@@ -827,6 +869,8 @@ def run_benchmark(
                 f"None of the requested files matched manifest: {sorted(requested)}"
             )
         selected_list = [entry.file_name for entry in manifest]
+
+    ensure_rendering_dependencies(manifest, preprocess_images=preprocess_images)
 
     run_dir = resolve_versioned_output_dir(output_dir, run_label=run_label)
     doc_results: list[BenchmarkDocumentResult] = []

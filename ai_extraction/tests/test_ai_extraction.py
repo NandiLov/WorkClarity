@@ -8,6 +8,7 @@ import io
 import json
 import math
 import os
+import sys
 import tempfile
 import unittest
 import urllib.error
@@ -26,6 +27,7 @@ from ai_extraction.benchmark import (
     FLAG_TYPES_PATH,
     UNSTRUCTURED_DIR,
     _evaluate_deterministic_validation,
+    ensure_rendering_dependencies,
     evaluate_v1_offline_recovery,
     extract_single_document,
     load_files_manifest,
@@ -44,15 +46,19 @@ from ai_extraction.orchestrator import (
 )
 from ai_extraction.pdf_utils import (
     ImagePreprocessingDiagnostics,
+    MissingRenderingDependencyError,
     _decode_png_rgba,
     _encode_rgba_png,
     _horizontal_projection_variance,
     _rotate_rgba_expanded_python,
     estimate_skew_angle_from_rgba,
+    get_available_image_preprocessing_backend,
+    get_available_pdf_rendering_backend,
     inspect_and_preprocess_image,
     load_document_pages,
     preprocess_image_bytes,
     render_pdf_to_png_pages,
+    render_pdf_to_png_pages_with_backend,
 )
 from ai_extraction.prompt import SYSTEM_PROMPT, build_user_prompt
 from ai_extraction.providers import (
@@ -507,6 +513,91 @@ class PdfAndImageUtilsTests(unittest.TestCase):
             self.assertEqual(content_blocks[-1]["type"], "text")
             self.assertIn("2 document page(s)", content_blocks[-1]["text"])
 
+    def test_all_14_documents_render_and_preprocess_with_pypdfium2_and_pillow_without_macos_backends(
+        self,
+    ) -> None:
+        manifest = load_files_manifest(DEFAULT_FILES_CSV)
+        self.assertEqual(len(manifest), 14)
+
+        with (
+            patch("ai_extraction.pdf_utils._render_pdf_with_coregraphics", return_value=None),
+            patch("ai_extraction.pdf_utils._render_pdf_with_pdftoppm", return_value=None),
+            patch("ai_extraction.pdf_utils._render_pdf_with_pymupdf", return_value=None),
+            patch("ai_extraction.pdf_utils._decode_image_with_coregraphics", return_value=None),
+            patch("ai_extraction.pdf_utils._rotate_rgba_expanded_coregraphics", return_value=None),
+        ):
+            for entry in manifest:
+                raw_pages = load_document_pages(
+                    entry.document_path, preprocess_images=False
+                )
+                self.assertEqual(len(raw_pages), 1, entry.file_name)
+                if entry.kind == "pdf":
+                    self.assertEqual(raw_pages[0].rendering_backend, "pypdfium2")
+                    self.assertEqual(raw_pages[0].mime_type, "image/png")
+                    self.assertTrue(raw_pages[0].image_bytes.startswith(b"\x89PNG"))
+                else:
+                    self.assertEqual(raw_pages[0].rendering_backend, "direct_image")
+
+                pre_pages = load_document_pages(
+                    entry.document_path, preprocess_images=True
+                )
+                self.assertEqual(len(pre_pages), 1, entry.file_name)
+                diag = pre_pages[0].preprocessing_diagnostics
+                self.assertIsNotNone(diag)
+                self.assertEqual(diag.backend_used, "pillow")
+                self.assertGreater(diag.output_width, 0)
+                self.assertGreater(diag.output_height, 0)
+
+    def test_missing_rendering_dependencies_raise_actionable_error_instead_of_silent_skip(
+        self,
+    ) -> None:
+        sample_pdf = UNSTRUCTURED_DIR / "pdf" / "pdf_01_table_clean.pdf"
+        sample_jpg = UNSTRUCTURED_DIR / "images" / "img_07_photo_missing_details.jpg"
+
+        with (
+            patch.dict(
+                sys.modules,
+                {"pypdfium2": None, "fitz": None, "PIL": None, "PIL.Image": None},
+            ),
+            patch("ai_extraction.pdf_utils.shutil.which", return_value=None),
+            patch("ai_extraction.pdf_utils.ctypes.util.find_library", return_value=None),
+        ):
+            self.assertIsNone(get_available_pdf_rendering_backend())
+            self.assertIsNone(get_available_image_preprocessing_backend("image/jpeg"))
+            self.assertEqual(
+                get_available_image_preprocessing_backend("image/png"),
+                "pure_python_png",
+            )
+
+            with self.assertRaises(MissingRenderingDependencyError) as ctx_pdf:
+                render_pdf_to_png_pages_with_backend(sample_pdf)
+            self.assertIn("pip install -r requirements.txt", str(ctx_pdf.exception))
+
+            with self.assertRaises(MissingRenderingDependencyError):
+                load_document_pages(sample_pdf)
+
+            with self.assertRaises(MissingRenderingDependencyError) as ctx_jpg:
+                inspect_and_preprocess_image(
+                    sample_jpg.read_bytes(), mime_type="image/jpeg"
+                )
+            self.assertIn("pip install Pillow", str(ctx_jpg.exception))
+
+            with self.assertRaises(MissingRenderingDependencyError):
+                ensure_rendering_dependencies(load_files_manifest(DEFAULT_FILES_CSV))
+
+            mock_adapter = NvidiaExtractionAdapter(api_key="test")
+            with self.assertRaises(MissingRenderingDependencyError):
+                extract_single_document(
+                    file_path=sample_pdf,
+                    file_name=sample_pdf.name,
+                    adapter=mock_adapter,
+                )
+
+            with tempfile.TemporaryDirectory() as tmp:
+                with self.assertRaises(MissingRenderingDependencyError) as ctx_bench:
+                    run_benchmark(mock_adapter, output_dir=Path(tmp))
+                self.assertIn("pypdfium2 Pillow", str(ctx_bench.exception))
+
 
 class ProviderAdaptersAndFailureTests(unittest.TestCase):
     def test_nvidia_adapter_payload_and_response_parsing(self) -> None:
@@ -853,6 +944,68 @@ class BenchmarkPipelineIntegrationTests(unittest.TestCase):
             )
             self.assertEqual(result.document_results[0].raw_response, "{not valid json")
             self.assertTrue(result.document_results[0].json_validation_failure)
+
+    def test_all_14_documents_reach_mock_provider_when_native_macos_backends_unavailable(
+        self,
+    ) -> None:
+        observed_requests: list[ProviderExtractionRequest] = []
+
+        class MockProviderAdapter(ExtractionAdapter):
+            @property
+            def provider_name(self) -> str:
+                return "nvidia"
+
+            @property
+            def model_id(self) -> str:
+                return DEFAULT_NVIDIA_MODEL
+
+            def extract(
+                self, request: ProviderExtractionRequest
+            ) -> ProviderRawResponse:
+                observed_requests.append(request)
+                return ProviderRawResponse(
+                    provider_name=self.provider_name,
+                    model_id=self.model_id,
+                    raw_text=json.dumps({"week_of": "Week of 2 November 2026", "shifts": []}),
+                    finish_reason="stop",
+                    elapsed_seconds=0.05,
+                    token_usage=TokenUsage(
+                        prompt_tokens=100, completion_tokens=20, total_tokens=120
+                    ),
+                )
+
+        with (
+            patch("ai_extraction.pdf_utils._render_pdf_with_coregraphics", return_value=None),
+            patch("ai_extraction.pdf_utils._render_pdf_with_pdftoppm", return_value=None),
+            patch("ai_extraction.pdf_utils._render_pdf_with_pymupdf", return_value=None),
+            patch("ai_extraction.pdf_utils._decode_image_with_coregraphics", return_value=None),
+            patch("ai_extraction.pdf_utils._rotate_rgba_expanded_coregraphics", return_value=None),
+            tempfile.TemporaryDirectory() as tmp,
+        ):
+            res = run_benchmark(
+                MockProviderAdapter(),
+                output_dir=Path(tmp),
+                preprocess_images=True,
+            )
+
+            self.assertEqual(res.documents_evaluated, 14)
+            self.assertEqual(res.request_failures, 0)
+            self.assertEqual(res.json_validation_failures, 0)
+            self.assertEqual(len(observed_requests), 14)
+            pdf_reqs = [r for r in observed_requests if r.file_name.endswith(".pdf")]
+            img_reqs = [r for r in observed_requests if not r.file_name.endswith(".pdf")]
+            self.assertEqual(len(pdf_reqs), 7)
+            self.assertEqual(len(img_reqs), 7)
+            self.assertTrue(
+                all(r.pages[0].rendering_backend == "pypdfium2" for r in pdf_reqs)
+            )
+            self.assertTrue(
+                all(
+                    r.pages[0].preprocessing_diagnostics is not None
+                    and r.pages[0].preprocessing_diagnostics.backend_used == "pillow"
+                    for r in observed_requests
+                )
+            )
 
 
 class V2CorrectiveRegressionTests(unittest.TestCase):
@@ -1301,9 +1454,79 @@ class V2CorrectiveRegressionTests(unittest.TestCase):
             self.assertEqual(next_dir.name, "v2_2")
 
     def test_offline_recovery_on_preserved_v1_baseline_without_api_calls(self) -> None:
-        baseline_json = DEFAULT_OUTPUT_DIR / "v1_baseline" / "benchmark_results.json"
-        if not baseline_json.is_file():
-            self.skipTest("Preserved V1 baseline results not present on disk.")
+        # Deterministic, sanitized V1 partial-truncation and reasoning-exhaustion regression fixture
+        # (independent of gitignored local benchmark_output/v1_baseline artifacts).
+        truncated_img05_raw = (
+            '{\n  "week_of": "Week of 9 November 2026",\n  "shifts": [\n'
+            + ",\n".join(
+                json.dumps(
+                    {
+                        "shift_date": f"2026-11-{day:02d}",
+                        "start_time": "08:00",
+                        "end_time": "16:00",
+                        "break_minutes": 30,
+                        "employer_name": "Grand Hotel",
+                        "location": "Hotel Front",
+                        "department": "front desk",
+                        "hourly_rate": 18.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                    }
+                )
+                for day in (9, 10, 11, 12)
+            )
+            + ',\n    {\n      "shift_date": "2026-11-15",\n      "start_time": "22:00",\n      "end_time": "06'
+        )
+        v1_fixture = {
+            "provider_name": "nvidia",
+            "model_id": DEFAULT_NVIDIA_MODEL,
+            "documents": [
+                {
+                    "file_name": "pdf_01_table_clean.pdf",
+                    "target_worker": None,
+                    "json_validation_failure": False,
+                    "token_usage": {
+                        "prompt_tokens": 1200,
+                        "completion_tokens": 450,
+                        "total_tokens": 1650,
+                    },
+                    "raw_response": json.dumps(
+                        {"week_of": "Week of 2 November 2026", "shifts": []}
+                    ),
+                    "reasoning_text": None,
+                },
+                {
+                    "file_name": "img_05_cropped_perspective.jpg",
+                    "target_worker": None,
+                    "json_validation_failure": True,
+                    "token_usage": {
+                        "prompt_tokens": 1634,
+                        "completion_tokens": 4096,
+                        "total_tokens": 5730,
+                    },
+                    "raw_response": truncated_img05_raw,
+                    "reasoning_text": None,
+                },
+                {
+                    "file_name": "pdf_06_team_roster_multi_employee.pdf",
+                    "target_worker": "Maria Santos",
+                    "json_validation_failure": True,
+                    "token_usage": {
+                        "prompt_tokens": 4154,
+                        "completion_tokens": 4096,
+                        "total_tokens": 8250,
+                    },
+                    "raw_response": "",
+                    # Synthetic draft in reasoning_text verifies evaluate_v1_offline_recovery never mines CoT.
+                    "reasoning_text": (
+                        'Thought draft: {"shifts": [{"worker_name": "Maria Santos", '
+                        '"shift_date": "2026-11-16", "start_time": "09:00", "end_time": "17:00"}]}'
+                    ),
+                },
+            ],
+        }
 
         orig_open = Path.open
 
@@ -1312,14 +1535,21 @@ class V2CorrectiveRegressionTests(unittest.TestCase):
                 raise AssertionError("Offline recovery must never read answer_key.csv!")
             return orig_open(self_path, *args, **kwargs)
 
-        with patch.object(Path, "open", guarded_open):
-            recovery = evaluate_v1_offline_recovery(baseline_json)
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture_path = Path(tmp) / "v1_baseline_fixture.json"
+            fixture_path.write_text(json.dumps(v1_fixture), encoding="utf-8")
+            with patch.object(Path, "open", guarded_open):
+                recovery = evaluate_v1_offline_recovery(fixture_path)
 
         self.assertEqual(recovery["failed_documents_reprocessed"], 2)
         by_name = {doc["file_name"]: doc for doc in recovery["documents"]}
 
         img05 = by_name["img_05_cropped_perspective.jpg"]
         self.assertEqual(img05["recovered_shift_count"], 4)
+        self.assertEqual(
+            [s["normalised"]["shift_date"] for s in img05["recovered_shifts"]],
+            ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12"],
+        )
         self.assertTrue(img05["partial_recovery_triggered"])
         self.assertTrue(img05["incomplete_extraction"])
         self.assertTrue(img05["json_validation_failure"])
@@ -1740,32 +1970,200 @@ class V3ParserAndReportingRegressionTests(unittest.TestCase):
                 0,
             )
 
+    @staticmethod
+    def _build_sanitized_replay_fixture_payload(provider_name: str) -> dict[str, Any]:
+        """Build a minimal, sanitized 14-document replay fixture payload (no live/raw artifacts)."""
+        manifest = load_files_manifest(DEFAULT_FILES_CSV)
+        expected_by_file: dict[str, list[dict[str, str]]] = {}
+        with DEFAULT_ANSWER_KEY_CSV.open(newline="", encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                expected_by_file.setdefault(row["file_name"], []).append(row)
+
+        total_token_target = 42666 if provider_name == "gemini" else 68389
+        model_id = (
+            DEFAULT_GEMINI_MODEL if provider_name == "gemini" else DEFAULT_NVIDIA_MODEL
+        )
+        per_doc_tokens, remainder = divmod(total_token_target, len(manifest))
+
+        documents: list[dict[str, Any]] = []
+        for idx, entry in enumerate(manifest):
+            rows = expected_by_file[entry.file_name]
+            shifts_payload: list[dict[str, Any]] = []
+            for r in rows:
+                shift_item: dict[str, Any] = {
+                    "shift_date": r["shift_date"],
+                    "start_time": r["start_time"],
+                    "end_time": r["end_time"] or None,
+                    "break_minutes": (
+                        int(r["break_minutes"]) if r["break_minutes"] != "" else None
+                    ),
+                    "employer_name": r["employer_name"] or None,
+                    "location": r["location"] or None,
+                    "department": r["department"] or None,
+                    "hourly_rate": (
+                        float(r["hourly_rate"]) if r["hourly_rate"] != "" else None
+                    ),
+                    "currency": r["currency"] or None,
+                    "shift_status": r["shift_status"],
+                    "confidence": "high",
+                    "uncertain_fields": [],
+                }
+                if entry.file_name == "pdf_06_team_roster_multi_employee.pdf":
+                    shift_item["worker_name"] = "Maria Santos"
+                shifts_payload.append(shift_item)
+
+            if entry.file_name == "pdf_06_team_roster_multi_employee.pdf":
+                shifts_payload.append(
+                    {
+                        "worker_name": "James Okoro",
+                        "shift_date": "2026-11-17",
+                        "start_time": "09:00",
+                        "end_time": "17:00",
+                        "break_minutes": 30,
+                        "employer_name": "Harbor Bistro",
+                        "location": "Harbor Bistro Main",
+                        "department": "bar",
+                        "hourly_rate": 15.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    }
+                )
+
+            if provider_name == "gemini":
+                if entry.file_name == "img_06_chat_message.png":
+                    # 2 status mismatches -> money_ok=True, earnings_critical_ok=False
+                    for item in shifts_payload:
+                        if item["shift_status"] == "changed":
+                            item["shift_status"] = "scheduled"
+                elif entry.file_name == "img_07_photo_missing_details.jpg":
+                    # 3 money-field mismatches -> money_ok drops by 3 (62 -> 59)
+                    shifts_payload[1]["break_minutes"] = 45
+                    shifts_payload[2]["hourly_rate"] = 14.25
+                    shifts_payload[2]["currency"] = "GBP"
+                    shifts_payload[3]["hourly_rate"] = None
+                    shifts_payload[3]["currency"] = None
+
+                envelope: Any = {"week_of": "2026-11", "shifts": shifts_payload}
+                if entry.file_name == "img_02_photo_tilted.jpg":
+                    envelope = [envelope]
+            else:
+                if entry.file_name == "img_07_photo_missing_details.jpg":
+                    # 2 money-field mismatches -> money_ok drops by 2 (62 -> 60)
+                    shifts_payload[2]["hourly_rate"] = 14.25
+                    shifts_payload[2]["currency"] = "GBP"
+                    shifts_payload[3]["hourly_rate"] = None
+                    shifts_payload[3]["currency"] = None
+                elif entry.file_name in (
+                    "img_02_photo_tilted.jpg",
+                    "img_06_chat_message.png",
+                ):
+                    # 4 status mismatches -> earnings_critical_ok drops by 4 (60 -> 56)
+                    for item in shifts_payload:
+                        if item["shift_status"] in ("cancelled", "changed"):
+                            item["shift_status"] = "scheduled"
+                elif entry.file_name == "pdf_04_weekly_grid.pdf":
+                    # 3 non-money location mismatches -> all_ok drops by 3 (56 -> 53)
+                    for item in shifts_payload:
+                        item["location"] = None
+
+                envelope = {"week_of": "2026-11", "shifts": shifts_payload}
+
+            doc_tok = per_doc_tokens + (remainder if idx == 0 else 0)
+            prompt_tok = int(doc_tok * 0.7)
+            comp_tok = doc_tok - prompt_tok
+            reas_tok = int(comp_tok * 0.3) if provider_name == "nvidia" else 0
+            documents.append(
+                {
+                    "file_name": entry.file_name,
+                    "schedule_id": entry.schedule_id,
+                    "kind": entry.kind,
+                    "difficulty": entry.difficulty,
+                    "target_worker": entry.target_worker,
+                    "page_count": 1,
+                    "provider_name": provider_name,
+                    "model_id": model_id,
+                    "processing_time_seconds": 0.5,
+                    "finish_reason": "stop",
+                    "token_usage": {
+                        "prompt_tokens": prompt_tok,
+                        "completion_tokens": comp_tok,
+                        "reasoning_tokens": reas_tok,
+                        "output_tokens": comp_tok - reas_tok,
+                        "total_tokens": doc_tok,
+                    },
+                    "raw_response": json.dumps(envelope),
+                    "reasoning_text": None,
+                    "request_failure": False,
+                    "request_error": None,
+                }
+            )
+
+        return {
+            "provider_name": provider_name,
+            "model_id": model_id,
+            "selected_files": None,
+            "documents": documents,
+        }
+
     def test_offline_replay_reproduces_saved_gemini_and_nvidia_targets(self) -> None:
-        gemini_src = DEFAULT_OUTPUT_DIR / "gemini_35_lite_full" / "benchmark_results.json"
-        if not gemini_src.is_file():
-            self.skipTest("Saved gemini_35_lite_full benchmark artifacts not present.")
+        # Uses deterministic, sanitized 14-document replay fixtures rather than
+        # gitignored local benchmark_output artifacts so the check passes on fresh checkouts.
+        gemini_payload = self._build_sanitized_replay_fixture_payload("gemini")
+        nvidia_payload = self._build_sanitized_replay_fixture_payload("nvidia")
 
         with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            gem_src = tmp_dir / "sanitized_gemini_fixture.json"
+            nvd_src = tmp_dir / "sanitized_nvidia_fixture.json"
+            gem_src.write_text(json.dumps(gemini_payload), encoding="utf-8")
+            nvd_src.write_text(json.dumps(nvidia_payload), encoding="utf-8")
+
             gem_replay = replay_saved_benchmark_run(
-                gemini_src,
-                output_dir=Path(tmp),
+                gem_src,
+                output_dir=tmp_dir,
                 run_label="v3_replay_gemini",
             )
-            s = gem_replay.comparison_summary
-            self.assertEqual(s["expected"], 62)
-            self.assertEqual(s["true_positives"], 62)
-            self.assertEqual(s["false_positives"], 0)
-            self.assertEqual(s["false_negatives"], 0)
-            self.assertAlmostEqual(s["precision"], 1.0)
-            self.assertAlmostEqual(s["recall"], 1.0)
-            self.assertAlmostEqual(s["f1"], 1.0)
+            sg = gem_replay.comparison_summary
+            self.assertEqual(sg["expected"], 62)
+            self.assertEqual(sg["true_positives"], 62)
+            self.assertEqual(sg["false_positives"], 0)
+            self.assertEqual(sg["false_negatives"], 0)
+            self.assertAlmostEqual(sg["precision"], 1.0)
+            self.assertAlmostEqual(sg["recall"], 1.0)
+            self.assertAlmostEqual(sg["f1"], 1.0)
             self.assertEqual(gem_replay.total_invalid_or_empty_records, 0)
-            self.assertEqual(s["all_ok"], 57)
-            self.assertEqual(s["money_ok"], 59)
-            self.assertEqual(s["earnings_critical_ok"], 57)
+            self.assertEqual(sg["all_ok"], 57)
+            self.assertEqual(sg["money_ok"], 59)
+            self.assertEqual(sg["earnings_critical_ok"], 57)
             self.assertEqual(gem_replay.total_tokens, 42666)
             self.assertEqual(
                 gem_replay.deterministic_validation_summary["as_extracted_unconfirmed"][
+                    "eligible_for_earnings_count"
+                ],
+                0,
+            )
+
+            nvd_replay = replay_saved_benchmark_run(
+                nvd_src,
+                output_dir=tmp_dir,
+                run_label="v3_replay_nvidia",
+            )
+            sn = nvd_replay.comparison_summary
+            self.assertEqual(sn["expected"], 62)
+            self.assertEqual(sn["true_positives"], 62)
+            self.assertEqual(sn["false_positives"], 0)
+            self.assertEqual(sn["false_negatives"], 0)
+            self.assertAlmostEqual(sn["precision"], 1.0)
+            self.assertAlmostEqual(sn["recall"], 1.0)
+            self.assertAlmostEqual(sn["f1"], 1.0)
+            self.assertEqual(nvd_replay.total_invalid_or_empty_records, 0)
+            self.assertEqual(sn["all_ok"], 53)
+            self.assertEqual(sn["money_ok"], 60)
+            self.assertEqual(sn["earnings_critical_ok"], 56)
+            self.assertEqual(nvd_replay.total_tokens, 68389)
+            self.assertEqual(
+                nvd_replay.deterministic_validation_summary["as_extracted_unconfirmed"][
                     "eligible_for_earnings_count"
                 ],
                 0,
@@ -1805,24 +2203,114 @@ class V31ConflictAndPreprocessingRegressionTests(unittest.TestCase):
         spec.loader.exec_module(mod)
         return mod
 
+    @staticmethod
+    def _build_missing_details_conflicting_duplicate_fixture_json() -> str:
+        """
+        Return a deterministic, sanitized 5-record extraction fixture for
+        img_07_photo_missing_details.jpg reproducing conflicting duplicates on 2026-11-20.
+        """
+        return json.dumps(
+            {
+                "week_of": "Week of 16 November 2026",
+                "shifts": [
+                    {
+                        "shift_date": "2026-11-16",
+                        "start_time": "07:00",
+                        "end_time": "15:00",
+                        "break_minutes": 45,
+                        "employer_name": "Greenfield Care",
+                        "location": "Greenfield Home",
+                        "department": "carer",
+                        "hourly_rate": 14.25,
+                        "currency": "GBP",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                        "source_page": 1,
+                        "source_row": 1,
+                        "worker_name": None,
+                    },
+                    {
+                        "shift_date": "2026-11-17",
+                        "start_time": "07:00",
+                        "end_time": "15:00",
+                        "break_minutes": None,
+                        "employer_name": "Greenfield Care",
+                        "location": "Greenfield Home",
+                        "department": "carer",
+                        "hourly_rate": 14.25,
+                        "currency": "GBP",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                        "source_page": 1,
+                        "source_row": 2,
+                        "worker_name": None,
+                    },
+                    {
+                        "shift_date": "2026-11-19",
+                        "start_time": "07:00",
+                        "end_time": "15:00",
+                        "break_minutes": None,
+                        "employer_name": "Greenfield Care",
+                        "location": "Greenfield Home",
+                        "department": "carer",
+                        "hourly_rate": None,
+                        "currency": None,
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                        "source_page": 1,
+                        "source_row": 3,
+                        "worker_name": None,
+                    },
+                    {
+                        "shift_date": "2026-11-20",
+                        "start_time": "13:00",
+                        "end_time": "21:00",
+                        "break_minutes": 45,
+                        "employer_name": "Greenfield Care",
+                        "location": "Greenfield Home",
+                        "department": "carer",
+                        "hourly_rate": 14.25,
+                        "currency": "GBP",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                        "source_page": 1,
+                        "source_row": 4,
+                        "worker_name": None,
+                    },
+                    {
+                        "shift_date": "2026-11-20",
+                        "start_time": "13:00",
+                        "end_time": "21:00",
+                        "break_minutes": 0,
+                        "employer_name": "Greenfield Care",
+                        "location": "Greenfield Home",
+                        "department": "carer",
+                        "hourly_rate": None,
+                        "currency": None,
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": [],
+                        "source_page": 1,
+                        "source_row": 5,
+                        "worker_name": None,
+                    },
+                ],
+            }
+        )
+
     def test_v3_gemini_missing_details_artifact_conflict_group_and_comparator_order_sensitivity(
         self,
     ) -> None:
-        artifact_path = (
-            DEFAULT_OUTPUT_DIR
-            / "v3_gemini_missing_details"
-            / "benchmark_results.json"
-        )
-        if not artifact_path.is_file():
-            self.skipTest("v3_gemini_missing_details benchmark artifact not present.")
-
-        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-        doc_entry = artifact["documents"][0]
+        raw_fixture = self._build_missing_details_conflicting_duplicate_fixture_json()
         parsed = parse_and_validate_model_json(
-            doc_entry["raw_response"],
-            file_name=doc_entry["file_name"],
-            model_id=doc_entry["model_id"],
-            finish_reason=doc_entry.get("finish_reason"),
+            raw_fixture,
+            file_name="img_07_photo_missing_details.jpg",
+            model_id="gemini-3.5-flash-lite",
+            finish_reason="stop",
         )
         self.assertEqual(len(parsed.shifts), 5)
         self.assertEqual(parsed.deduplicated_shifts, 0)
@@ -1873,29 +2361,23 @@ class V31ConflictAndPreprocessingRegressionTests(unittest.TestCase):
     def test_conflicting_duplicates_cannot_contribute_to_earnings_through_confirmation_alone(
         self,
     ) -> None:
-        # Case 1: Saved v3_gemini_missing_details payload
-        artifact_path = (
-            DEFAULT_OUTPUT_DIR
-            / "v3_gemini_missing_details"
-            / "benchmark_results.json"
+        # Case 1: Deterministic conflicting-duplicate missing-details fixture
+        raw_fixture = self._build_missing_details_conflicting_duplicate_fixture_json()
+        parsed_gem = parse_and_validate_model_json(
+            raw_fixture,
+            file_name="img_07_photo_missing_details.jpg",
+            model_id="gemini-3.5-flash-lite",
         )
-        if artifact_path.is_file():
-            doc_entry = json.loads(artifact_path.read_text(encoding="utf-8"))["documents"][0]
-            parsed_gem = parse_and_validate_model_json(
-                doc_entry["raw_response"],
-                file_name=doc_entry["file_name"],
-                model_id=doc_entry["model_id"],
-            )
-            val_gem = _evaluate_deterministic_validation(
-                [(doc_entry["file_name"], rec) for rec in parsed_gem.shifts]
-            )
-            self.assertEqual(val_gem["unresolved_conflict_records"], 2)
-            self.assertEqual(
-                val_gem["as_extracted_unconfirmed"]["eligible_for_earnings_count"], 0
-            )
-            self.assertEqual(
-                val_gem["if_individually_confirmed"]["eligible_for_earnings_count"], 1
-            )
+        val_gem = _evaluate_deterministic_validation(
+            [("img_07_photo_missing_details.jpg", rec) for rec in parsed_gem.shifts]
+        )
+        self.assertEqual(val_gem["unresolved_conflict_records"], 2)
+        self.assertEqual(
+            val_gem["as_extracted_unconfirmed"]["eligible_for_earnings_count"], 0
+        )
+        self.assertEqual(
+            val_gem["if_individually_confirmed"]["eligible_for_earnings_count"], 1
+        )
 
         # Case 2: Both conflicting duplicates have complete money fields AND differing locations
         complete_conflict_json = json.dumps(

@@ -1,4 +1,4 @@
-"""PDF rendering (Linux & macOS compatible) and optional image preprocessing utilities."""
+"""Cross-platform PDF rendering (Windows, macOS, & Linux) and optional image preprocessing utilities."""
 
 from __future__ import annotations
 
@@ -23,6 +23,21 @@ IMAGE_MIME_TYPES: dict[str, str] = {
 }
 SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({*IMAGE_MIME_TYPES.keys(), ".pdf"})
 DEFAULT_PDF_DPI = 200
+PDF_RENDERING_BACKEND_ORDER: tuple[str, ...] = (
+    "pypdfium2",
+    "pymupdf",
+    "pdftoppm",
+    "coregraphics",
+)
+IMAGE_PREPROCESSING_BACKEND_ORDER: tuple[str, ...] = (
+    "pillow",
+    "coregraphics",
+    "pure_python_png",
+)
+
+
+class MissingRenderingDependencyError(RuntimeError):
+    """Raised when required PDF rendering or JPEG preprocessing dependencies are unavailable."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +69,7 @@ class PreparedDocumentPage:
     base64_data: str
     preprocessing_applied: tuple[str, ...] = field(default_factory=tuple)
     preprocessing_diagnostics: ImagePreprocessingDiagnostics | None = None
+    rendering_backend: str = "direct_image"
 
     @property
     def data_url(self) -> str:
@@ -94,6 +110,7 @@ def _encode_rgba_png(width: int, height: int, rgba_bytes: bytes) -> bytes:
 def _render_pdf_with_pypdfium2(pdf_path: Path, dpi: int) -> list[bytes] | None:
     try:
         import pypdfium2 as pdfium  # type: ignore[import-not-found]
+        from PIL import Image  # type: ignore[import-not-found]  # noqa: F401
     except ImportError:
         return None
 
@@ -101,13 +118,26 @@ def _render_pdf_with_pypdfium2(pdf_path: Path, dpi: int) -> list[bytes] | None:
     pages: list[bytes] = []
     doc = pdfium.PdfDocument(str(pdf_path))
     try:
-        for index in range(len(doc)):
+        page_count = len(doc)
+        if page_count <= 0:
+            raise RuntimeError(f"PDF document contains no pages: {pdf_path}")
+        for index in range(page_count):
             page = doc[index]
-            bitmap = page.render(scale=scale)
-            pil_image = bitmap.to_pil()
-            buf = io.BytesIO()
-            pil_image.save(buf, format="PNG")
-            pages.append(buf.getvalue())
+            bitmap = None
+            pil_image = None
+            try:
+                bitmap = page.render(scale=scale)
+                pil_image = bitmap.to_pil()
+                buf = io.BytesIO()
+                pil_image.save(buf, format="PNG")
+                pages.append(buf.getvalue())
+            finally:
+                if pil_image is not None and hasattr(pil_image, "close"):
+                    pil_image.close()
+                if bitmap is not None and hasattr(bitmap, "close"):
+                    bitmap.close()
+                if hasattr(page, "close"):
+                    page.close()
     finally:
         doc.close()
     return pages
@@ -271,16 +301,67 @@ def _render_pdf_with_coregraphics(pdf_path: Path, dpi: int) -> list[bytes] | Non
         cg.CGDataProviderRelease(provider)
 
 
-def render_pdf_to_png_pages(
+def get_available_pdf_rendering_backend() -> str | None:
+    """Return the highest-priority available PDF rendering backend name, or None."""
+    try:
+        import pypdfium2  # type: ignore[import-not-found]  # noqa: F401
+        from PIL import Image  # type: ignore[import-not-found]  # noqa: F401
+
+        return "pypdfium2"
+    except ImportError:
+        pass
+
+    try:
+        import fitz  # type: ignore[import-not-found]  # noqa: F401
+
+        return "pymupdf"
+    except ImportError:
+        pass
+
+    if shutil.which("pdftoppm"):
+        return "pdftoppm"
+
+    if ctypes.util.find_library("CoreGraphics"):
+        return "coregraphics"
+
+    return None
+
+
+def get_available_image_preprocessing_backend(mime_type: str = "image/jpeg") -> str | None:
+    """Return the highest-priority available image decoding/preprocessing backend for mime_type."""
+    try:
+        from PIL import Image  # type: ignore[import-not-found]  # noqa: F401
+
+        return "pillow"
+    except ImportError:
+        pass
+
+    if (
+        ctypes.util.find_library("CoreGraphics")
+        and ctypes.util.find_library("ImageIO")
+        and ctypes.util.find_library("CoreFoundation")
+    ):
+        return "coregraphics"
+
+    if mime_type == "image/png":
+        return "pure_python_png"
+
+    return None
+
+
+def render_pdf_to_png_pages_with_backend(
     file_path: str | Path,
     *,
     dpi: int = DEFAULT_PDF_DPI,
-) -> list[bytes]:
+) -> tuple[list[bytes], str]:
     """
-    Render every page of a PDF file into high-resolution PNG bytes.
+    Render every page of a PDF file into high-resolution PNG bytes and report the backend used.
 
-    Backend priority supports Linux Cloud Run containers (pypdfium2, pymupdf, poppler pdftoppm)
-    and macOS development workstations (CoreGraphics).
+    Backend fallback order:
+      1. pypdfium2 + Pillow (primary cross-platform backend: Windows, macOS, Linux/Cloud Run)
+      2. pymupdf (`fitz`) (optional cross-platform wheel fallback)
+      3. poppler `pdftoppm` (optional Linux/macOS binary fallback)
+      4. macOS CoreGraphics (macOS-only native fallback)
     """
     if dpi < 72 or dpi > 600:
         raise ValueError(f"PDF rendering dpi must be between 72 and 600, got {dpi}")
@@ -288,20 +369,34 @@ def render_pdf_to_png_pages(
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
-    for backend in (
-        _render_pdf_with_pypdfium2,
-        _render_pdf_with_pymupdf,
-        _render_pdf_with_pdftoppm,
-        _render_pdf_with_coregraphics,
-    ):
-        pages = backend(pdf_path, dpi)
-        if pages is not None:
-            return pages
-
-    raise RuntimeError(
-        "No PDF rendering backend available. Install pypdfium2, pymupdf, or poppler-utils (pdftoppm) on Linux, "
-        "or run on macOS CoreGraphics."
+    backends = (
+        ("pypdfium2", _render_pdf_with_pypdfium2),
+        ("pymupdf", _render_pdf_with_pymupdf),
+        ("pdftoppm", _render_pdf_with_pdftoppm),
+        ("coregraphics", _render_pdf_with_coregraphics),
     )
+    for backend_name, backend_fn in backends:
+        pages = backend_fn(pdf_path, dpi)
+        if pages is not None:
+            return pages, backend_name
+
+    raise MissingRenderingDependencyError(
+        f"No PDF rendering backend available to render {pdf_path.name!r}. "
+        "Install the required cross-platform extraction dependencies with: "
+        "pip install -r requirements.txt (or: pip install pypdfium2 Pillow). "
+        "Supported PDF backends in fallback order: pypdfium2 (Windows/macOS/Linux), "
+        "pymupdf, poppler pdftoppm (Linux/macOS), macOS CoreGraphics."
+    )
+
+
+def render_pdf_to_png_pages(
+    file_path: str | Path,
+    *,
+    dpi: int = DEFAULT_PDF_DPI,
+) -> list[bytes]:
+    """Render every page of a PDF file into high-resolution PNG bytes."""
+    pages, _backend = render_pdf_to_png_pages_with_backend(file_path, dpi=dpi)
+    return pages
 
 
 def _horizontal_projection_variance(gray_rows: list[list[int]]) -> float:
@@ -1021,6 +1116,11 @@ def inspect_and_preprocess_image(
                 backend_used = "pure_python_png"
 
     if decoded is None:
+        if mime_type == "image/jpeg" and image_bytes.startswith(b"\xff\xd8"):
+            raise MissingRenderingDependencyError(
+                "No JPEG image decoding backend available for preprocessing. "
+                "Install Pillow with: pip install -r requirements.txt (or: pip install Pillow)."
+            )
         diag = ImagePreprocessingDiagnostics(
             original_width=0,
             original_height=0,
@@ -1077,7 +1177,7 @@ def inspect_and_preprocess_image(
                         rot_img = pil_img.rotate(
                             est_angle,
                             expand=True,
-                            resample=Image.BICUBIC,
+                            resample=getattr(Image, "Resampling", Image).BICUBIC,
                             fillcolor=(245, 245, 245, 255),
                         )
                         rotated = (*rot_img.size, rot_img.tobytes())
@@ -1180,6 +1280,7 @@ def _prepare_page_from_bytes(
     deskew: bool,
     perspective_correct: bool,
     enhance_contrast: bool,
+    rendering_backend: str = "direct_image",
 ) -> PreparedDocumentPage:
     steps: tuple[str, ...] = ()
     diag: ImagePreprocessingDiagnostics | None = None
@@ -1202,6 +1303,7 @@ def _prepare_page_from_bytes(
         base64_data=base64.b64encode(out_bytes).decode("ascii"),
         preprocessing_applied=steps,
         preprocessing_diagnostics=diag,
+        rendering_backend=rendering_backend,
     )
 
 
@@ -1239,10 +1341,11 @@ def load_document_pages(
                 deskew=deskew,
                 perspective_correct=perspective_correct,
                 enhance_contrast=enhance_contrast,
+                rendering_backend="direct_image",
             )
         ]
 
-    png_pages = render_pdf_to_png_pages(path, dpi=dpi)
+    png_pages, pdf_backend = render_pdf_to_png_pages_with_backend(path, dpi=dpi)
     total = len(png_pages)
     return [
         _prepare_page_from_bytes(
@@ -1254,6 +1357,7 @@ def load_document_pages(
             deskew=deskew,
             perspective_correct=perspective_correct,
             enhance_contrast=enhance_contrast,
+            rendering_backend=pdf_backend,
         )
         for idx, page_bytes in enumerate(png_pages, start=1)
     ]
