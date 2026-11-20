@@ -24,7 +24,10 @@ Exactly as for the first set, with the answer key of this folder:
    Leave a cell empty when the document does not give that detail.
 2. From the `data_validation` folder, run:
    `python3 -I tools/compare_extraction.py extracted.csv test_data/unstructured_unseen/answer_key.csv`
-   (the tool reads `files.csv` from the same folder as the answer key, for the difficulty of each file).
+   Known limit: the tool still reads the difficulty of each file from the `files.csv` of the first set
+   (`test_data/unstructured`), not from the `files.csv` in this folder. So the "By difficulty" part of its report
+   shows `unknown` for this set. Everything else in the report is correct for this set. The `difficulty` column in
+   this folder's `files.csv` is there for reading and for a later update of the tool.
 
 ## Reading the answer key
 
