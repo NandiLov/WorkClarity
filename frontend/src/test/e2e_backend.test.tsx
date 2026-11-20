@@ -691,7 +691,9 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       await screen.findByRole('button', { name: /Reset to original/i }),
     )
     await waitFor(() => {
-      expect(screen.getByText(/Break not confirmed/i)).toBeInTheDocument()
+      expect(
+        screen.getAllByText(/Break not confirmed/i).length,
+      ).toBeGreaterThan(0)
     })
     await user.click(screen.getByRole('button', { name: /^Reject$/i }))
 
