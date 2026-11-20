@@ -30,7 +30,7 @@ Status: draft by Ololade, 2026-11-05, updated after Castro's review on 2026-11-0
 | MISSING_LOCATION | missing_location | missing_or_invalid | Decided by Castro: a warning, and the commute check is unavailable |
 | INVALID_BREAK | missing_break, invalid_break (S027) | missing_or_invalid | A missing break is never treated as zero: earnings stay incomplete until the worker confirms no break or enters one (PR23). invalid_break covers a negative break and a break as long as or longer than the shift. Rule PR16, confirmed by Castro |
 | INVALID_DURATION | invalid_duration (S026) | missing_or_invalid | One shift over 16 hours and one with equal start and end |
-| POSSIBLE_DUPLICATE | duplicate_row | duplicate | The extra copy is held for review and not counted, so a shift is never counted twice (PR24) |
+| POSSIBLE_DUPLICATE | duplicate_row | duplicate | The extra copy is held for review and not counted, so a shift is never counted twice (PR24). The pair is one duplicate issue and is not also reported as an overlap conflict |
 | LOW_CONFIDENCE | stale_schedule_change, am_pm_error, wrong_date, hallucinated_shift | unconfirmed | Planted extraction mistakes that the worker has to review |
 | OVERLAP | overlap conflict (expected_conflicts.csv) | overlap | |
 | COMMUTE_GAP | insufficient_commute conflict (expected_conflicts.csv) | insufficient_commute | 30 minute assumption in both |
