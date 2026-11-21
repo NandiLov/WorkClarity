@@ -9,6 +9,7 @@ import {
   formatCurrencyWithCode,
   formatDateDisplay,
   formatHours,
+  formatShortDay,
   formatWeekRange,
 } from '../utils/formatters'
 
@@ -104,6 +105,58 @@ export function EarningsPage() {
                 !ws.earnings_incomplete &&
                 ws.cancelled_shifts > 0
 
+              const unconfirmedMissingBreakShifts = shifts.filter((s) => {
+                if (
+                  s.confirmation_status === 'rejected' ||
+                  s.confirmation_status === 'confirmed'
+                ) {
+                  return false
+                }
+                if (s.current.shift_status === 'cancelled') {
+                  return false
+                }
+                const calc = s.calculated
+                if (!calc) return false
+                if (
+                  calc.earnings_status === 'rejected' ||
+                  calc.earnings_status === 'cancelled' ||
+                  calc.earnings_status === 'counted'
+                ) {
+                  return false
+                }
+                if (
+                  calc.earnings_status !== 'unconfirmed' &&
+                  calc.earnings_status !== 'needs_review'
+                ) {
+                  return false
+                }
+                if (calc.flags.some((f) => f.code === 'CANCELLED')) {
+                  return false
+                }
+                if (calc.week_start !== ws.week_start) {
+                  return false
+                }
+                const shiftCurrency =
+                  calc.currency ??
+                  (s.current.currency.trim().toUpperCase() || null)
+                if (shiftCurrency !== (ws.currency ?? null)) {
+                  return false
+                }
+                const hasMissingBreakFlag = calc.flags.some(
+                  (f) => f.code === 'MISSING_BREAK',
+                )
+                const isBreakBlank = s.current.break_minutes.trim() === ''
+                return hasMissingBreakFlag && isBreakBlank
+              })
+
+              const unconfirmedMissingBreakLabels =
+                unconfirmedMissingBreakShifts.map((s) => {
+                  const { weekday, dayMonth } = formatShortDay(
+                    s.current.shift_date,
+                  )
+                  return dayMonth ? `${weekday} (${dayMonth})` : weekday
+                })
+
               return (
                 <section
                   key={`${ws.week_start}-${ws.currency ?? 'NONE'}`}
@@ -147,15 +200,27 @@ export function EarningsPage() {
                   {ws.earnings_incomplete && (
                     <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                      <div>
-                        <span className="font-semibold">
-                          Incomplete week total:
-                        </span>{' '}
-                        {ws.incomplete_shifts} incomplete shift(s) (
-                        {formatHours(ws.incomplete_hours)}) and{' '}
-                        {ws.pending_shifts} pending/unconfirmed shift(s) (
-                        {formatHours(ws.pending_hours)}) are excluded until
-                        confirmed and complete.
+                      <div className="space-y-1.5">
+                        <p>
+                          <span className="font-semibold">
+                            Incomplete week total:
+                          </span>{' '}
+                          {ws.incomplete_shifts} incomplete shift(s) (
+                          {formatHours(ws.incomplete_hours)}) and{' '}
+                          {ws.pending_shifts} pending/unconfirmed shift(s) (
+                          {formatHours(ws.pending_hours)}) are excluded until
+                          confirmed and complete.
+                        </p>
+                        {unconfirmedMissingBreakShifts.length > 0 && (
+                          <p className="border-t border-amber-200/80 pt-1.5 text-amber-950">
+                            <span className="font-semibold">
+                              Missing break &amp; confirmation required:
+                            </span>{' '}
+                            {unconfirmedMissingBreakShifts.length === 1
+                              ? `1 unconfirmed shift (${unconfirmedMissingBreakLabels[0]}) also has a missing break and is excluded from earnings: this shift requires break information and confirmation before its earnings can be counted (enter the unpaid break minutes or confirm a 0 min break in Review & Correct).`
+                              : `${unconfirmedMissingBreakShifts.length} unconfirmed shifts (${unconfirmedMissingBreakLabels.join(', ')}) also have a missing break and are excluded from earnings: each shift requires break information and confirmation before its earnings can be counted (enter the unpaid break minutes or confirm a 0 min break in Review & Correct).`}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -206,6 +271,11 @@ export function EarningsPage() {
                 and round to 2 decimal places at the final step, separated by
                 currency. Overtime, taxes, and deductions are out of scope for
                 the MVP.
+              </p>
+              <p>
+                Weekly earnings are calculated from exact unrounded shift
+                amounts. The weekly total may therefore differ slightly from the
+                sum of the displayed individual shift amounts.
               </p>
             </div>
           </div>

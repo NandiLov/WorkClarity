@@ -356,6 +356,11 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/\$3\.33 \(USD\)/).length).toBeGreaterThan(0)
       expect(screen.getAllByText('$1.67')).toHaveLength(2)
+      expect(
+        screen.getByText(
+          /Weekly earnings are calculated from exact unrounded shift amounts\. The weekly total may therefore differ slightly from the sum of the displayed individual shift amounts\./i,
+        ),
+      ).toBeInTheDocument()
     })
   })
 
@@ -613,6 +618,177 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       expect(screen.getAllByText(/\$360\.00 \(USD\)/).length).toBeGreaterThan(0)
       expect(screen.getByText('22.5 hrs')).toBeInTheDocument()
     })
+  })
+
+  it('11b. Incomplete week total banner clarifies unconfirmed missing-break shifts, excludes explicit 0-min/rejected/cancelled shifts, and scopes by week & currency', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    // 1. MVP Spec Acceptance Example (§6.1) on /earnings:
+    // Preserves 14.5 hrs, $232.00 (USD), Wednesday excluded, and clarifies Wednesday needs break info & confirmation
+    await user.click(
+      screen.getByRole('button', { name: /MVP Spec Acceptance Example/i }),
+    )
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$232\.00 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.getByText('14.5 hrs')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$232\.00 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.getAllByText('14.5 hrs').length).toBeGreaterThan(0)
+      expect(screen.getByText(/Incomplete week total:/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /0 incomplete shift\(s\) \(0 hrs\) and 1 pending\/unconfirmed shift\(s\) \(0 hrs\)/i,
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(/Missing break & confirmation required:/i),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /1 unconfirmed shift \(Wednesday \(Nov 11\)\) also has a missing break and is excluded from earnings: this shift requires break information and confirmation before its earnings can be counted/i,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    const wedBreakdownRow = screen
+      .getByText(/Wed, Nov 11, 2026/i)
+      .closest<HTMLElement>('div.px-5')!
+    expect(within(wedBreakdownRow).getByText('Not counted yet')).toBeInTheDocument()
+
+    // 2. Explicit zero-minute break must NOT trigger the missing-break explanation
+    await user.click(screen.getAllByRole('link', { name: /Review & Correct/i })[0])
+    await user.click(
+      await screen.findByRole('button', { name: /Confirm 0 min break/i }),
+    )
+    await waitFor(() => {
+      expect(screen.getByText('0 min break')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$232\.00 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.getAllByText('14.5 hrs').length).toBeGreaterThan(0)
+      expect(screen.getByText(/Incomplete week total:/i)).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          /0 incomplete shift\(s\) \(0 hrs\) and 1 pending\/unconfirmed shift\(s\) \(8 hrs\)/i,
+        ),
+      ).toBeInTheDocument()
+    })
+    expect(
+      screen.queryByText(
+        /requires break information and confirmation before its earnings can be counted/i,
+      ),
+    ).not.toBeInTheDocument()
+
+    // 3. Rejected shift with missing break must NOT trigger the missing-break explanation
+    await user.click(screen.getAllByRole('link', { name: /Review & Correct/i })[0])
+    await user.click(
+      await screen.findByRole('button', { name: /Reset to original/i }),
+    )
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(/Break not confirmed/i).length,
+      ).toBeGreaterThan(0)
+    })
+    await user.click(screen.getByRole('button', { name: /^Reject$/i }))
+
+    await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$232\.00 \(USD\)/).length).toBeGreaterThan(0)
+      expect(screen.getAllByText('14.5 hrs').length).toBeGreaterThan(0)
+    })
+    expect(
+      screen.queryByText(
+        /requires break information and confirmation before its earnings can be counted/i,
+      ),
+    ).not.toBeInTheDocument()
+
+    // 4. Cancelled & rejected shifts with missing breaks + week & currency scoping
+    await user.click(screen.getAllByRole('link', { name: /Upload/i })[0])
+    await user.click(
+      screen.getByRole('radio', { name: /Replace existing schedule/i }),
+    )
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: /Confirm: replace all existing shifts/i,
+      }),
+    )
+
+    const scopedCsv = [
+      'shift_date,start_time,end_time,break_minutes,employer_name,location,hourly_rate,currency,shift_status',
+      '2026-11-09,09:00,17:00,30,BrightMart,Store A,16.00,USD,scheduled',
+      '2026-11-11,09:00,17:00,,BrightMart,Store A,16.00,USD,scheduled',
+      '2026-11-13,09:00,17:00,,BrightMart,Store A,16.00,USD,scheduled',
+      '2026-11-10,09:00,17:00,0,EuroMart,Store B,15.00,EUR,scheduled',
+      '2026-11-12,09:00,17:00,,EuroMart,Store B,15.00,EUR,cancelled',
+      '2026-11-16,09:00,17:00,,BrightMart,Store A,16.00,USD,scheduled',
+    ].join('\n')
+
+    await uploadCsvFileInUi(user, 'missing_break_scoping.csv', scopedCsv)
+
+    const monCard = (await screen.findByText(/Mon, Nov 9, 2026/i)).closest(
+      'article',
+    )!
+    await user.click(
+      within(monCard).getByRole('button', { name: /^Confirm Shift$/i }),
+    )
+
+    const friCard = screen.getByText(/Fri, Nov 13, 2026/i).closest('article')!
+    await user.click(
+      within(friCard).getByRole('button', { name: /^Reject$/i }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/\$120\.00 \(USD\)/).length).toBeGreaterThan(0)
+    })
+
+    await user.click(screen.getAllByRole('link', { name: /Earnings/i })[0])
+    await waitFor(() => {
+      expect(screen.getByText('USD')).toBeInTheDocument()
+      expect(screen.getByText('EUR')).toBeInTheDocument()
+    })
+
+    const usdCard = screen.getByText('USD').closest('section')!
+    const eurCard = screen.getByText('EUR').closest('section')!
+
+    expect(within(usdCard).getByText(/Incomplete week total:/i)).toBeInTheDocument()
+    expect(
+      within(usdCard).getByText(
+        /1 unconfirmed shift \(Wednesday \(Nov 11\)\) also has a missing break and is excluded from earnings: this shift requires break information and confirmation before its earnings can be counted/i,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(usdCard).queryByText(/Fri|Nov 13|Nov 16/i),
+    ).not.toBeInTheDocument()
+
+    expect(within(eurCard).getByText(/Incomplete week total:/i)).toBeInTheDocument()
+    expect(
+      within(eurCard).queryByText(
+        /requires break information and confirmation before its earnings can be counted/i,
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/1 rejected shift\(s\) are excluded from active totals/i),
+    ).toBeInTheDocument()
+
+    // Switch pay week to 2026-11-16 and verify missing-break clarification is scoped to that week only
+    await user.selectOptions(
+      screen.getByLabelText(/Select pay week/i),
+      '2026-11-16',
+    )
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /1 unconfirmed shift \(Monday \(Nov 16\)\) also has a missing break and is excluded from earnings: this shift requires break information and confirmation before its earnings can be counted/i,
+        ),
+      ).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Wednesday \(Nov 11\)/i)).not.toBeInTheDocument()
   })
 
   it('13, 14. Persistence after browser refresh and worker workspace isolation', async () => {

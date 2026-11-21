@@ -427,6 +427,8 @@ def _find_conflicts(checked, rules, messages, include_unconfirmed):
         for i in range(len(items)):
             for j in range(i + 1, len(items)):
                 a, b = items[i], items[j]
+                if a["key"] == b["key"] and ("POSSIBLE_DUPLICATE" in a["codes"] or "POSSIBLE_DUPLICATE" in b["codes"]):
+                    continue   # the same shift entered twice is one duplicate issue, not also an overlap
                 if a["start_dt"] < b["end_dt"] and b["start_dt"] < a["end_dt"]:
                     conflicts.append(dict(
                         shift_a_id=a["id"], shift_b_id=b["id"], conflict_type="overlap", gap_minutes=None,
