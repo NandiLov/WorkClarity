@@ -1,0 +1,45 @@
+EXTRACTION CHECK
+Shifts in the answer key: 28
+Shifts found: 28 (100.0%)
+Shifts missed: 0
+Shifts invented (read but not in the key): 0
+Shift detection (TP/FP/FN): TP=28, FP=0, FN=0, Precision=100.0%, Recall=100.0%, F1=100.0%
+Details invented (the document does not state them): 0
+Details dropped (written in the document, left empty): 9
+Shifts with every field right: 19 (67.9%)
+Shifts with every money field right: 28 (100.0%)
+Shifts with every earnings-critical field right (including status): 28 (100.0%)
+
+Accuracy by field (of the shifts found):
+  shift_date      100.0%
+  start_time      100.0%
+  end_time        100.0%
+  break_minutes   100.0%
+  employer_name   100.0%
+  location        67.9%
+  department      67.9%
+  hourly_rate     100.0%
+  currency        100.0%
+  shift_status    100.0%
+
+By difficulty (shifts, found, money fields right, earnings-critical right):
+  unknown   28 shifts, found 100.0%, money fields right 100.0%, earnings-critical right 100.0%
+
+By file:
+  unseen_01_email_confirmation.pdf: expected 4, found 4, missed 0, invented 0, money fields right 4, earnings-critical right 4
+  unseen_02_monthly_calendar.pdf: expected 6, found 6, missed 0, invented 0, money fields right 6, earnings-critical right 6
+  unseen_03_timesheet_clock.pdf: expected 5, found 5, missed 0, invented 0, money fields right 5, earnings-critical right 5
+  unseen_04_sms_two_senders.png: expected 4, found 4, missed 0, invented 0, money fields right 4, earnings-critical right 4
+  unseen_05_printed_rota_two_adas.jpg: expected 4, found 4, missed 0, invented 0, money fields right 4, earnings-critical right 4
+  unseen_06_missing_details_off_days.png: expected 5, found 5, missed 0, invented 0, money fields right 5, earnings-critical right 5
+
+Differences to look at:
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-23 18:00 wrong -> location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got 'hotel front (banquets)'
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-25 18:00 wrong -> location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got 'hotel front (banquets)'
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-27 16:00 wrong -> location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got 'hotel front (banquets)'
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-28 12:00 wrong -> location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got 'hotel front (banquets)'
+  unseen_06_missing_details_off_days.png: 2026-11-23 06:00 wrong -> location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got 'depot (loading)'
+  unseen_06_missing_details_off_days.png: 2026-11-24 06:00 wrong -> location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got 'depot (loading)'
+  unseen_06_missing_details_off_days.png: 2026-11-26 06:00 wrong -> location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got 'depot (loading)'
+  unseen_06_missing_details_off_days.png: 2026-11-27 06:00 wrong -> location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got 'depot (loading)'
+  unseen_06_missing_details_off_days.png: 2026-11-29 10:00 wrong -> location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got 'depot (loading)'

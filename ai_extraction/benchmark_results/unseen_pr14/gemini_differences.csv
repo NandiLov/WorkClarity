@@ -1,0 +1,19 @@
+file_name,problem,shift_date,start_time,end_time,detail
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-23,18:00,02:00,location: expected hotel front got ; department: expected banquets got hotel front (banquets)
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-25,18:00,02:00,location: expected hotel front got ; department: expected banquets got hotel front (banquets)
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-27,16:00,00:00,location: expected hotel front got ; department: expected banquets got hotel front (banquets)
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-28,12:00,20:00,location: expected hotel front got ; department: expected banquets got hotel front (banquets)
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-23,18:00,02:00,location: expected hotel front
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-25,18:00,02:00,location: expected hotel front
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-27,16:00,00:00,location: expected hotel front
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-28,12:00,20:00,location: expected hotel front
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-23,06:00,14:00,location: expected depot got ; department: expected loading got depot (loading)
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-24,06:00,14:00,location: expected depot got ; department: expected loading got depot (loading)
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-26,06:00,14:00,location: expected depot got ; department: expected loading got depot (loading)
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-27,06:00,14:00,location: expected depot got ; department: expected loading got depot (loading)
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-29,10:00,,location: expected depot got ; department: expected loading got depot (loading)
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-23,06:00,14:00,location: expected depot
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-24,06:00,14:00,location: expected depot
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-26,06:00,14:00,location: expected depot
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-27,06:00,14:00,location: expected depot
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-29,10:00,,location: expected depot
