@@ -20,6 +20,7 @@ IMAGE_MIME_TYPES: dict[str, str] = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
 }
 SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({*IMAGE_MIME_TYPES.keys(), ".pdf"})
 DEFAULT_PDF_DPI = 200

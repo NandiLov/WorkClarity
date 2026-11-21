@@ -59,6 +59,28 @@ export interface BackendShiftResult {
   source_line?: string | null
 }
 
+export type WorkerAttributionStatus =
+  | 'not_applicable'
+  | 'verified_target_worker'
+  | 'ambiguous_or_unverified'
+
+export type ExtractionConfidence = 'high' | 'medium' | 'low'
+
+export interface ExtractionShiftMetadata {
+  confidence: ExtractionConfidence
+  provider?: string | null
+  model_id?: string | null
+  worker_name?: string | null
+  worker_attribution_status: WorkerAttributionStatus
+  source_page?: number | null
+  source_row?: number | null
+  requires_individual_review: boolean
+  eligible_for_bulk_confirmation: boolean
+  review_reasons: string[]
+  uncertain_fields: string[]
+  validation_warnings: string[]
+}
+
 export interface ShiftRecord {
   shift_id: string
   worker_id: string
@@ -71,6 +93,8 @@ export interface ShiftRecord {
   confirmation_status: ConfirmationStatus
   calculated: BackendShiftResult | null
   updated_at: string
+  is_ai_extracted?: boolean
+  ai_metadata?: ExtractionShiftMetadata
 }
 
 export type UploadMode = 'append' | 'replace'
@@ -155,6 +179,82 @@ export interface CsvParseResult {
   scheduleId: string
   fileName: string
   shifts: ShiftRecord[]
+  errors: string[]
+  warnings: string[]
+}
+
+export interface ExtractedNormalisedShift {
+  shift_date: string | null
+  start_time: string | null
+  end_time: string | null
+  break_minutes: string | number | null
+  employer_name: string | null
+  location: string | null
+  department: string | null
+  hourly_rate: string | number | null
+  currency: string | null
+  shift_status: ShiftStatus
+}
+
+export interface ExtractedShiftRecordItem {
+  raw_values?: Record<string, unknown>
+  normalised: ExtractedNormalisedShift
+  worker_corrected_values?: ExtractedNormalisedShift | null
+  source_page?: number | null
+  source_row?: number | null
+  worker_name?: string | null
+  worker_attribution_status: WorkerAttributionStatus
+  confidence: ExtractionConfidence
+  uncertain_fields?: string[]
+  validation_warnings?: string[]
+  review_reasons?: string[]
+  partially_recovered?: boolean
+  confirmation_status: ConfirmationStatus
+  requires_worker_confirmation: boolean
+  requires_individual_review: boolean
+  eligible_for_bulk_confirmation: boolean
+  deduplicated_provenance?: Record<string, unknown>[]
+  conflict_group_id?: string | null
+  conflicting_fields?: string[]
+  requires_conflict_resolution?: boolean
+  conflict_resolved?: boolean
+}
+
+export interface TokenUsagePayload {
+  prompt_tokens: number
+  completion_tokens: number
+  reasoning_tokens?: number
+  total_tokens: number
+}
+
+export interface ShiftExtractionResponse {
+  file_name: string
+  target_worker: string | null
+  page_count: number
+  extraction_status: string
+  succeeded: boolean
+  is_complete: boolean
+  is_partial: boolean
+  is_failed: boolean
+  is_empty_schedule: boolean
+  manual_entry_required: boolean
+  manual_entry_reason: string | null
+  active_provider: string | null
+  active_model_id: string | null
+  fallback_triggered: boolean
+  fallback_trigger_category?: string | null
+  processing_time_seconds: number
+  token_usage?: TokenUsagePayload | null
+  total_shifts_extracted: number
+  shifts: ExtractedShiftRecordItem[]
+}
+
+export interface ExtractionIntegrationResult {
+  ok: boolean
+  scheduleId: string
+  fileName: string
+  shifts: ShiftRecord[]
+  extraction?: ShiftExtractionResponse
   errors: string[]
   warnings: string[]
 }

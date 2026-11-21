@@ -1,6 +1,7 @@
 # WorkClarity backend runtime dependencies
 fastapi==0.162.5
 uvicorn==0.54.0
+python-multipart==0.0.34
 
 # Cross-platform AI schedule extraction dependencies (PDF rendering & image preprocessing)
 pypdfium2==5.14.0
