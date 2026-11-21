@@ -1,0 +1,44 @@
+file_name,problem,shift_date,start_time,end_time,detail
+unseen_01_email_confirmation.pdf,wrong_field,2026-11-09,06:30,14:30,location: expected retail x got retail x (shop floor); department: expected shop floor got 
+unseen_01_email_confirmation.pdf,wrong_field,2026-11-11,06:30,14:30,location: expected retail x got retail x (shop floor); department: expected shop floor got 
+unseen_01_email_confirmation.pdf,wrong_field,2026-11-12,13:00,21:15,location: expected retail x got retail x (shop floor); department: expected shop floor got 
+unseen_01_email_confirmation.pdf,wrong_field,2026-11-14,08:00,12:30,location: expected retail x got retail x (shop floor); department: expected shop floor got 
+unseen_01_email_confirmation.pdf,dropped_detail,2026-11-09,06:30,14:30,department: expected shop floor
+unseen_01_email_confirmation.pdf,dropped_detail,2026-11-11,06:30,14:30,department: expected shop floor
+unseen_01_email_confirmation.pdf,dropped_detail,2026-11-12,13:00,21:15,department: expected shop floor
+unseen_01_email_confirmation.pdf,dropped_detail,2026-11-14,08:00,12:30,department: expected shop floor
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-09,09:00,17:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-10,09:00,17:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-12,12:00,20:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-16,10:00,18:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-17,10:00,18:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,wrong_field,2026-11-19,14:00,22:00,location: expected mall kiosk got mall kiosk (counter); department: expected counter got 
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-09,09:00,17:00,department: expected counter
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-10,09:00,17:00,department: expected counter
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-12,12:00,20:00,department: expected counter
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-16,10:00,18:00,department: expected counter
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-17,10:00,18:00,department: expected counter
+unseen_02_monthly_calendar.pdf,dropped_detail,2026-11-19,14:00,22:00,department: expected counter
+unseen_04_sms_two_senders.png,wrong_field,2026-11-16,16:00,23:00,employer_name: expected quickserve foods got quickservice foods
+unseen_04_sms_two_senders.png,wrong_field,2026-11-20,16:00,23:00,employer_name: expected quickserve foods got quickservice foods
+unseen_04_sms_two_senders.png,wrong_field,2026-11-21,06:00,14:00,department: expected loading got 
+unseen_04_sms_two_senders.png,wrong_field,2026-11-18,17:00,00:00,start_time: expected 17:00 got 16:00; end_time: expected 00:00 got 23:00; employer_name: expected quickserve foods got quickservice foods
+unseen_04_sms_two_senders.png,dropped_detail,2026-11-21,06:00,14:00,department: expected loading
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-23,18:00,02:00,employer_name: expected ridgeway events got ; location: expected hotel front got ; department: expected banquets got 
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-25,18:00,02:00,employer_name: expected ridgeway events got ; location: expected hotel front got ; department: expected banquets got 
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-27,16:00,00:00,employer_name: expected ridgeway events got ; location: expected hotel front got ; department: expected banquets got 
+unseen_05_printed_rota_two_adas.jpg,wrong_field,2026-11-28,12:00,20:00,employer_name: expected ridgeway events got ; location: expected hotel front got ; department: expected banquets got 
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-23,18:00,02:00,employer_name: expected ridgeway events; location: expected hotel front; department: expected banquets
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-25,18:00,02:00,employer_name: expected ridgeway events; location: expected hotel front; department: expected banquets
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-27,16:00,00:00,employer_name: expected ridgeway events; location: expected hotel front; department: expected banquets
+unseen_05_printed_rota_two_adas.jpg,dropped_detail,2026-11-28,12:00,20:00,employer_name: expected ridgeway events; location: expected hotel front; department: expected banquets
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-23,06:00,14:00,employer_name: expected anchor freight got ; location: expected depot got ; department: expected loading got 
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-24,06:00,14:00,employer_name: expected anchor freight got ; location: expected depot got ; department: expected loading got 
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-26,06:00,14:00,employer_name: expected anchor freight got ; location: expected depot got ; department: expected loading got 
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-27,06:00,14:00,employer_name: expected anchor freight got ; location: expected depot got ; department: expected loading got 
+unseen_06_missing_details_off_days.png,wrong_field,2026-11-29,10:00,,employer_name: expected anchor freight got ; location: expected depot got ; department: expected loading got 
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-23,06:00,14:00,employer_name: expected anchor freight; location: expected depot; department: expected loading
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-24,06:00,14:00,employer_name: expected anchor freight; location: expected depot; department: expected loading
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-26,06:00,14:00,employer_name: expected anchor freight; location: expected depot; department: expected loading
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-27,06:00,14:00,employer_name: expected anchor freight; location: expected depot; department: expected loading
+unseen_06_missing_details_off_days.png,dropped_detail,2026-11-29,10:00,,employer_name: expected anchor freight; location: expected depot; department: expected loading

@@ -1,0 +1,29 @@
+file_name,shift_date,start_time,end_time,break_minutes,employer_name,location,department,hourly_rate,currency,shift_status,worker_name,worker_attribution_status,source_page,source_row,confidence
+unseen_01_email_confirmation.pdf,2026-11-09,06:30,14:30,30,Northside Books,Retail X (shop floor),,17.25,USD,scheduled,,not_applicable,1,1,high
+unseen_01_email_confirmation.pdf,2026-11-11,06:30,14:30,30,Northside Books,Retail X (shop floor),,17.25,USD,scheduled,,not_applicable,1,2,high
+unseen_01_email_confirmation.pdf,2026-11-12,13:00,21:15,45,Northside Books,Retail X (shop floor),,17.25,USD,scheduled,,not_applicable,1,3,high
+unseen_01_email_confirmation.pdf,2026-11-14,08:00,12:30,0,Northside Books,Retail X (shop floor),,17.25,USD,scheduled,,not_applicable,1,4,high
+unseen_02_monthly_calendar.pdf,2026-11-09,09:00,17:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,scheduled,,not_applicable,1,3,high
+unseen_02_monthly_calendar.pdf,2026-11-10,09:00,17:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,scheduled,,not_applicable,1,3,high
+unseen_02_monthly_calendar.pdf,2026-11-12,12:00,20:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,scheduled,,not_applicable,1,3,high
+unseen_02_monthly_calendar.pdf,2026-11-16,10:00,18:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,scheduled,,not_applicable,1,4,high
+unseen_02_monthly_calendar.pdf,2026-11-17,10:00,18:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,cancelled,,not_applicable,1,4,high
+unseen_02_monthly_calendar.pdf,2026-11-19,14:00,22:00,30,Parkway Pharmacy,Mall Kiosk (counter),,15.80,USD,scheduled,,not_applicable,1,4,high
+unseen_03_timesheet_clock.pdf,2026-11-16,07:00,15:00,45,Sunrise Care Home,Hospital Annex,carer,14.50,USD,scheduled,,not_applicable,1,1,high
+unseen_03_timesheet_clock.pdf,2026-11-17,07:00,15:00,45,Sunrise Care Home,Hospital Annex,carer,14.50,USD,scheduled,,not_applicable,1,2,high
+unseen_03_timesheet_clock.pdf,2026-11-18,14:00,22:00,30,Sunrise Care Home,Hospital Annex,carer,14.50,USD,scheduled,,not_applicable,1,3,high
+unseen_03_timesheet_clock.pdf,2026-11-20,07:00,11:00,0,Sunrise Care Home,Hospital Annex,carer,14.50,USD,scheduled,,not_applicable,1,4,high
+unseen_03_timesheet_clock.pdf,2026-11-21,22:00,06:00,45,Sunrise Care Home,Hospital Annex,carer,14.50,USD,scheduled,,not_applicable,1,5,high
+unseen_04_sms_two_senders.png,2026-11-16,16:00,23:00,30,Quickservice Foods,Diner Y,kitchen,13.50,USD,scheduled,,not_applicable,1,1,high
+unseen_04_sms_two_senders.png,2026-11-18,16:00,23:00,30,Quickservice Foods,Diner Y,kitchen,13.50,USD,changed,,not_applicable,1,2,medium
+unseen_04_sms_two_senders.png,2026-11-20,16:00,23:00,30,Quickservice Foods,Diner Y,kitchen,13.50,USD,scheduled,,not_applicable,1,3,high
+unseen_04_sms_two_senders.png,2026-11-21,06:00,14:00,30,Anchor Freight,Depot,,16.00,USD,scheduled,,not_applicable,1,4,high
+unseen_05_printed_rota_two_adas.jpg,2026-11-23,18:00,02:00,30,,,,15.00,USD,scheduled,Ada Okoye,verified_target_worker,1,2,high
+unseen_05_printed_rota_two_adas.jpg,2026-11-25,18:00,02:00,30,,,,15.00,USD,scheduled,Ada Okoye,verified_target_worker,1,7,high
+unseen_05_printed_rota_two_adas.jpg,2026-11-27,16:00,00:00,30,,,,15.00,USD,scheduled,Ada Okoye,verified_target_worker,1,8,high
+unseen_05_printed_rota_two_adas.jpg,2026-11-28,12:00,20:00,0,,,,15.00,USD,scheduled,Ada Okoye,verified_target_worker,1,11,high
+unseen_06_missing_details_off_days.png,2026-11-23,06:00,14:00,30,,,,16.00,USD,scheduled,,not_applicable,1,1,high
+unseen_06_missing_details_off_days.png,2026-11-24,06:00,14:00,0,,,,16.00,USD,scheduled,,not_applicable,1,2,high
+unseen_06_missing_details_off_days.png,2026-11-26,06:00,14:00,,,,,16.00,USD,scheduled,,not_applicable,1,4,high
+unseen_06_missing_details_off_days.png,2026-11-27,06:00,14:00,30,,,,,,scheduled,,not_applicable,1,5,medium
+unseen_06_missing_details_off_days.png,2026-11-29,10:00,,30,,,,16.00,USD,scheduled,,not_applicable,1,7,high

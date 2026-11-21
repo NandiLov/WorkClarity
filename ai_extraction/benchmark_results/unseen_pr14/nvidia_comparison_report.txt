@@ -1,0 +1,59 @@
+EXTRACTION CHECK
+Shifts in the answer key: 28
+Shifts found: 28 (100.0%)
+Shifts missed: 0
+Shifts invented (read but not in the key): 0
+Shift detection (TP/FP/FN): TP=28, FP=0, FN=0, Precision=100.0%, Recall=100.0%, F1=100.0%
+Details invented (the document does not state them): 0
+Details dropped (written in the document, left empty): 38
+Shifts with every field right: 5 (17.9%)
+Shifts with every money field right: 27 (96.4%)
+Shifts with every earnings-critical field right (including status): 27 (96.4%)
+
+Accuracy by field (of the shifts found):
+  shift_date      100.0%
+  start_time      96.4%
+  end_time        96.4%
+  break_minutes   100.0%
+  employer_name   57.1%
+  location        32.1%
+  department      28.6%
+  hourly_rate     100.0%
+  currency        100.0%
+  shift_status    100.0%
+
+By difficulty (shifts, found, money fields right, earnings-critical right):
+  unknown   28 shifts, found 100.0%, money fields right 96.4%, earnings-critical right 96.4%
+
+By file:
+  unseen_01_email_confirmation.pdf: expected 4, found 4, missed 0, invented 0, money fields right 4, earnings-critical right 4
+  unseen_02_monthly_calendar.pdf: expected 6, found 6, missed 0, invented 0, money fields right 6, earnings-critical right 6
+  unseen_03_timesheet_clock.pdf: expected 5, found 5, missed 0, invented 0, money fields right 5, earnings-critical right 5
+  unseen_04_sms_two_senders.png: expected 4, found 4, missed 0, invented 0, money fields right 3, earnings-critical right 3
+  unseen_05_printed_rota_two_adas.jpg: expected 4, found 4, missed 0, invented 0, money fields right 4, earnings-critical right 4
+  unseen_06_missing_details_off_days.png: expected 5, found 5, missed 0, invented 0, money fields right 5, earnings-critical right 5
+
+Differences to look at:
+  unseen_01_email_confirmation.pdf: 2026-11-09 06:30 wrong -> location: expected 'retail x' got 'retail x (shop floor)', department: expected 'shop floor' got '' DROPPED DETAIL
+  unseen_01_email_confirmation.pdf: 2026-11-11 06:30 wrong -> location: expected 'retail x' got 'retail x (shop floor)', department: expected 'shop floor' got '' DROPPED DETAIL
+  unseen_01_email_confirmation.pdf: 2026-11-12 13:00 wrong -> location: expected 'retail x' got 'retail x (shop floor)', department: expected 'shop floor' got '' DROPPED DETAIL
+  unseen_01_email_confirmation.pdf: 2026-11-14 08:00 wrong -> location: expected 'retail x' got 'retail x (shop floor)', department: expected 'shop floor' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-09 09:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-10 09:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-12 12:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-16 10:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-17 10:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_02_monthly_calendar.pdf: 2026-11-19 14:00 wrong -> location: expected 'mall kiosk' got 'mall kiosk (counter)', department: expected 'counter' got '' DROPPED DETAIL
+  unseen_04_sms_two_senders.png: 2026-11-16 16:00 wrong -> employer_name: expected 'quickserve foods' got 'quickservice foods'
+  unseen_04_sms_two_senders.png: 2026-11-20 16:00 wrong -> employer_name: expected 'quickserve foods' got 'quickservice foods'
+  unseen_04_sms_two_senders.png: 2026-11-21 06:00 wrong -> department: expected 'loading' got '' DROPPED DETAIL
+  unseen_04_sms_two_senders.png: 2026-11-18 17:00 wrong -> start_time: expected '17:00' got '16:00', end_time: expected '00:00' got '23:00', employer_name: expected 'quickserve foods' got 'quickservice foods'
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-23 18:00 wrong -> employer_name: expected 'ridgeway events' got '' DROPPED DETAIL, location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got '' DROPPED DETAIL
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-25 18:00 wrong -> employer_name: expected 'ridgeway events' got '' DROPPED DETAIL, location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got '' DROPPED DETAIL
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-27 16:00 wrong -> employer_name: expected 'ridgeway events' got '' DROPPED DETAIL, location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got '' DROPPED DETAIL
+  unseen_05_printed_rota_two_adas.jpg: 2026-11-28 12:00 wrong -> employer_name: expected 'ridgeway events' got '' DROPPED DETAIL, location: expected 'hotel front' got '' DROPPED DETAIL, department: expected 'banquets' got '' DROPPED DETAIL
+  unseen_06_missing_details_off_days.png: 2026-11-23 06:00 wrong -> employer_name: expected 'anchor freight' got '' DROPPED DETAIL, location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got '' DROPPED DETAIL
+  unseen_06_missing_details_off_days.png: 2026-11-24 06:00 wrong -> employer_name: expected 'anchor freight' got '' DROPPED DETAIL, location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got '' DROPPED DETAIL
+  unseen_06_missing_details_off_days.png: 2026-11-26 06:00 wrong -> employer_name: expected 'anchor freight' got '' DROPPED DETAIL, location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got '' DROPPED DETAIL
+  unseen_06_missing_details_off_days.png: 2026-11-27 06:00 wrong -> employer_name: expected 'anchor freight' got '' DROPPED DETAIL, location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got '' DROPPED DETAIL
+  unseen_06_missing_details_off_days.png: 2026-11-29 10:00 wrong -> employer_name: expected 'anchor freight' got '' DROPPED DETAIL, location: expected 'depot' got '' DROPPED DETAIL, department: expected 'loading' got '' DROPPED DETAIL

@@ -31,6 +31,7 @@ FILES_CSV = os.path.join(ROOT, "test_data", "unstructured", "files.csv")
 FIELDS = ["shift_date", "start_time", "end_time", "break_minutes", "employer_name", "location",
           "department", "hourly_rate", "currency", "shift_status"]
 MONEY_FIELDS = ["shift_date", "start_time", "end_time", "break_minutes", "hourly_rate", "currency"]
+EARNINGS_CRITICAL_FIELDS = [*MONEY_FIELDS, "shift_status"]
 
 
 # ----------------------------------------------------------------------------- normalising
@@ -132,6 +133,7 @@ def compare(key_all, got_all):
         field_ok = {f: sum(1 for k, g in pairs if k[f] == g[f]) for f in FIELDS}
         all_ok = sum(1 for k, g in pairs if all(k[f] == g[f] for f in FIELDS))
         money_ok = sum(1 for k, g in pairs if all(k[f] == g[f] for f in MONEY_FIELDS))
+        earnings_critical_ok = sum(1 for k, g in pairs if all(k[f] == g[f] for f in EARNINGS_CRITICAL_FIELDS))
         wrong = [(k, g, [f for f in FIELDS if k[f] != g[f]]) for k, g in pairs if any(k[f] != g[f] for f in FIELDS)]
         # a detail the document does not state, filled in by the extractor
         made_up = [(k, g, [f for f in FIELDS if k[f] == "" and g[f] != ""]) for k, g in pairs
@@ -141,6 +143,7 @@ def compare(key_all, got_all):
                    if any(k[f] != "" and g[f] == "" for f in FIELDS)]
         per_file[name] = {"expected": len(key_by_file.get(name, [])), "matched": len(pairs), "missed": missed,
                           "invented": invented, "field_ok": field_ok, "all_ok": all_ok, "money_ok": money_ok,
+                          "earnings_critical_ok": earnings_critical_ok,
                           "wrong": wrong, "made_up": made_up, "dropped": dropped}
     return per_file
 
@@ -148,12 +151,21 @@ def compare(key_all, got_all):
 def summarise(per_file):
     exp = sum(v["expected"] for v in per_file.values())
     matched = sum(v["matched"] for v in per_file.values())
-    return {"expected": exp, "matched": matched, "missed": sum(len(v["missed"]) for v in per_file.values()),
-            "invented": sum(len(v["invented"]) for v in per_file.values()),
+    missed = sum(len(v["missed"]) for v in per_file.values())
+    invented = sum(len(v["invented"]) for v in per_file.values())
+    tp, fp, fn = matched, invented, missed
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = (2.0 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+    return {"expected": exp, "matched": matched, "missed": missed,
+            "invented": invented,
+            "true_positives": tp, "false_positives": fp, "false_negatives": fn,
+            "precision": round(precision, 6), "recall": round(recall, 6), "f1": round(f1, 6),
             "made_up_details": sum(len(f) for v in per_file.values() for _, _, f in v["made_up"]),
             "dropped_details": sum(len(f) for v in per_file.values() for _, _, f in v["dropped"]),
             "all_ok": sum(v["all_ok"] for v in per_file.values()),
             "money_ok": sum(v["money_ok"] for v in per_file.values()),
+            "earnings_critical_ok": sum(v.get("earnings_critical_ok", 0) for v in per_file.values()),
             "field_ok": {f: sum(v["field_ok"][f] for v in per_file.values()) for f in FIELDS}}
 
 
@@ -175,32 +187,48 @@ def report(per_file):
     lines.append(f"Shifts found: {total['matched']} ({pct(total['matched'], total['expected'])})")
     lines.append(f"Shifts missed: {total['missed']}")
     lines.append(f"Shifts invented (read but not in the key): {total['invented']}")
+    lines.append(
+        f"Shift detection (TP/FP/FN): TP={total['true_positives']}, FP={total['false_positives']}, "
+        f"FN={total['false_negatives']}, Precision={100.0 * total['precision']:.1f}%, "
+        f"Recall={100.0 * total['recall']:.1f}%, F1={100.0 * total['f1']:.1f}%"
+    )
     lines.append(f"Details invented (the document does not state them): {total['made_up_details']}")
     lines.append(f"Details dropped (written in the document, left empty): {total['dropped_details']}")
     lines.append(f"Shifts with every field right: {total['all_ok']} ({pct(total['all_ok'], total['expected'])})")
     lines.append(f"Shifts with every money field right: {total['money_ok']} ({pct(total['money_ok'], total['expected'])})")
+    lines.append(
+        f"Shifts with every earnings-critical field right (including status): "
+        f"{total['earnings_critical_ok']} ({pct(total['earnings_critical_ok'], total['expected'])})"
+    )
     lines.append("")
     lines.append("Accuracy by field (of the shifts found):")
     for f in FIELDS:
         lines.append(f"  {f:15s} {pct(total['field_ok'][f], total['matched'])}")
     difficulty = load_difficulty()
-    by_level = defaultdict(lambda: [0, 0, 0])
+    by_level = defaultdict(lambda: [0, 0, 0, 0])
     for name, v in per_file.items():
         lvl = difficulty.get(name, "unknown")
         by_level[lvl][0] += v["expected"]
         by_level[lvl][1] += v["matched"]
         by_level[lvl][2] += v["money_ok"]
+        by_level[lvl][3] += v.get("earnings_critical_ok", 0)
     lines.append("")
-    lines.append("By difficulty (shifts, found, money fields all right):")
+    lines.append("By difficulty (shifts, found, money fields right, earnings-critical right):")
     for lvl in ("easy", "medium", "hard", "unknown"):
         if lvl in by_level:
-            e, m, ok = by_level[lvl]
-            lines.append(f"  {lvl:8s} {e:3d} shifts, found {pct(m, e)}, money fields right {pct(ok, e)}")
+            e, m, ok, ec = by_level[lvl]
+            lines.append(
+                f"  {lvl:8s} {e:3d} shifts, found {pct(m, e)}, "
+                f"money fields right {pct(ok, e)}, earnings-critical right {pct(ec, e)}"
+            )
     lines.append("")
     lines.append("By file:")
     for name, v in per_file.items():
-        lines.append(f"  {name}: expected {v['expected']}, found {v['matched']}, missed {len(v['missed'])}, "
-                     f"invented {len(v['invented'])}, money fields right {v['money_ok']}")
+        lines.append(
+            f"  {name}: expected {v['expected']}, found {v['matched']}, missed {len(v['missed'])}, "
+            f"invented {len(v['invented'])}, money fields right {v['money_ok']}, "
+            f"earnings-critical right {v.get('earnings_critical_ok', 0)}"
+        )
     problems = []
     for name, v in per_file.items():
         for k in v["missed"]:
