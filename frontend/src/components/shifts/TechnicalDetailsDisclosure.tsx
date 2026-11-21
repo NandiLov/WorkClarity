@@ -45,8 +45,43 @@ export function TechnicalDetailsDisclosure({
           </div>
         )}
 
+        {shift.is_ai_extracted && shift.ai_metadata && (
+          <div className="space-y-1 rounded bg-indigo-50/60 p-2 text-indigo-950">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <span>
+                <strong>AI Provider:</strong>{' '}
+                {shift.ai_metadata.provider || 'AI'}{' '}
+                {shift.ai_metadata.model_id ? `(${shift.ai_metadata.model_id})` : ''}
+              </span>
+              <span>
+                <strong>Confidence:</strong>{' '}
+                <span className="capitalize">{shift.ai_metadata.confidence}</span>
+              </span>
+              {shift.ai_metadata.source_page && (
+                <span>
+                  <strong>Page:</strong> #{shift.ai_metadata.source_page}
+                </span>
+              )}
+            </div>
+            {shift.ai_metadata.uncertain_fields.length > 0 && (
+              <div>
+                <strong>Uncertain Fields:</strong>{' '}
+                {shift.ai_metadata.uncertain_fields.join(', ')}
+              </div>
+            )}
+            {shift.ai_metadata.review_reasons.length > 0 && (
+              <div>
+                <strong>Review Reasons:</strong>{' '}
+                {shift.ai_metadata.review_reasons.join('; ')}
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
-          <strong className="text-slate-700">Original CSV row:</strong>
+          <strong className="text-slate-700">
+            {shift.is_ai_extracted ? 'Original Extracted Data:' : 'Original CSV row:'}
+          </strong>
           <code className="mt-0.5 block overflow-x-auto rounded bg-white px-2 py-1 font-mono text-[10px] whitespace-nowrap text-slate-700 ring-1 ring-slate-200">
             {shift.source_line}
           </code>

@@ -13,9 +13,11 @@ import {
 import { Link } from 'react-router-dom'
 import { DiffPill } from '../components/shifts/DiffPill'
 import {
+  AiExtractionBadge,
   ConfirmationBadge,
   EarningsStatusBadge,
   FlagBadge,
+  WorkerAttributionBadge,
 } from '../components/shifts/FlagBadge'
 import { ShiftEditModal } from '../components/shifts/ShiftEditModal'
 import { TechnicalDetailsDisclosure } from '../components/shifts/TechnicalDetailsDisclosure'
@@ -118,7 +120,12 @@ export function ReviewPage() {
       : isRecalculating || isCalculationStale
         ? 'Waiting for latest validation results…'
         : readyToConfirmCount === 0
-          ? 'No validated unconfirmed shifts are ready.'
+          ? shifts.some(
+              (s) =>
+                s.is_ai_extracted && s.confirmation_status === 'needs_review',
+            )
+            ? 'AI-extracted shifts require individual review and confirmation.'
+            : 'No validated unconfirmed shifts are ready.'
           : undefined
 
   return (
@@ -289,6 +296,18 @@ export function ReviewPage() {
                             status={calc?.earnings_status}
                             stale={isCalculationStale}
                           />
+                          {shift.is_ai_extracted && (
+                            <AiExtractionBadge
+                              confidence={shift.ai_metadata?.confidence}
+                              provider={shift.ai_metadata?.provider}
+                            />
+                          )}
+                          {shift.ai_metadata?.worker_attribution_status && (
+                            <WorkerAttributionBadge
+                              status={shift.ai_metadata.worker_attribution_status}
+                              workerName={shift.ai_metadata.worker_name}
+                            />
+                          )}
                           {overnight && (
                             <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-800">
                               <Moon className="h-3 w-3" />

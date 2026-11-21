@@ -5,9 +5,9 @@ import {
   CheckCircle2,
   Download,
   FileSpreadsheet,
-  FileWarning,
   Image as ImageIcon,
   Layers,
+  Loader2,
   Sparkles,
   Trash2,
   Upload,
@@ -26,11 +26,13 @@ export function UploadPage() {
     shifts,
     uploadedFiles,
     uploadCsvText,
+    extractAndUploadFile,
     loadPresetSchedule,
     clearWorkerSchedule,
   } = useSchedule()
 
   const [isDragging, setIsDragging] = useState(false)
+  const [isExtracting, setIsExtracting] = useState(false)
   const [uploadMode, setUploadMode] = useState<UploadMode>('append')
   const [replaceConfirmed, setReplaceConfirmed] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
@@ -56,19 +58,50 @@ export function UploadPage() {
     }
 
     const lowerName = file.name.toLowerCase()
-    if (
+    const isPdfOrImage =
       lowerName.endsWith('.pdf') ||
-      /\.(png|jpe?g|webp|gif|heic)$/i.test(lowerName)
-    ) {
-      setUploadErrors([
-        `"${file.name}" is an unstructured ${lowerName.endsWith('.pdf') ? 'PDF' : 'image'} file. Per MVP policy, CSV schedules are processed first; PDF and image extraction remains conditional until the backend extraction integration is ready.`,
-      ])
+      file.type === 'application/pdf' ||
+      /\.(png|jpe?g|webp)$/i.test(lowerName) ||
+      ['image/png', 'image/jpeg', 'image/webp'].includes(file.type)
+
+    if (isPdfOrImage) {
+      setIsExtracting(true)
+      try {
+        const result = await extractAndUploadFile(file, {
+          mode: effectiveMode,
+        })
+        if (!result.ok) {
+          setUploadErrors(
+            result.errors.length > 0
+              ? result.errors
+              : ['Failed to extract shifts from this document.'],
+          )
+          setUploadWarnings(result.warnings)
+          return
+        }
+        setUploadWarnings(result.warnings)
+        setReplaceConfirmed(false)
+        const providerName = result.extraction?.active_provider
+        const providerText = providerName ? ` via ${providerName}` : ''
+        setSuccessMessage(
+          effectiveMode === 'append' && hasExistingShifts
+            ? `Extracted ${result.shifts.length} shift(s) from "${file.name}"${providerText} and added to your schedule. All AI-extracted shifts are marked "Needs Review" and require individual worker confirmation.`
+            : `Extracted ${result.shifts.length} shift(s) from "${file.name}"${providerText}. All AI-extracted shifts are marked "Needs Review" and require individual worker confirmation.`,
+        )
+        navigate('/review')
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Unexpected extraction error.'
+        setUploadErrors([`Failed to process "${file.name}": ${msg}`])
+      } finally {
+        setIsExtracting(false)
+      }
       return
     }
 
     if (!lowerName.endsWith('.csv') && file.type !== 'text/csv') {
       setUploadErrors([
-        `Unsupported file format "${file.name}". Please upload a UTF-8 .csv schedule file matching the WorkClarity CSV contract.`,
+        `Unsupported file format "${file.name}". Please upload a CSV schedule (.csv), PDF roster (.pdf), or schedule photo (.png, .jpg, .webp).`,
       ])
       return
     }
@@ -334,65 +367,76 @@ export function UploadPage() {
       <div
         onDragOver={(e) => {
           e.preventDefault()
-          setIsDragging(true)
+          if (!isExtracting) setIsDragging(true)
         }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
+        onDrop={isExtracting ? undefined : handleDrop}
         className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
-          isDragging
-            ? 'border-emerald-500 bg-emerald-50/70'
-            : 'border-slate-300 bg-white hover:border-slate-400'
+          isExtracting
+            ? 'border-indigo-300 bg-indigo-50/40'
+            : isDragging
+              ? 'border-emerald-500 bg-emerald-50/70'
+              : 'border-slate-300 bg-white hover:border-slate-400'
         }`}
       >
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-emerald-400">
-          <Upload className="h-6 w-6" />
-        </div>
-        <h2 className="mt-4 text-base font-semibold text-slate-900">
-          {hasExistingShifts && effectiveMode === 'append'
-            ? 'Drop another employer or week CSV file to add shifts'
-            : 'Drop your CSV schedule file here'}
-        </h2>
-        <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
-          Supports UTF-8 comma-separated CSV files with{' '}
-          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-slate-700">
-            shift_date, start_time, end_time
-          </code>{' '}
-          plus optional{' '}
-          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-slate-700">
-            end_date, break_minutes, employer_name, location, hourly_rate,
-            currency
-          </code>
-          .
-        </p>
+        {isExtracting ? (
+          <div className="space-y-3 py-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+              <Loader2 className="h-7 w-7 animate-spin" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Extracting shifts with multimodal AI…
+            </h2>
+            <p className="mx-auto max-w-md text-xs text-slate-500">
+              Processing document structure, extracting shift times and breaks,
+              and verifying worker attribution safeguards.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-emerald-400">
+              <Upload className="h-6 w-6" />
+            </div>
+            <h2 className="mt-4 text-base font-semibold text-slate-900">
+              {hasExistingShifts && effectiveMode === 'append'
+                ? 'Drop schedule file (CSV, PDF, or photo) to add shifts'
+                : 'Drop your schedule file (CSV, PDF, or photo) here'}
+            </h2>
+            <p className="mx-auto mt-1 max-w-md text-xs text-slate-500">
+              Supports CSV schedule files, PDF rosters, and PNG/JPEG/WebP photos.
+              All extracted shifts require individual review and confirmation.
+            </p>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,text/csv"
-          onChange={handleFileChange}
-          disabled={replaceBlocked}
-          className="sr-only"
-          aria-label="Choose CSV schedule file"
-        />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv,application/pdf,.pdf,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp"
+              onChange={handleFileChange}
+              disabled={replaceBlocked || isExtracting}
+              className="sr-only"
+              aria-label="Choose CSV schedule file"
+            />
 
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            disabled={replaceBlocked}
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            {hasExistingShifts && effectiveMode === 'append'
-              ? 'Select CSV File to Add'
-              : 'Select CSV File'}
-          </button>
-        </div>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={replaceBlocked || isExtracting}
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                {hasExistingShifts && effectiveMode === 'append'
+                  ? 'Select CSV File to Add'
+                  : 'Select CSV File'}
+              </button>
+            </div>
 
-        {replaceBlocked && (
-          <p className="mt-3 text-xs font-medium text-amber-800">
-            Check the replacement confirmation box above to enable upload.
-          </p>
+            {replaceBlocked && (
+              <p className="mt-3 text-xs font-medium text-amber-800">
+                Check the replacement confirmation box above to enable upload.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -483,28 +527,28 @@ export function UploadPage() {
         </div>
       </section>
 
-      {/* Conditional Format Notice */}
-      <section className="rounded-2xl border border-slate-200 bg-slate-100/70 p-4 text-xs text-slate-600">
+      {/* Multimodal AI Extraction Feature Card */}
+      <section className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 text-xs text-slate-700">
         <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-600">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
             <ImageIcon className="h-4 w-4" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-800">
-                PDF &amp; Image Extraction (Conditional MVP Feature)
+              <span className="font-semibold text-slate-900">
+                Multimodal AI Schedule Extraction Active
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                <FileWarning className="h-3 w-3" />
-                Not yet connected
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+                <CheckCircle2 className="h-3 w-3" />
+                Connected
               </span>
             </div>
-            <p className="mt-1 leading-relaxed">
-              Per the WorkClarity MVP specification, reliable end-to-end CSV
-              validation and earnings calculation take priority. NVIDIA-assisted
-              PDF and photo extraction will be enabled once the backend
-              extraction endpoints are integrated and verified against the
-              unstructured sample key.
+            <p className="mt-1 leading-relaxed text-slate-600">
+              WorkClarity extracts shifts directly from PDF rosters and schedule
+              photos using multimodal AI with automatic provider failover. To
+              protect worker earnings, all AI-extracted shifts are held for
+              individual review and excluded from earnings calculations until
+              confirmed.
             </p>
           </div>
         </div>
