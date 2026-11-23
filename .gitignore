@@ -37,3 +37,5 @@ differences.csv
 
 # Historical NVIDIA benchmark backup
 /ai_extraction/benchmark_output_nvidia_v1/
+
+.firebase/
