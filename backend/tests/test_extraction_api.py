@@ -20,12 +20,31 @@ from ai_extraction.orchestrator import (
     TokenUsage,
 )
 from backend.app.main import app, get_cors_origins
+from backend.app.services import extraction_service
 from backend.app.services.extraction_service import (
     MAX_UPLOAD_SIZE_BYTES,
     get_extraction_service,
 )
 
 client = TestClient(app)
+
+
+def test_cached_orchestrator_uses_environment_configuration(monkeypatch):
+    """The default API orchestrator should respect deployment environment settings."""
+    monkeypatch.setenv("AI_EXTRACTION_PRIMARY_PROVIDER", "nvidia")
+    monkeypatch.setenv("AI_EXTRACTION_FALLBACK_ENABLED", "false")
+
+    extraction_service._cached_orchestrator = None
+
+    try:
+        orchestrator = extraction_service.get_extraction_orchestrator()
+        config = orchestrator._config.to_public_dict()
+
+        assert config["primary_provider"] == "nvidia"
+        assert config["fallback_enabled"] is False
+    finally:
+        extraction_service._cached_orchestrator = None
+
 
 # Minimal 1-page valid PDF starting with %PDF-1.4
 MINIMAL_PDF_BYTES = (

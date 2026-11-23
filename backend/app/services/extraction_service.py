@@ -37,7 +37,7 @@ def get_extraction_orchestrator(
     """Return an orchestrator instance, allowing dependency injection in tests."""
     if primary_adapter is not None or fallback_adapter is not None or config is not None:
         return ExtractionOrchestrator(
-            config=config or ExtractionServiceConfig(),
+            config=config or ExtractionServiceConfig.from_env(),
             primary_adapter=primary_adapter,
             fallback_adapter=fallback_adapter,
         )
@@ -45,7 +45,7 @@ def get_extraction_orchestrator(
     global _cached_orchestrator
     if _cached_orchestrator is None:
         _cached_orchestrator = ExtractionOrchestrator(
-            config=ExtractionServiceConfig()
+            config=ExtractionServiceConfig.from_env(),
         )
     return _cached_orchestrator
 
