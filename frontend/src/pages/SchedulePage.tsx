@@ -132,7 +132,7 @@ export function SchedulePage() {
             to="/upload"
             className="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            Upload CSV Schedule
+            Upload Schedule
           </Link>
         </div>
       ) : (

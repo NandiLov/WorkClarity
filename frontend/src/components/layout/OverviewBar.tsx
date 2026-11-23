@@ -135,7 +135,7 @@ export function OverviewBar() {
               to="/upload"
               className="inline-flex shrink-0 items-center rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
             >
-              Upload CSV Schedule
+              Upload Schedule
             </Link>
           </div>
         ) : (

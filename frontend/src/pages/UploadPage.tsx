@@ -426,8 +426,8 @@ export function UploadPage() {
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 {hasExistingShifts && effectiveMode === 'append'
-                  ? 'Select CSV File to Add'
-                  : 'Select CSV File'}
+                  ? 'Select Schedule File to Add'
+                  : 'Select Schedule File'}
               </button>
             </div>
 
