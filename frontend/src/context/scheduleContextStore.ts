@@ -75,6 +75,7 @@ export interface ScheduleContextValue {
     confirmationStatus?: ConfirmationStatus,
   ) => void
   setShiftConfirmation: (shiftId: string, status: ConfirmationStatus) => void
+  confirmWorkerAssignment: (shiftId: string) => void
   confirmReadyShifts: () => number
   resetShiftToExtracted: (shiftId: string) => void
   addManualShift: (values: EditableShiftValues) => void

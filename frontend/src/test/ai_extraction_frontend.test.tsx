@@ -272,12 +272,37 @@ describe('AI Extraction Frontend Integration & Safeguards', () => {
       screen.getByRole('button', { name: /Confirm 0 min break/i }),
     ).toBeInTheDocument()
 
-    // Invariant 4: Confirming individually works
-    const confirmButtons = screen.getAllByRole('button', {
+    // Invariant 4: Verified worker shifts can be confirmed immediately.
+    // Ambiguous worker shifts must first be explicitly assigned.
+    const assignButton = screen.getByRole('button', {
+      name: /Assign to Ada Okoye/i,
+    })
+
+    expect(assignButton).toBeInTheDocument()
+
+    const confirmButtonsBeforeAssignment = screen.getAllByRole('button', {
       name: /Confirm Shift/i,
     })
-    expect(confirmButtons.length).toBeGreaterThan(0)
+
+    // Only the verified shift should initially offer confirmation.
+    expect(confirmButtonsBeforeAssignment).toHaveLength(1)
+
+    // Explicitly assign the ambiguous shift to the selected worker.
+    await user.click(assignButton)
+
+    // Assignment should unlock individual confirmation for that shift.
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('button', { name: /Confirm Shift/i }),
+      ).toHaveLength(2)
+    })
+
+    // The ambiguous worker attribution must remain visible.
+    expect(
+      screen.getByText(/Worker match uncertain: Ada Okoye/i),
+    ).toBeInTheDocument()
   })
+
 
   it('handles failed extraction requiring manual entry by presenting clear error feedback', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {

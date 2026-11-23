@@ -404,7 +404,9 @@ class SchemaAndNormalisationTests(unittest.TestCase):
     def test_multi_employee_roster_filters_non_target_workers(self) -> None:
         prompt = build_user_prompt(target_worker="Maria Santos", page_count=1)
         self.assertIn("Maria Santos", prompt)
-        self.assertIn("TARGET WORKER FILTER", prompt)
+        self.assertIn("Extract all visible shifts", prompt)
+        self.assertIn("do not filter out unidentified shifts", prompt)
+        self.assertNotIn("TARGET WORKER FILTER", prompt)
 
         noisy_model_json = json.dumps(
             {

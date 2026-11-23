@@ -72,6 +72,7 @@ export interface ExtractionShiftMetadata {
   model_id?: string | null
   worker_name?: string | null
   worker_attribution_status: WorkerAttributionStatus
+  worker_assignment_confirmed_by_user?: boolean
   source_page?: number | null
   source_row?: number | null
   requires_individual_review: boolean

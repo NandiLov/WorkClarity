@@ -35,6 +35,8 @@ type ReviewFilter = 'attention' | 'counted' | 'cancelled' | 'rejected' | 'all'
 export function ReviewPage() {
   const {
     shifts,
+    workerId,
+    workers,
     backendStatus,
     isRecalculating,
     isCalculationStale,
@@ -42,6 +44,7 @@ export function ReviewPage() {
     canBulkConfirm,
     updateShift,
     setShiftConfirmation,
+    confirmWorkerAssignment,
     confirmReadyShifts,
     resetShiftToExtracted,
     addManualShift,
@@ -297,7 +300,7 @@ export function ReviewPage() {
                             stale={isCalculationStale}
                           />
                           {shift.is_ai_extracted && (
-                            <AiExtractionBadge
+                          <AiExtractionBadge
                               confidence={shift.ai_metadata?.confidence}
                               provider={shift.ai_metadata?.provider}
                             />
@@ -472,22 +475,35 @@ export function ReviewPage() {
                           Edit Details
                         </button>
 
-                        {shift.confirmation_status !== 'confirmed' &&
-                          shift.confirmation_status !== 'rejected' && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setShiftConfirmation(
-                                  shift.shift_id,
-                                  'confirmed',
-                                )
-                              }
-                              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Confirm Shift
-                            </button>
-                          )}
+{shift.confirmation_status !== 'confirmed' &&
+  shift.confirmation_status !== 'rejected' && (
+    <>
+      {shift.is_ai_extracted &&
+      shift.ai_metadata?.worker_attribution_status ===
+        'ambiguous_or_unverified' &&
+      !shift.ai_metadata?.worker_assignment_confirmed_by_user ? (
+        <button
+          type="button"
+          onClick={() => confirmWorkerAssignment(shift.shift_id)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Assign to {workers.find((w) => w.worker_id === workerId)?.worker_name ?? 'Selected Worker'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() =>
+            setShiftConfirmation(shift.shift_id, 'confirmed')
+          }
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Confirm Shift
+        </button>
+      )}
+    </>
+  )}
 
                         {shift.confirmation_status !== 'rejected' ? (
                           <button

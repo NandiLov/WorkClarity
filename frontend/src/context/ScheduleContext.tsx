@@ -634,6 +634,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           DEMO_WORKERS.find((w) => w.worker_id === workerId)?.worker_name ??
           workerId
         const targetWorker = options?.targetWorker ?? activeWorkerName
+
         const extraction = await extractScheduleFile(file, { targetWorker })
         return uploadExtractionResult(extraction, { mode: options?.mode })
       } catch (err) {
@@ -721,20 +722,72 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const setShiftConfirmation = useCallback(
-    (shiftId: string, status: ConfirmationStatus) => {
-      setIsCalculationStale(true)
+const setShiftConfirmation = useCallback(
+  (shiftId: string, status: ConfirmationStatus) => {
+    const now = new Date().toISOString()
+
+    setShifts((prev) =>
+      prev.map((rec) => {
+        if (rec.shift_id !== shiftId) return rec
+
+        // Do not confirm an AI-extracted shift until its worker
+        // attribution has been verified or explicitly assigned.
+        if (
+          status === 'confirmed' &&
+          rec.is_ai_extracted &&
+          rec.ai_metadata?.worker_attribution_status ===
+            'ambiguous_or_unverified' &&
+          !rec.ai_metadata?.worker_assignment_confirmed_by_user
+        ) {
+          return rec
+        }
+
+        return {
+          ...rec,
+          confirmation_status: status,
+          updated_at: now,
+        }
+      }),
+    )
+
+    setIsCalculationStale(true)
+  },
+  [],
+)
+
+  const confirmWorkerAssignment = useCallback(
+    (shiftId: string) => {
       const now = new Date().toISOString()
+
       setShifts((prev) =>
-        prev.map((rec) =>
-          rec.shift_id === shiftId
-            ? { ...rec, confirmation_status: status, updated_at: now }
-            : rec,
-        ),
-      )
-    },
-    [],
-  )
+        prev.map((rec) => {
+          if (
+            rec.shift_id !== shiftId ||
+            !rec.is_ai_extracted ||
+            !rec.ai_metadata ||
+            rec.ai_metadata.worker_attribution_status !==
+              'ambiguous_or_unverified' ||
+            rec.ai_metadata.worker_assignment_confirmed_by_user ||
+            rec.confirmation_status !== 'needs_review'
+          ) {
+            return rec
+          }
+
+        return {
+          ...rec,
+          ai_metadata: {
+            ...rec.ai_metadata,
+            worker_assignment_confirmed_by_user: true,
+          },
+          updated_at: now,
+        }
+      }),
+    )
+
+    setIsCalculationStale(true)
+  },
+  [],
+)
 
   const readyToConfirmCount = useMemo(
     () => shifts.filter(isShiftReadyForBulkConfirm).length,
@@ -909,6 +962,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     loadPresetSchedule,
     updateShift,
     setShiftConfirmation,
+    confirmWorkerAssignment,
     confirmReadyShifts,
     resetShiftToExtracted,
     addManualShift,
