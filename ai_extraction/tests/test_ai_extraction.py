@@ -401,7 +401,9 @@ class SchemaAndNormalisationTests(unittest.TestCase):
         self.assertFalse(changed.eligible_for_bulk_confirmation)
         self.assertIn("end_time", changed.uncertain_fields)
 
-    def test_multi_employee_roster_filters_non_target_workers(self) -> None:
+    def test_multi_employee_roster_distinguishes_verified_ambiguous_and_unrelated_workers(
+        self,
+    ) -> None:
         prompt = build_user_prompt(target_worker="Maria Santos", page_count=1)
         self.assertIn("Maria Santos", prompt)
         self.assertIn("Extract all visible shifts", prompt)
@@ -413,7 +415,7 @@ class SchemaAndNormalisationTests(unittest.TestCase):
                 "week_of": "Week of 16 November 2026",
                 "shifts": [
                     {
-                        "worker_name": "Maria Santos",
+                        "worker_name": "  Maria  Santos ",
                         "shift_date": "2026-11-16",
                         "start_time": "09:00",
                         "end_time": "17:00",
@@ -425,6 +427,49 @@ class SchemaAndNormalisationTests(unittest.TestCase):
                         "currency": "USD",
                         "shift_status": "scheduled",
                         "confidence": "high",
+                    },
+                    {
+                        "worker_name": "Maria",
+                        "shift_date": "2026-11-17",
+                        "start_time": "08:00",
+                        "end_time": "16:00",
+                        "break_minutes": 30,
+                        "employer_name": "Harbor Bistro",
+                        "location": "Harbor Bistro Main",
+                        "department": "kitchen",
+                        "hourly_rate": 16.50,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    },
+                    {
+                        "worker_name": None,
+                        "shift_date": "2026-11-18",
+                        "start_time": "10:00",
+                        "end_time": "18:00",
+                        "break_minutes": 30,
+                        "employer_name": "Harbor Bistro",
+                        "location": "Harbor Bistro Main",
+                        "department": "kitchen",
+                        "hourly_rate": 16.50,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    },
+                    {
+                        "worker_name": "Maria Santos",
+                        "shift_date": "2026-11-19",
+                        "start_time": "11:00",
+                        "end_time": "19:00",
+                        "break_minutes": 30,
+                        "employer_name": "Harbor Bistro",
+                        "location": "Harbor Bistro Main",
+                        "department": "kitchen",
+                        "hourly_rate": 16.50,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                        "uncertain_fields": ["worker_name"],
                     },
                     {
                         "worker_name": "James Okoro",
@@ -463,9 +508,133 @@ class SchemaAndNormalisationTests(unittest.TestCase):
             model_id=DEFAULT_NVIDIA_MODEL,
             target_worker="Maria Santos",
         )
+        # Clearly unrelated workers (James Okoro, Tom Becker) are filtered out.
         self.assertEqual(parsed.filtered_other_worker_shifts, 2)
-        self.assertEqual(len(parsed.shifts), 1)
-        self.assertEqual(parsed.shifts[0].normalised.shift_date, "2026-11-16")
+        # Verified + ambiguous/unverified shifts are all retained for human review.
+        self.assertEqual(len(parsed.shifts), 4)
+
+        verified, partial_name, missing_name, uncertain_exact = parsed.shifts
+        self.assertEqual(verified.normalised.shift_date, "2026-11-16")
+        self.assertEqual(verified.worker_attribution_status, "verified_target_worker")
+        self.assertEqual(verified.confidence, "high")
+        self.assertEqual(verified.confirmation_status, "needs_review")
+        self.assertTrue(verified.requires_individual_review)
+        self.assertFalse(verified.eligible_for_bulk_confirmation)
+
+        for ambiguous in (partial_name, missing_name, uncertain_exact):
+            self.assertEqual(
+                ambiguous.worker_attribution_status, "ambiguous_or_unverified"
+            )
+            self.assertEqual(ambiguous.confidence, "low")
+            self.assertIn("ambiguous_worker_attribution", ambiguous.review_reasons)
+            self.assertEqual(ambiguous.confirmation_status, "needs_review")
+            self.assertFalse(ambiguous.eligible_for_bulk_confirmation)
+
+    def test_worker_identity_shared_first_name_and_uncertain_short_name_stay_ambiguous(
+        self,
+    ) -> None:
+        # Shared first name (e.g., Ada Lovelace vs Ada Okoye) is treated as ambiguous
+        # and kept for worker review rather than silently discarded or auto-verified.
+        two_adas_json = json.dumps(
+            {
+                "week_of": "Week of 9 November 2026",
+                "shifts": [
+                    {
+                        "worker_name": "Ada Okoye",
+                        "shift_date": "2026-11-09",
+                        "start_time": "08:00",
+                        "end_time": "16:00",
+                        "break_minutes": 30,
+                        "employer_name": "Grand Hotel",
+                        "location": "Hotel Front",
+                        "department": "Banquets",
+                        "hourly_rate": 16.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    },
+                    {
+                        "worker_name": "Ada Lovelace",
+                        "shift_date": "2026-11-10",
+                        "start_time": "09:00",
+                        "end_time": "17:00",
+                        "break_minutes": 30,
+                        "employer_name": "Grand Hotel",
+                        "location": "Hotel Front",
+                        "department": "Banquets",
+                        "hourly_rate": 16.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    },
+                    {
+                        "worker_name": "Ben Carter",
+                        "shift_date": "2026-11-11",
+                        "start_time": "10:00",
+                        "end_time": "18:00",
+                        "break_minutes": 30,
+                        "employer_name": "Grand Hotel",
+                        "location": "Hotel Front",
+                        "department": "Banquets",
+                        "hourly_rate": 16.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "high",
+                    },
+                ],
+            }
+        )
+        parsed = parse_and_validate_model_json(
+            two_adas_json,
+            file_name="unseen_05_printed_rota_two_adas.jpg",
+            model_id=DEFAULT_GEMINI_MODEL,
+            target_worker="Ada Okoye",
+        )
+        self.assertEqual(parsed.filtered_other_worker_shifts, 1)
+        self.assertEqual(len(parsed.shifts), 2)
+        self.assertEqual(
+            parsed.shifts[0].worker_attribution_status, "verified_target_worker"
+        )
+        self.assertEqual(
+            parsed.shifts[1].worker_attribution_status, "ambiguous_or_unverified"
+        )
+        self.assertEqual(parsed.shifts[1].confidence, "low")
+
+        # Short-token exact match flagged uncertain must remain ambiguous, never filtered.
+        short_name_json = json.dumps(
+            {
+                "week_of": None,
+                "shifts": [
+                    {
+                        "worker_name": "J D",
+                        "shift_date": "2026-11-12",
+                        "start_time": "09:00",
+                        "end_time": "17:00",
+                        "break_minutes": 30,
+                        "employer_name": "Cafe",
+                        "location": "Main",
+                        "hourly_rate": 15.0,
+                        "currency": "USD",
+                        "shift_status": "scheduled",
+                        "confidence": "medium",
+                        "uncertain_fields": ["worker_name"],
+                    }
+                ],
+            }
+        )
+        parsed_short = parse_and_validate_model_json(
+            short_name_json,
+            file_name="short_name.png",
+            model_id=DEFAULT_GEMINI_MODEL,
+            target_worker="J D",
+        )
+        self.assertEqual(parsed_short.filtered_other_worker_shifts, 0)
+        self.assertEqual(len(parsed_short.shifts), 1)
+        self.assertEqual(
+            parsed_short.shifts[0].worker_attribution_status,
+            "ambiguous_or_unverified",
+        )
+        self.assertEqual(parsed_short.shifts[0].confidence, "low")
 
 
 class PdfAndImageUtilsTests(unittest.TestCase):

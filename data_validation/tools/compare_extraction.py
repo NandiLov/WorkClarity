@@ -173,13 +173,18 @@ def pct(a, b):
     return "n/a" if not b else f"{100.0 * a / b:.1f}%"
 
 
-def load_difficulty():
-    if not os.path.exists(FILES_CSV):
-        return {}
-    return {r["file_name"]: r["difficulty"] for r in read_csv(FILES_CSV)}
+def load_difficulty(key_path=None):
+    candidates = []
+    if key_path:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(key_path)), "files.csv"))
+    candidates.append(FILES_CSV)
+    for path in candidates:
+        if os.path.exists(path):
+            return {r["file_name"]: r["difficulty"] for r in read_csv(path)}
+    return {}
 
 
-def report(per_file):
+def report(per_file, key_path=None):
     lines = []
     total = summarise(per_file)
     lines.append("EXTRACTION CHECK")
@@ -204,7 +209,7 @@ def report(per_file):
     lines.append("Accuracy by field (of the shifts found):")
     for f in FIELDS:
         lines.append(f"  {f:15s} {pct(total['field_ok'][f], total['matched'])}")
-    difficulty = load_difficulty()
+    difficulty = load_difficulty(key_path)
     by_level = defaultdict(lambda: [0, 0, 0, 0])
     for name, v in per_file.items():
         lvl = difficulty.get(name, "unknown")
@@ -267,17 +272,197 @@ def write_report_csv(per_file, path):
                             "; ".join(f"{x}: expected {k[x]}" for x in fields)])
 
 
+def _norm_attribution_status(row):
+    status = norm_text(row.get("worker_attribution_status"))
+    return status or "not_applicable"
+
+
+def _norm_worker_name(row):
+    val = row.get("worker_name")
+    return "" if is_empty(val) else norm_text(val)
+
+
+def compare_with_attribution(target_key_all, got_all, all_shifts_key=None):
+    """Opt-in evaluation separating raw shift extraction from target-worker attribution accuracy.
+
+    Backward-compatible with existing 11-column CSVs and enriched review-queue CSVs containing
+    optional `worker_attribution_status` and `worker_name` columns.
+    """
+    status_counts = {
+        "verified_target_worker": 0,
+        "ambiguous_or_unverified": 0,
+        "other_worker": 0,
+        "not_applicable": 0,
+    }
+    verified_rows = []
+    verified_plus_ambiguous_rows = []
+    ambiguous_by_file = defaultdict(list)
+
+    for r in got_all:
+        st = _norm_attribution_status(r)
+        if st in status_counts:
+            status_counts[st] += 1
+        else:
+            status_counts[st] = status_counts.get(st, 0) + 1
+
+        if st in ("verified_target_worker", "not_applicable"):
+            verified_rows.append(r)
+            verified_plus_ambiguous_rows.append(r)
+        elif st == "ambiguous_or_unverified":
+            verified_plus_ambiguous_rows.append(r)
+            ambiguous_by_file[r["file_name"]].append({**normalise(r), "file_name": r["file_name"]})
+
+    target_verified_per_file = compare(target_key_all, verified_rows)
+    target_verified_summary = summarise(target_verified_per_file)
+
+    target_vpa_per_file = compare(target_key_all, verified_plus_ambiguous_rows)
+    target_vpa_summary = summarise(target_vpa_per_file)
+
+    ambiguous_target_matches = 0
+    ambiguous_non_target_held = 0
+    for name, amb_rows in ambiguous_by_file.items():
+        remaining_target = target_verified_per_file.get(name, {}).get("missed", [])
+        pairs, _, leftover = match_file(remaining_target, amb_rows)
+        ambiguous_target_matches += len(pairs)
+        ambiguous_non_target_held += len(leftover)
+
+    raw_all_shifts = None
+    worker_name_checked = 0
+    worker_name_ok = 0
+
+    if all_shifts_key is not None:
+        raw_per_file = compare(all_shifts_key, got_all)
+        raw_all_shifts = {
+            "per_file": raw_per_file,
+            "summary": summarise(raw_per_file),
+        }
+        has_key_names = any("worker_name" in r for r in all_shifts_key)
+        has_got_names = any("worker_name" in r for r in got_all)
+        if has_key_names and has_got_names:
+            key_by_file = defaultdict(list)
+            got_by_file = defaultdict(list)
+            for r in all_shifts_key:
+                key_by_file[r["file_name"]].append(
+                    {**normalise(r), "file_name": r["file_name"], "_worker_name": _norm_worker_name(r)}
+                )
+            for r in got_all:
+                got_by_file[r["file_name"]].append(
+                    {**normalise(r), "file_name": r["file_name"], "_worker_name": _norm_worker_name(r)}
+                )
+            for name in sorted(set(key_by_file) | set(got_by_file)):
+                pairs, _, _ = match_file(key_by_file.get(name, []), got_by_file.get(name, []))
+                for k, g in pairs:
+                    worker_name_checked += 1
+                    if k["_worker_name"] == g["_worker_name"]:
+                        worker_name_ok += 1
+
+    return {
+        "raw_all_shifts": raw_all_shifts,
+        "target_verified": {
+            "per_file": target_verified_per_file,
+            "summary": target_verified_summary,
+        },
+        "target_verified_plus_ambiguous": {
+            "per_file": target_vpa_per_file,
+            "summary": target_vpa_summary,
+        },
+        "attribution": {
+            "status_counts": status_counts,
+            "ambiguous_target_matches": ambiguous_target_matches,
+            "ambiguous_non_target_held": ambiguous_non_target_held,
+            "worker_name_checked": worker_name_checked,
+            "worker_name_ok": worker_name_ok,
+        },
+    }
+
+
+def report_attribution(attr_result, key_path=None):
+    lines = ["EXTRACTION & ATTRIBUTION CHECK"]
+    raw = attr_result.get("raw_all_shifts")
+    if raw is not None:
+        rs = raw["summary"]
+        lines.append("")
+        lines.append("Raw shift detection (all visible shifts):")
+        lines.append(
+            f"  Expected: {rs['expected']}, Found: {rs['matched']} ({pct(rs['matched'], rs['expected'])}), "
+            f"Missed: {rs['missed']}, Invented: {rs['invented']}"
+        )
+        lines.append(
+            f"  Precision={100.0 * rs['precision']:.1f}%, Recall={100.0 * rs['recall']:.1f}%, "
+            f"F1={100.0 * rs['f1']:.1f}%, Money right={pct(rs['money_ok'], rs['expected'])}, "
+            f"Earnings-critical right={pct(rs['earnings_critical_ok'], rs['expected'])}"
+        )
+
+    tv = attr_result["target_verified"]["summary"]
+    vpa = attr_result["target_verified_plus_ambiguous"]["summary"]
+    att = attr_result["attribution"]
+    lines.append("")
+    lines.append("Target-worker attribution accuracy:")
+    lines.append(
+        f"  Verified target shifts: TP={tv['true_positives']}, FP={tv['false_positives']}, "
+        f"FN={tv['false_negatives']}, Precision={100.0 * tv['precision']:.1f}%, "
+        f"Recall={100.0 * tv['recall']:.1f}%, F1={100.0 * tv['f1']:.1f}%"
+    )
+    lines.append(
+        f"  Safety-retained ambiguous shifts: {att['status_counts'].get('ambiguous_or_unverified', 0)} "
+        f"(target matches held for review: {att['ambiguous_target_matches']}, "
+        f"non-target held for review: {att['ambiguous_non_target_held']})"
+    )
+    lines.append(
+        f"  Filtered other-worker shifts: {att['status_counts'].get('other_worker', 0)}"
+    )
+    lines.append(
+        f"  Verified + ambiguous combined (legacy view): TP={vpa['true_positives']}, "
+        f"FP={vpa['false_positives']}, FN={vpa['false_negatives']}"
+    )
+    if att["worker_name_checked"] > 0:
+        lines.append(
+            f"  Worker name transcription accuracy: "
+            f"{att['worker_name_ok']}/{att['worker_name_checked']} "
+            f"({pct(att['worker_name_ok'], att['worker_name_checked'])})"
+        )
+    lines.append("")
+    lines.append(report(attr_result["target_verified"]["per_file"], key_path=key_path))
+    return "\n".join(lines)
+
+
 def main(argv):
-    if len(argv) < 2:
+    args = list(argv[1:])
+    attribution_mode = False
+    all_shifts_key_path = None
+    positional = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--attribution":
+            attribution_mode = True
+            i += 1
+        elif args[i] == "--all-shifts-key" and i + 1 < len(args):
+            attribution_mode = True
+            all_shifts_key_path = args[i + 1]
+            i += 2
+        else:
+            positional.append(args[i])
+            i += 1
+
+    if len(positional) < 1:
         print(__doc__)
         return 2
-    got = read_csv(argv[1])
-    key = read_csv(argv[2] if len(argv) > 2 else DEFAULT_KEY)
+    got = read_csv(positional[0])
+    key_path = positional[1] if len(positional) > 1 else DEFAULT_KEY
+    key = read_csv(key_path)
+    if attribution_mode:
+        all_key = read_csv(all_shifts_key_path) if all_shifts_key_path else None
+        attr_result = compare_with_attribution(key, got, all_shifts_key=all_key)
+        print(report_attribution(attr_result, key_path=key_path))
+        if len(positional) > 2:
+            write_report_csv(attr_result["target_verified"]["per_file"], positional[2])
+            print(f"\nDetails written to {positional[2]}")
+        return 0
     per_file = compare(key, got)
-    print(report(per_file))
-    if len(argv) > 3:
-        write_report_csv(per_file, argv[3])
-        print(f"\nDetails written to {argv[3]}")
+    print(report(per_file, key_path=key_path))
+    if len(positional) > 2:
+        write_report_csv(per_file, positional[2])
+        print(f"\nDetails written to {positional[2]}")
     return 0
 
 

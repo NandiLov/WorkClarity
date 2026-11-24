@@ -605,3 +605,179 @@ def test_extract_redacts_secrets_in_manual_entry_reason():
         assert "reasoning_text" not in data
     finally:
         app.dependency_overrides.pop(get_extraction_service, None)
+
+
+def test_calculate_preserves_numeric_fl06_and_does_not_invent_qualitative_scores():
+    """Preserve agreed FL06 contract: numeric < 0.75 emits LOW_CONFIDENCE; qualitative strings do not invent scores."""
+    payload = {
+        "worker_id": "W001",
+        "include_unconfirmed": True,
+        "shifts": [
+            {
+                "shift_id": "AI-QUAL-LOW-UNCONFIRMED",
+                "shift_date": "2026-11-09",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "break_minutes": 30,
+                "employer_name": "BrightMart",
+                "location": "Store A",
+                "hourly_rate": 16.0,
+                "currency": "USD",
+                "shift_status": "scheduled",
+                "confirmation_status": "needs_review",
+                "extraction_confidence": "low",
+            },
+            {
+                "shift_id": "AI-QUAL-HIGH-UNCONFIRMED",
+                "shift_date": "2026-11-10",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "break_minutes": 30,
+                "employer_name": "BrightMart",
+                "location": "Store A",
+                "hourly_rate": 16.0,
+                "currency": "USD",
+                "shift_status": "scheduled",
+                "confirmation_status": "needs_review",
+                "extraction_confidence": "high",
+            },
+            {
+                "shift_id": "NUMERIC-LOW-CONF",
+                "shift_date": "2026-11-11",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "break_minutes": 30,
+                "employer_name": "BrightMart",
+                "location": "Store A",
+                "hourly_rate": 16.0,
+                "currency": "USD",
+                "shift_status": "scheduled",
+                "confirmation_status": "unconfirmed",
+                "extraction_confidence": 0.60,
+            },
+            {
+                "shift_id": "NUMERIC-HIGH-CONF",
+                "shift_date": "2026-11-12",
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "break_minutes": 30,
+                "employer_name": "BrightMart",
+                "location": "Store A",
+                "hourly_rate": 16.0,
+                "currency": "USD",
+                "shift_status": "scheduled",
+                "confirmation_status": "unconfirmed",
+                "extraction_confidence": 0.95,
+            },
+        ],
+    }
+
+    response = client.post("/api/v1/shifts/calculate", json=payload)
+    assert response.status_code == 200
+    by_id = {s["shift_id"]: s for s in response.json()["shifts"]}
+
+    # Qualitative AI confidence does not trigger a new FL06 LOW_CONFIDENCE rule; NEEDS_REVIEW holds shifts out.
+    for sid in ("AI-QUAL-LOW-UNCONFIRMED", "AI-QUAL-HIGH-UNCONFIRMED"):
+        codes = {f["code"] for f in by_id[sid]["flags"]}
+        assert "NEEDS_REVIEW" in codes
+        assert "LOW_CONFIDENCE" not in codes
+        assert by_id[sid]["eligible_for_earnings"] is False
+
+    # Existing numeric confidence behaviour (< 0.75 -> FL06 LOW_CONFIDENCE) is preserved.
+    num_low_codes = {f["code"] for f in by_id["NUMERIC-LOW-CONF"]["flags"]}
+    assert "LOW_CONFIDENCE" in num_low_codes
+    assert any(
+        f["code"] == "LOW_CONFIDENCE" and f["flag_type_id"] == "FL06"
+        for f in by_id["NUMERIC-LOW-CONF"]["flags"]
+    )
+    num_high_codes = {f["code"] for f in by_id["NUMERIC-HIGH-CONF"]["flags"]}
+    assert "LOW_CONFIDENCE" not in num_high_codes
+    assert "UNCONFIRMED" in num_high_codes
+
+
+def test_extract_api_handles_verified_ambiguous_and_unrelated_worker_identities():
+    """Verify /extract preserves verified + ambiguous identities and filters clearly unrelated workers."""
+    mixed_shifts = [
+        {
+            "shift_date": "2026-11-09",
+            "start_time": "09:00",
+            "end_time": "17:00",
+            "break_minutes": 30,
+            "employer_name": "Grand Hotel",
+            "location": "Downtown",
+            "hourly_rate": 18.0,
+            "currency": "USD",
+            "shift_status": "scheduled",
+            "worker_name": "Ada Okoye",
+            "confidence": "high",
+        },
+        {
+            "shift_date": "2026-11-10",
+            "start_time": "09:00",
+            "end_time": "17:00",
+            "break_minutes": 30,
+            "employer_name": "Grand Hotel",
+            "location": "Downtown",
+            "hourly_rate": 18.0,
+            "currency": "USD",
+            "shift_status": "scheduled",
+            "worker_name": "Ada Lovelace",
+            "confidence": "high",
+        },
+        {
+            "shift_date": "2026-11-11",
+            "start_time": "09:00",
+            "end_time": "17:00",
+            "break_minutes": 30,
+            "employer_name": "Grand Hotel",
+            "location": "Downtown",
+            "hourly_rate": 18.0,
+            "currency": "USD",
+            "shift_status": "scheduled",
+            "worker_name": None,
+            "confidence": "high",
+        },
+        {
+            "shift_date": "2026-11-12",
+            "start_time": "09:00",
+            "end_time": "17:00",
+            "break_minutes": 30,
+            "employer_name": "Grand Hotel",
+            "location": "Downtown",
+            "hourly_rate": 18.0,
+            "currency": "USD",
+            "shift_status": "scheduled",
+            "worker_name": "Ben Carter",
+            "confidence": "high",
+        },
+    ]
+    orch = ExtractionOrchestrator(
+        config=ExtractionServiceConfig(primary_provider="gemini", fallback_enabled=False),
+        primary_adapter=MockSuccessAdapter(shifts=mixed_shifts),
+    )
+    app.dependency_overrides[get_extraction_service] = lambda: orch
+    try:
+        png_bytes = make_test_image("PNG")
+        response = client.post(
+            "/api/v1/shifts/extract",
+            files={"file": ("two_adas.png", png_bytes, "image/png")},
+            data={"target_worker": "Ada Okoye"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_shifts_extracted"] == 3
+        statuses = [s["worker_attribution_status"] for s in data["shifts"]]
+        assert statuses == [
+            "verified_target_worker",
+            "ambiguous_or_unverified",
+            "ambiguous_or_unverified",
+        ]
+        assert data["shifts"][0]["confidence"] == "high"
+        assert data["shifts"][1]["confidence"] == "low"
+        assert data["shifts"][2]["confidence"] == "low"
+        for shift in data["shifts"]:
+            assert shift["confirmation_status"] == "needs_review"
+            assert shift["requires_individual_review"] is True
+            assert shift["eligible_for_bulk_confirmation"] is False
+    finally:
+        app.dependency_overrides.pop(get_extraction_service, None)

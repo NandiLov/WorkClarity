@@ -577,4 +577,184 @@ describe('AI Extraction Frontend Integration & Safeguards', () => {
       screen.getByText(/You already have 3 active shift\(s\) loaded/i),
     ).toBeInTheDocument()
   })
+
+  it('preserves qualitative confidence without inventing numeric scores and enforces ambiguous worker assignment in ShiftEditModal and WarningsPage', async () => {
+    const capturedCalculateBodies: Array<{
+      shifts: Array<Record<string, unknown>>
+    }> = []
+
+    const lowConfAmbiguousExtraction: ShiftExtractionResponse = {
+      ...MOCK_SUCCESSFUL_EXTRACTION,
+      total_shifts_extracted: 1,
+      shifts: [
+        {
+          ...MOCK_SUCCESSFUL_EXTRACTION.shifts[1],
+          normalised: {
+            ...MOCK_SUCCESSFUL_EXTRACTION.shifts[1].normalised,
+            break_minutes: 30,
+            hourly_rate: 16.0,
+          },
+          worker_name: 'Ada Lovelace',
+          worker_attribution_status: 'ambiguous_or_unverified',
+          confidence: 'low',
+        },
+      ],
+    }
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input)
+      if (url.endsWith('/health')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              status: 'healthy',
+              service: 'WorkClarity API',
+              version: '0.1.0',
+            }),
+            { status: 200 },
+          ),
+        )
+      }
+      if (url.includes('/extract')) {
+        return Promise.resolve(
+          new Response(JSON.stringify(lowConfAmbiguousExtraction), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+      }
+      if (url.includes('/calculate')) {
+        const parsed = JSON.parse(String(init?.body ?? '{}')) as {
+          shifts: Array<Record<string, unknown>>
+        }
+        capturedCalculateBodies.push(parsed)
+        const shiftId = String(parsed.shifts[0]?.shift_id ?? 'test-AI01')
+        const isConfirmed = parsed.shifts[0]?.confirmation_status === 'confirmed'
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              worker_id: 'W001',
+              shifts: [
+                {
+                  shift_id: shiftId,
+                  date: '2026-11-10',
+                  week_start: '2026-11-09',
+                  paid_hours: 7.5,
+                  hourly_rate: 16.0,
+                  currency: 'USD',
+                  gross_earnings: isConfirmed ? 120.0 : null,
+                  validation_status: isConfirmed ? 'valid' : 'warning',
+                  earnings_status: isConfirmed ? 'counted' : 'needs_review',
+                  eligible_for_earnings: isConfirmed,
+                  earnings_reason: isConfirmed
+                    ? null
+                    : 'This shift is waiting in the review queue.',
+                  flags: isConfirmed
+                    ? []
+                    : [
+                        {
+                          code: 'NEEDS_REVIEW',
+                          flag_type_id: 'FL06',
+                          flag_name: 'unconfirmed',
+                          severity: 'warning',
+                          reason: 'This shift is waiting in the review queue.',
+                          message:
+                            'This shift has not been confirmed yet. Please review it and confirm it so it counts toward your earnings.',
+                        },
+                      ],
+                },
+              ],
+              weekly_summary: [],
+              conflicts: [],
+              commute_not_assessed: [],
+              calculated_at: new Date().toISOString(),
+            }),
+            { status: 200 },
+          ),
+        )
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`))
+    })
+
+    const user = userEvent.setup()
+    render(<App />)
+
+    const fileInput = screen.getByLabelText(
+      /Choose CSV schedule file/i,
+    ) as HTMLInputElement
+    const pdfFile = new File(['%PDF-1.4 test'], 'two_adas.pdf', {
+      type: 'application/pdf',
+    })
+
+    await act(async () => {
+      await user.upload(fileInput, pdfFile)
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /Review & Correct Shifts/i }),
+      ).toBeInTheDocument()
+    })
+
+    // Do not invent numerical confidence or forward qualitative confidence to /calculate
+    await waitFor(() => {
+      expect(capturedCalculateBodies.length).toBeGreaterThan(0)
+    })
+    expect(capturedCalculateBodies[0].shifts[0]).not.toHaveProperty(
+      'extraction_confidence',
+    )
+
+    // Open ShiftEditModal while worker attribution is still ambiguous & unverified
+    await user.click(screen.getByRole('button', { name: /Edit Details/i }))
+    expect(
+      screen.getByRole('heading', { name: /Review & Edit Shift/i }),
+    ).toBeInTheDocument()
+
+    // Confirmed option and Save & Confirm must be disabled with a clear explanation
+    const confirmedOption = screen.getByRole('option', {
+      name: 'Confirmed',
+    }) as HTMLOptionElement
+    expect(confirmedOption.disabled).toBe(true)
+    expect(
+      screen.getByRole('button', { name: /Save & Confirm/i }),
+    ).toBeDisabled()
+    expect(
+      screen.getByText(
+        /Assign this shift to the correct worker first before confirming it/i,
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /^Cancel$/i }))
+
+    // Navigate to Warnings & Conflicts page
+    const warningsLinks = screen.getAllByRole('link', { name: /Warnings/i })
+    await user.click(warningsLinks[0])
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: /Warnings & Conflicts/i }),
+      ).toBeInTheDocument()
+    })
+
+    // AI qualitative confidence badge and worker attribution badge are visible on WarningsPage
+    expect(
+      screen.getByText(/AI \(gemini\): Low confidence — review details/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Worker match uncertain: Ada Lovelace/i),
+    ).toBeInTheDocument()
+
+    // Ambiguous AI shift must require explicit worker assignment before Confirm Shift appears
+    expect(
+      screen.queryByRole('button', { name: /Confirm Shift/i }),
+    ).not.toBeInTheDocument()
+    const assignBtn = screen.getByRole('button', { name: /Assign to Ada Okoye/i })
+    await user.click(assignBtn)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Confirm Shift/i }),
+      ).toBeInTheDocument()
+    })
+  })
 })

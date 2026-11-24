@@ -43,6 +43,12 @@ export function ShiftEditModal({
 
   const diffsFromExtracted = shift ? getChangedFields(shift.extracted, form) : []
   const editsFromCurrent = shift ? getChangedFields(shift.current, form) : []
+  const requiresWorkerAssignment =
+    mode === 'edit' &&
+    Boolean(shift?.is_ai_extracted) &&
+    shift?.ai_metadata?.worker_attribution_status ===
+      'ambiguous_or_unverified' &&
+    !shift?.ai_metadata?.worker_assignment_confirmed_by_user
   const requiresRenewedConfirmation =
     mode === 'edit' &&
     shift?.confirmation_status === 'confirmed' &&
@@ -56,7 +62,11 @@ export function ShiftEditModal({
       return
     }
     if (shift) {
-      onSaveEdit(shift.shift_id, form, confirmationStatus)
+      const safeStatus: ConfirmationStatus =
+        requiresWorkerAssignment && confirmationStatus === 'confirmed'
+          ? 'needs_review'
+          : confirmationStatus
+      onSaveEdit(shift.shift_id, form, safeStatus)
       onClose()
     }
   }
@@ -349,11 +359,22 @@ export function ShiftEditModal({
                   }}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 focus:outline-none"
                 >
-                  <option value="confirmed">Confirmed</option>
+                  <option value="confirmed" disabled={requiresWorkerAssignment}>
+                    Confirmed
+                  </option>
                   <option value="unconfirmed">Unconfirmed</option>
                   <option value="needs_review">Needs review</option>
                   <option value="rejected">Rejected</option>
                 </select>
+                {requiresWorkerAssignment && (
+                  <p className="mt-1.5 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+                    <span>
+                      Worker attribution is ambiguous or unverified. Assign this
+                      shift to the correct worker first before confirming it.
+                    </span>
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -416,13 +437,19 @@ export function ShiftEditModal({
                   </button>
                   <button
                     type="button"
+                    disabled={requiresWorkerAssignment}
+                    title={
+                      requiresWorkerAssignment
+                        ? 'Assign this shift to the correct worker first before confirming.'
+                        : undefined
+                    }
                     onClick={() => {
-                      if (shift) {
+                      if (shift && !requiresWorkerAssignment) {
                         onSaveEdit(shift.shift_id, form, 'confirmed')
                         onClose()
                       }
                     }}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                   >
                     Save &amp; Confirm
                   </button>

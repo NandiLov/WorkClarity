@@ -697,9 +697,19 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           const nextCurrent: EditableShiftValues = { ...rec.current, ...changes }
           const detailChanged = haveShiftValuesChanged(rec.current, nextCurrent)
 
+          const requiresWorkerAssignment =
+            rec.is_ai_extracted &&
+            rec.ai_metadata?.worker_attribution_status ===
+              'ambiguous_or_unverified' &&
+            !rec.ai_metadata?.worker_assignment_confirmed_by_user
+
           let nextStatus: ConfirmationStatus
           if (explicitConfirmationStatus !== undefined) {
-            nextStatus = explicitConfirmationStatus
+            nextStatus =
+              explicitConfirmationStatus === 'confirmed' &&
+              requiresWorkerAssignment
+                ? rec.confirmation_status
+                : explicitConfirmationStatus
           } else if (detailChanged && rec.confirmation_status === 'confirmed') {
             // Any edit to details of a previously confirmed shift requires renewed confirmation
             nextStatus = rec.is_ai_extracted ? 'needs_review' : 'unconfirmed'
@@ -783,8 +793,6 @@ const setShiftConfirmation = useCallback(
         }
       }),
     )
-
-    setIsCalculationStale(true)
   },
   [],
 )

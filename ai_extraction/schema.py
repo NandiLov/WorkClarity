@@ -590,8 +590,12 @@ def _classify_worker_attribution(
         u in ("worker_name", "employee_name", "employee", "staff_name")
         for u in raw_uncertain
     )
-    if norm_cand == norm_target and not worker_marked_uncertain:
-        return "verified_target_worker"
+    if norm_cand == norm_target:
+        return (
+            "ambiguous_or_unverified"
+            if worker_marked_uncertain
+            else "verified_target_worker"
+        )
 
     cand_tokens = {tok for tok in re.split(r"[\s,.-]+", norm_cand) if len(tok) >= 2}
     target_tokens = {tok for tok in re.split(r"[\s,.-]+", norm_target) if len(tok) >= 2}
