@@ -1,5 +1,8 @@
 # WorkClarity — AI Schedule Extraction & Automatic Failover Pipeline
 
+> **V1 prompt and benchmark clarification (25 November 2026):** The current integrated V1 prompt asks for **all visible shifts**; subsequent attribution logic excludes clearly unrelated employees and requires explicit user verification of ambiguous rows. The published independent 28-shift Gemini/NVIDIA figures were obtained using the **earlier** frozen prompt. They remain a historical synthetic baseline and must not be represented as current-prompt accuracy without a fresh approved benchmark.
+
+
 Repeatable, provider-independent AI schedule extraction service and benchmarking pipeline for PDF and image rosters, built around the shared 10-field extraction schema, mandatory individual worker confirmation safeguards, and deterministic scoring against [`data_validation/tools/compare_extraction.py`](../data_validation/tools/compare_extraction.py).
 
 ## Architecture Overview

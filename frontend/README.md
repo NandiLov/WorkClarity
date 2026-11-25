@@ -1,75 +1,84 @@
 # WorkClarity Frontend
 
-Schedule-to-earnings web application for hourly workers managing shifts across multiple employers. Built with React, TypeScript, Vite, Tailwind CSS, React Router, and Lucide icons.
+React/TypeScript worker-facing UI for importing schedules, checking the source data, resolving conflicts, and viewing estimated gross earnings. This file documents the **V1 code on `feature/workclarity-v1-mvp` at `a48d241` (25 November 2026)**, not the independent, unmerged UI redesign.
 
-## Architecture Principles
+## Technology
 
-- **Backend as Single Source of Truth:** All shift validation, conflict/commute detection, exact-minute paid hour calculations, and weekly gross earnings totals are calculated exclusively by the WorkClarity FastAPI backend (`POST /api/v1/shifts/calculate`). The frontend never calculates payable earnings independently.
-- **Worker Control & Traceability:** Newly uploaded CSV shifts start as `unconfirmed`. Original extracted values (`extracted`) and raw CSV rows (`source_line`) are preserved separately from worker-corrected values (`current`), with one-click reset to original values.
-- **No Guessed Financial Data:** Blank breaks, hourly rates, and currencies are sent as `null` (never coerced to `0` or `"USD"`). Weeks with no eligible counted shifts display **"Not counted yet"** rather than `$0.00`, while all-cancelled weeks display genuine `$0.00`. Separate currencies are never combined.
-- **Stale Response & Offline Safety:** Out-of-order API responses are ignored using `AbortController` and monotonic request IDs. When the backend is unreachable, stale totals are hidden behind an explicit error banner until recalculation succeeds.
-- **Temporary Local Persistence:** Worker workspace state is stored temporarily in browser `localStorage` isolated per worker (`workclarity_dev_state_v1_<workerId>`) until cloud Firestore persistence is connected.
+- React 19, TypeScript, Vite 8, Tailwind CSS 4, React Router 7, Lucide icons
+- React context for shift state; browser `localStorage` for **temporary per-demo-worker** workspace data
+- FastAPI for all authoritative validation, scheduling conflict checks, and gross earnings calculations
+- Vitest, React Testing Library, and browser-like `jsdom` for frontend testing
 
-## Tech Stack
+The demo worker switcher **is not login or authorization**. Neither browser storage nor a successful hosted demo establishes Firestore persistence, cross-device synchronization, or production worker-data security.
 
-- React 19 + TypeScript
-- Vite 8 + `@tailwindcss/vite` (Tailwind CSS v4)
-- React Router v7
-- Lucide React
-- Vitest + React Testing Library (`jsdom`)
-- ESLint + TypeScript Project References
+## Working routes
 
-## Five Core Screens
+| Route | Purpose |
+| --- | --- |
+| `/upload` | Accept one CSV, PDF, PNG, JPEG, or WebP schedule at a time; append to a workspace or confirm replacement; demo presets and CSV template. PDF/images require the extraction API and configured live AI provider(s). |
+| `/review` | Review, edit, individually confirm or reject AI shifts, restore rejected shifts, compare extracted and corrected values; explicitly verify ambiguous worker attribution before confirming. |
+| `/warnings` | Surface overlap, duplicate, missing/invalid information, short travel-gap and not-assessed commute conditions. |
+| `/schedule` | Display Monday-to-Sunday shifts by week, including overnight shifts and their statuses. |
+| `/earnings` | Display FastAPI-returned **estimated gross earnings**, separated by currency and by eligible/incomplete/pending status. |
 
-1. **Upload Schedule (`/upload`):** Drag-and-drop or browse UTF-8 `.csv` schedules, validate CSV structure, download a CSV template, or load synthetic demonstration schedules. (PDF and image extraction remain conditional MVP features until backend extraction endpoints are available.)
-2. **Review & Correct (`/review`):** Inspect extracted shifts, confirm `0`-minute breaks or supply missing break/rate/currency details, confirm or reject shifts, restore rejected shifts, view worker edits vs. original extracted values, and reset shifts to original values.
-3. **Warnings & Conflicts (`/warnings`):** Resolve overlapping shifts, possible duplicates, short commute gaps (`< 30 min` scheduling heuristic), unassessed commute pairs (missing/unrecognized locations), and blocking validation errors.
-4. **Weekly Schedule (`/schedule`):** Monday-to-Sunday weekly calendar view with overnight shifts assigned to the start date/week and optional traceability toggle for rejected shifts.
-5. **Weekly Earnings (`/earnings`):** Authoritative per-currency weekly gross earnings cards, eligible vs. incomplete vs. pending hour breakdowns, rounding transparency, and per-shift earnings explanations.
+### Safety and business rules
 
-## Local Setup & Running
+- CSV imports begin `unconfirmed`; AI extracted records begin `needs_review` and **always require individual worker confirmation** (not bulk confirmation).
+- Missing breaks, rates and currencies are sent as `null`, not inferred as zero. Explicit zero-minute breaks are preserved.
+- Editing an already confirmed shift invalidates its previous confirmation where appropriate and triggers recalculation.
+- A worker must explicitly verify an uncertain or unnamed employee assignment before confirmation is allowed.
+- The AI model does **not** calculate earnings; the frontend posts worker-reviewed shifts to `POST /api/v1/shifts/calculate` and renders authoritative results.
+- Responses are guarded against stale requests. Offline/error states do not present stale totals as current.
+- Qualitative AI confidence (`high`, `medium`, `low`) informs review UI and is not mapped to arbitrary numeric values for backend FL06.
+- The commute warning is a **30-minute scheduling heuristic**, not map-based travel-time routing.
 
-### Prerequisites
+## Local development
 
-- Node.js 20+ (verified on Node `v26.13.1`, npm `11.20.0`)
-- Python 3.11+ (verified on Python `3.15.1`) with FastAPI backend dependencies installed
-
-### 1. Start the FastAPI Backend
-
-From the repository root (`WorkClarity/`):
+From the repository root, first start FastAPI in one terminal:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-### 2. Install & Start the Frontend
-
-From `WorkClarity/frontend/`:
+Start the frontend in a second terminal:
 
 ```bash
-npm install
+cd frontend
+npm ci
 npm run dev
 ```
 
-The frontend dev server runs at `http://localhost:5173`. By default, [vite.config.ts](./vite.config.ts) proxies `/health` and `/api` requests to `http://127.0.0.1:8000`.
+Open <http://localhost:5173>. Vite proxies `/api` and `/health` to `http://127.0.0.1:8000`; the API health endpoint is <http://127.0.0.1:8000/health>.
 
-### Environment Configuration
+For PowerShell, replace venv activation with `.venv\Scripts\Activate.ps1`. Real AI extraction requires valid provider credentials in the backend environment; do not commit credentials or test against the deployed paid service without team approval.
 
-- `VITE_API_BASE_URL` (optional): Base URL for the FastAPI service when deploying or testing outside the Vite dev proxy (e.g., `VITE_API_BASE_URL=http://127.0.0.1:8000`). Leave unset in local dev to use the built-in Vite proxy. Do **not** commit `.env` files or credentials.
+### Frontend configuration
 
-## Available Scripts
+| Variable | Meaning |
+| --- | --- |
+| `VITE_API_BASE_URL` | Optional frontend **build-time** API base URL. Leave empty for the local Vite proxy. For separate frontend/API hosting, set to the API origin. |
 
-Run inside `WorkClarity/frontend/`:
+The FastAPI service must allow the frontend's deployed origin through `WORKCLARITY_CORS_ORIGINS`; the backend disallows wildcard `*` origins.
 
-- `npm run dev` — Start Vite development server on port `5173`
-- `npm run build` — Type-check (`tsc -b`) and build production bundle into `dist/`
-- `npm run lint` — Run ESLint across the codebase
-- `npm test` — Run Vitest unit and live-backend E2E test suites (requires FastAPI backend running on `http://127.0.0.1:8000` for `src/test/e2e_backend.test.tsx`)
-- `npm run test:watch` — Run Vitest in watch mode
-- `npm run preview` — Preview the production build locally
+### Scripts
 
-## Testing & Verification
+Run from `frontend/`:
 
-See [TEST_REPORT.md](./TEST_REPORT.md) for the complete Milestone 2 & 3 acceptance test report, dataset verification results, security audit findings, and backend observations.
+```bash
+npm run lint
+npm run build
+npm test
+```
+
+`npm test` includes live-backend integration tests that need FastAPI on `127.0.0.1:8000`; UI-only tests can run without paid AI calls.
+
+## Verification and known limits
+
+- Latest team-reported verification for the V1 fixes: **211 Python tests passed, 40 frontend tests passed**, with frontend lint and build passing. These figures are **reported**, not a fresh independent run for this README change.
+- [`TEST_REPORT.md`](TEST_REPORT.md) captures **historical frontend testing from 19 November**, including 33 tests and observations from an earlier branch. Its old remarks about missing CORS, duplicate-overlap detection and non-finite numbers have since been superseded by merged fixes and the inspected V1 code.
+- The five-screen redesign on `design/v1-ui-polish` has been exercised separately but **must be reviewed and merged** before it is represented as deployed.
+- State remains in browser `localStorage` for the inspected UI; real authentication, cloud persistence, data retention, tenant isolation and privacy approval are outside the V1 implementation.
+- For the complete architecture and benchmark caveats, see [`../README.md`](../README.md) and [`../docs/technical_architecture.md`](../docs/technical_architecture.md).
