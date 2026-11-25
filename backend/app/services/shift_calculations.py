@@ -55,8 +55,9 @@ A missing employer or a missing location is a warning only. It does not stop a s
 as long as the essential details (date, times, break, rate) are valid. A missing date is a
 blocking error. A missing or unknown location means the commute check could not be done.
 
-Money rules (see test_data/pay_rules.csv): gross pay, unpaid breaks, overtime off,
-paid hours rounded to 2 decimals, then gross rounded to 2 decimals per shift, then summed.
+Money rules (see backend/app/config/pay_rules.csv): gross pay, unpaid breaks, overtime off.
+Paid time uses exact minutes. Displayed hours and per-shift amounts are rounded to
+2 decimal places; the weekly gross sums exact shift earnings and rounds only once.
 """
 
 import csv

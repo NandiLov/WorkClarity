@@ -45,7 +45,7 @@ Providers are Gemini primary and NVIDIA fallback **by default**, contingent on c
 
 ## Persistence and security boundaries
 
-The inspected frontend uses per-demo-worker **browser `localStorage`** keys (`workclarity_dev_state_v1_<workerId>`) and a local worker selector. It does **not** implement authenticated users or server-enforced tenant separation. Do not document Cloud Firestore or Cloud Storage as live application persistence merely because they appear in design discussions.
+The inspected frontend uses per-demo-worker **browser `localStorage`** keys (`workclarity_dev_state_v1_<workerId>`) and a local worker selector. It does **not** implement authenticated users or server-enforced tenant separation. Do not document Cloud Firestore or Cloud Storage as live application persistence merely because they appear in design discussions. A Firestore instance listed on the deployment board may be provisioned but is **not evidence of application persistence**; confirm actual deployed storage reads/writes with Nandila before claiming integration.
 
 PDF/images sent to the API can be transmitted to configured third-party providers. Before use with real worker data, establish authorization, privacy disclosures, provider agreements, retention rules, access boundaries, secure key handling, abuse/rate limiting and cloud budget controls. Avoid live paid uploads without team lead approval.
 
@@ -62,10 +62,15 @@ PDF/images sent to the API can be transmitted to configured third-party provider
 ## Test and benchmark evidence
 
 - **Team-reported V1 verification:** 211 Python tests, 40 frontend tests passing on commit `a48d241`. No new tests were executed as part of this documentation update.
-- **Historical independent synthetic unseen benchmark (previous extraction prompt):** 28 of 28 target shifts detected by each provider; Gemini 100% earnings-critical and 93.6% all-field accuracy; NVIDIA 96.4% earnings-critical and 81.1% all-field accuracy.
+- **Team-reported deployed QA (25 November):** Ololade reported that seven synthetic demo scenarios (specification example, overnight, commute gap, overlap, duplicates/cancellations, multi-currency, missing details) matched the corresponding local results. This is smoke-test evidence, not a security audit.
+- **Historical independent synthetic unseen benchmark (previous extraction prompt):** 28 of 28 target shifts detected by each provider; Gemini 100% earnings-critical and 93.6% all-field accuracy; NVIDIA 96.4% earnings-critical and 81.1% all-field accuracy. Two image headers in the synthetic unseen set were ambiguous by design; the frozen answer key was preserved.
 - **Important boundary:** the revised all-shifts extraction prompt has not been independently rebenchmarked against these samples in the evidence inspected. Do not present historical results as the deployed-prompt accuracy.
 - **Confidence indicator:** qualitative AI confidence is review UI metadata; the backend's numeric FL06 logic is separate and is not fed an arbitrary text-to-number mapping.
 - **Previous frontend report:** `frontend/TEST_REPORT.md` records the 19 November baseline; its earlier "missing CORS", "duplicate/overlap double reporting" and non-finite value concerns are no longer current in the V1 source. Retain the historical observations as a dated audit record.
+
+### Synthetic validation quality and human review
+
+The [validation quality report](../data_validation/docs/validation_quality_report.md) records 33/33 planted errors held initially, with 25/33 recognised by specific validation rules and 0/95 false alarms on clean records under the report's definition. **Eight plausible errors would enter earnings if a worker confirmed them without noticing** (with three additional warning-only cases also able to count). This demonstrates why worker confirmation is a safeguard and why it does **not** guarantee that confirmed data is correct. These are synthetic fixtures, not estimates of field performance.
 
 ## Out of scope / open work
 

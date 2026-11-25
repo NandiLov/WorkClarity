@@ -22,6 +22,8 @@ WorkClarity is a hackathon-stage web application for hourly workers who juggle s
 
 **Scope distinction:** The source code implements the features above; the cloud deployment and its successful synthetic end-to-end test are **team-reported**, not independently certified production readiness. The newer UI redesign on `design/v1-ui-polish` is a separate local workstream and is not part of the V1 implementation described here until reviewed and merged.
 
+**Additional deployed-app QA (team-reported, 25 November):** Ololade checked seven synthetic demonstration scenarios against the deployed app: the specification example, overnight shifts, short commute gaps, overlaps, duplicate/cancelled shifts, multiple currencies, and missing information. She reported results matching her local tests. This is useful smoke-test evidence, **not** an independent security or production certification.
+
 ## User journey
 
 1. **Upload:** Import a CSV file or send a PDF/image schedule for AI extraction. Multiple files can be appended one at a time.
@@ -147,6 +149,16 @@ npm --prefix frontend run build
 
 **Last team-reported verification for V1 fixes (`a48d241`):** 211 Python tests passed, 40 frontend tests passed, plus clean frontend lint and production build. These are local/test-environment results, not proof that authentication, persistence, or real-world production privacy requirements are complete.
 
+## Validation quality: synthetic regression evidence
+
+The [validation quality report](data_validation/docs/validation_quality_report.md) evaluates the rules on a **synthetic** dataset of 128 shift records: 33 with planted errors and 95 clean records.
+
+- **33/33 planted errors were flagged and held out of earnings as initially delivered**, including the safeguard that unconfirmed shifts are not counted. **Only 25/33** were detected by shift-specific validation rules; the other eight were held by the general review/confirmation safeguards.
+- **0/95 clean records received a missing, invalid, or duplicate flag** under the report's false-alarm definition.
+- **Important limitation:** If a worker incorrectly confirms every planted error, **8 flawed shifts can enter earnings** because the rules cannot independently detect wrong dates, stale schedule updates, a plausible AM/PM mistake, or nonexistent shifts. Three further warning-only errors can count without affecting the stated pay calculation. Individual worker review remains essential.
+
+These results measure the synthetic validation fixtures and business rules, **not** real-world detection rates or AI extraction accuracy.
+
 ## Extraction benchmarks: interpret carefully
 
 The frozen **PR #14** six-document synthetic unseen set contains **28 expected target-worker shifts**. Independent provider runs using the **earlier frozen extraction prompt** reported:
@@ -157,13 +169,13 @@ The frozen **PR #14** six-document synthetic unseen set contains **28 expected t
 | Earnings-critical field accuracy | 100% | 96.4% |
 | All-field accuracy | 93.6% | 81.1% |
 
-Both reported zero invented shifts in that historical evaluation. These are **synthetic benchmark figures**, not general real-world accuracy guarantees and **not** a remeasurement of the revised V1 worker-identification prompt. Header interpretation and worker attribution remain areas to evaluate. The optional comparator's attribution-aware mode was added in the V1 fix branch; historical benchmark files were left unchanged. **Rerun/approve the revised-prompt benchmark before using new accuracy claims in the demo.**
+Both reported zero invented shifts in that historical evaluation. These are **synthetic benchmark figures**, not general real-world accuracy guarantees and **not** a remeasurement of the revised V1 worker-identification prompt. Two image headers in samples 5 and 6 are **ambiguous by design** (department versus location); the frozen answer key was not changed after seeing the results. Header interpretation and worker attribution remain areas to evaluate. The optional comparator's attribution-aware mode was added in the V1 fix branch; historical benchmark files were left unchanged. **Rerun/approve the revised-prompt benchmark before using new accuracy claims in the demo.**
 
 ## Deployment and production-readiness limits
 
 - The repository includes a Firebase Hosting SPA configuration and a Python Cloud Run-compatible Dockerfile. Hosting the frontend does **not** itself mean the API is reachable; the frontend build must point at the correct API origin, and CORS must allow the deployed frontend.
 - **No application login/authenticated worker ownership is implemented in the inspected V1 frontend/API flow.** The selectable workers are demo profiles, not authenticated user accounts.
-- The inspected frontend persists schedules, edits, and confirmation decisions in **browser `localStorage`**. Do **not** claim Firestore persistence, Cloud Storage retention, or cross-device synchronisation as implemented V1 features merely because they were architectural goals.
+- The inspected frontend persists schedules, edits, and confirmation decisions in **browser `localStorage`**. Do **not** claim Firestore persistence, Cloud Storage retention, or cross-device synchronisation as implemented V1 features merely because they were architectural goals. A Firestore database appearing as provisioned on the team deployment board does **not** establish that V1 is using it; Nandila should confirm the deployed backend wiring before making any persistence claim.
 - AI uploads may send schedule content to configured third-party model providers and incur usage charges. Provider approval, privacy disclosures, secure credentials, access controls, and data-retention decisions must be completed before handling real worker data.
 - No tax, deduction, overtime-pay, currency conversion, payroll disbursement, or verified travel-time calculations are implemented.
 - The separate `design/v1-ui-polish` redesign requires review and merging before it can be described as the deployed UI.
@@ -179,6 +191,8 @@ Both reported zero invented shifts in that historical evaluation. These are **sy
 | [`backend/app/services/extraction_service.py`](backend/app/services/extraction_service.py) | Extraction API service, upload validation, orchestrator wiring. |
 | [`ai_extraction/`](ai_extraction/) | Model adapters, prompts, PDF/image processing, safeguards, benchmark tools. |
 | [`data_validation/`](data_validation/) | Synthetic test data, expected results, and comparison tooling. |
+| [`data_validation/docs/validation_quality_report.md`](data_validation/docs/validation_quality_report.md) | Synthetic planted-error detection, false-alarm results, and confirmation limitations. |
+| [`docs/technical_architecture.md`](docs/technical_architecture.md) | V1 component responsibilities, data flow, API contracts and deployment boundaries. |
 | [`docs/product_mvp_spec.md`](docs/product_mvp_spec.md) | Product requirements and acceptance rules. |
 | [`Dockerfile`](Dockerfile) / [`firebase.json`](firebase.json) | Container and frontend hosting configuration. |
 
