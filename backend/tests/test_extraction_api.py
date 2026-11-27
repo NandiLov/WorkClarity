@@ -45,6 +45,14 @@ def test_cached_orchestrator_uses_environment_configuration(monkeypatch):
     finally:
         extraction_service._cached_orchestrator = None
 
+def test_fallback_is_disabled_by_default(monkeypatch):
+    """Fallback should remain disabled when no environment setting is provided."""
+    monkeypatch.delenv("AI_EXTRACTION_FALLBACK_ENABLED", raising=False)
+
+    config = ExtractionServiceConfig.from_env()
+
+    assert config.fallback_enabled is False
+
 
 # Minimal 1-page valid PDF starting with %PDF-1.4
 MINIMAL_PDF_BYTES = (
