@@ -2888,13 +2888,8 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
         self.assertEqual(cfg.resolved_primary_provider, "gemini")
         self.assertEqual(cfg.resolved_primary_model_id, DEFAULT_PRIMARY_MODEL)
         self.assertEqual(cfg.resolved_primary_model_id, "gemini-3.5-flash-lite")
-        self.assertEqual(cfg.resolved_fallback_provider, DEFAULT_FALLBACK_PROVIDER)
-        self.assertEqual(cfg.resolved_fallback_provider, "nvidia")
-        self.assertEqual(cfg.resolved_fallback_model_id, DEFAULT_FALLBACK_MODEL)
-        self.assertEqual(
-            cfg.resolved_fallback_model_id,
-            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-        )
+        self.assertIsNone(cfg.resolved_fallback_provider)
+        self.assertIsNone(cfg.resolved_fallback_model_id)
 
         primary_calls = 0
         fallback_calls = 0
@@ -4292,7 +4287,10 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
         # Env loader selects distinct opposite default fallback when primary is nvidia
         with patch.dict(
             os.environ,
-            {"AI_EXTRACTION_PRIMARY_PROVIDER": "nvidia"},
+            {
+                "AI_EXTRACTION_PRIMARY_PROVIDER": "nvidia",
+                "AI_EXTRACTION_FALLBACK_ENABLED": "true",
+            },
             clear=True,
         ):
             env_cfg = ExtractionServiceConfig.from_env()
