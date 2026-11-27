@@ -207,4 +207,4 @@ Both reported zero invented shifts in that historical evaluation. These are **sy
 
 Created for the **Mentor Me Collective × Google Cloud Launchpad** hackathon. Target submission: **28 November 2026**.
 
-> This README documents the inspected `feature/workclarity-v1-mvp` source at commit `a48d241`, plus clearly attributed team-reported deployment/test results. It is not a certification of production readiness.
+> This README documents the V1 implementation in the `feature/workclarity-v1-mvp` branch, including its current functionality, verification evidence, and known limitations. It is not a certification of production readiness.
