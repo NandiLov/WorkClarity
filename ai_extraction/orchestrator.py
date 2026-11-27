@@ -128,7 +128,7 @@ class ExtractionServiceConfig:
 
     primary_provider: str = DEFAULT_PRIMARY_PROVIDER
     primary_model_id: str | None = None
-    fallback_enabled: bool = True
+    fallback_enabled: bool = False
     fallback_provider: str | None = DEFAULT_FALLBACK_PROVIDER
     fallback_model_id: str | None = None
     primary_max_retries: int = 2
