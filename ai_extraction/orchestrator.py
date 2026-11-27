@@ -255,7 +255,7 @@ class ExtractionServiceConfig:
         return cls(
             primary_provider=primary,
             primary_model_id=os.environ.get("AI_EXTRACTION_PRIMARY_MODEL") or None,
-            fallback_enabled=_parse_bool_env("AI_EXTRACTION_FALLBACK_ENABLED", True),
+            fallback_enabled=_parse_bool_env("AI_EXTRACTION_FALLBACK_ENABLED", False),
             fallback_provider=fallback_provider,
             fallback_model_id=os.environ.get("AI_EXTRACTION_FALLBACK_MODEL") or None,
             primary_max_retries=_parse_int_env("AI_EXTRACTION_PRIMARY_MAX_RETRIES", 2),
