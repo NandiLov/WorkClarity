@@ -81,7 +81,7 @@ The backend environment variable `AI_EXTRACTION_FALLBACK_ENABLED` controls wheth
 Only enable NVIDIA fallback in a controlled demonstration environment using synthetic data. Keep it disabled on the public deployment until NVIDIA's data-processing terms and privacy requirements have been reviewed and approved.
 
 ```env
-AI_EXTRACTION_FALLBACK_ENABLED=true
+AI_EXTRACTION_FALLBACK_ENABLED=false
 ```
 
 To disable NVIDIA fallback:
