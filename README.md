@@ -66,6 +66,45 @@ The extraction endpoint validates file extensions, file signatures, and the **20
 - A failed or partial extraction must be handled as such; the worker may need to enter missing shifts manually.
 - `high`, `medium`, and `low` AI confidence are qualitative review indicators. The frontend does **not** map these to made-up numeric confidence values. The backend's legacy numeric FL06 threshold remains separate.
 
+### AI provider data handling and demonstration configuration
+
+WorkClarity uses Gemini as its primary AI extraction provider and supports NVIDIA as an optional fallback provider.
+
+When fallback is enabled, schedule content may be sent to NVIDIA if Gemini encounters an eligible failure. Both providers must therefore be considered when reviewing data privacy and processing requirements.
+
+The current MVP uses free-tier services for development, testing, and demonstration. Use synthetic or fictional schedule data only. Do not submit real workers' personal or confidential information through the current configuration.
+
+**Enabling and disabling NVIDIA fallback**
+
+The backend environment variable `AI_EXTRACTION_FALLBACK_ENABLED` controls whether NVIDIA fallback is enabled.
+
+Only enable NVIDIA fallback in a controlled demonstration environment using synthetic data. Keep it disabled on the public deployment until NVIDIA's data-processing terms and privacy requirements have been reviewed and approved.
+
+```env
+AI_EXTRACTION_FALLBACK_ENABLED=true
+```
+
+To disable NVIDIA fallback:
+
+```env
+AI_EXTRACTION_FALLBACK_ENABLED=false
+```
+
+Fallback is disabled by default when the environment variable is not set or is set to false. After changing the variable, restart the backend or deploy a new Cloud Run revision for the change to take effect.
+
+**Production requirements**
+
+Before processing real workers' personal schedule data, the team must:
+
+1. Review the data-processing terms and privacy protections of Gemini and NVIDIA.
+2. Evaluate appropriate paid service options and data protection arrangements.
+3. Confirm applicable data-processing agreements and provider approvals.
+4. Update the privacy notice to identify providers, explain what information is processed, and describe its purpose and handling.
+5. Keep NVIDIA fallback disabled until its provider review and approval are complete.
+6. Complete the necessary privacy and security review before production launch.
+
+Upgrading to paid services may be necessary to obtain suitable data-processing protections. A paid subscription alone does not automatically establish compliance or user consent.
+
 Read [AI extraction documentation](ai_extraction/README.md) for provider defaults, retries, configuration, benchmarks, and failure classification.
 
 ## Earnings and validation rules
@@ -124,7 +163,7 @@ If using Windows PowerShell, activate the virtual environment with `.venv\Script
 | `GEMINI_API_KEY` | Authenticates live Gemini extraction. |
 | `NVIDIA_API_KEY` | Authenticates live NVIDIA fallback/extraction. |
 | `AI_EXTRACTION_PRIMARY_PROVIDER` | `gemini` (default) or `nvidia`. |
-| `AI_EXTRACTION_FALLBACK_ENABLED` | `true` (default) or `false`; disable for Gemini-only local testing. |
+| `AI_EXTRACTION_FALLBACK_ENABLED` | `false` (default) or `true`; enables NVIDIA fallback when Gemini fails under eligible conditions. |
 | `AI_EXTRACTION_FALLBACK_PROVIDER` | Selects fallback provider (`nvidia` by default). |
 | `AI_EXTRACTION_PRIMARY_MODEL`, `AI_EXTRACTION_FALLBACK_MODEL` | Optional model overrides. |
 | `AI_EXTRACTION_TIMEOUT_SECONDS`, `AI_EXTRACTION_TOTAL_DEADLINE_SECONDS` | Per-attempt and total extraction deadlines. |
