@@ -34,6 +34,24 @@ WorkClarity is a hackathon-stage web application for hourly workers who juggle s
 
 AI extraction is not a payroll calculator. The Python service, rather than the AI model or React frontend, calculates paid time and estimated earnings.
 
+## Presentation and Product Demo
+
+The following resources provide an overview of WorkClarity and demonstrate the V1 MVP workflow.
+
+- **Presentation Deck:** [View WorkClarity Presentation](https://docs.google.com/presentation/d/1dr2kxVFOMI8prMQl-USqAvN6wGwQuQqD-49nhLssaek/edit?usp=drive_link)
+- **Product Demo Video:** [Watch WorkClarity Demo](https://drive.google.com/file/d/1nDgNlAL2JiLfFszZSIZFZwxLqqiqWP7J/view?usp=drive_link)
+
+The presentation and walkthrough cover the problem WorkClarity addresses, its alignment with SDG 8: Decent Work and Economic Growth, the technology architecture, and the core workflow:
+
+1. CSV schedule import.
+2. PDF and image-based AI schedule extraction.
+3. Shift review and correction.
+4. Validation and conflict detection.
+5. Individual shift confirmation.
+6. Weekly scheduling and estimated gross earnings.
+
+All demonstration data is synthetic. The video demonstrates the application's current V1 functionality and is not a production-readiness certification.
+
 ## Architecture
 
 | Layer | Technology | What it does |
