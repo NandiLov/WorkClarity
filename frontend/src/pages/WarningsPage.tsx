@@ -12,7 +12,11 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { FlagBadge } from '../components/shifts/FlagBadge'
+import {
+  AiExtractionBadge,
+  FlagBadge,
+  WorkerAttributionBadge,
+} from '../components/shifts/FlagBadge'
 import { ShiftEditModal } from '../components/shifts/ShiftEditModal'
 import { TechnicalDetailsDisclosure } from '../components/shifts/TechnicalDetailsDisclosure'
 import { useSchedule } from '../context/scheduleContextStore'
@@ -22,11 +26,14 @@ import { formatDateDisplay } from '../utils/formatters'
 export function WarningsPage() {
   const {
     shifts,
+    workerId,
+    workers,
     conflicts,
     commuteNotAssessed,
     isCalculationStale,
     updateShift,
     setShiftConfirmation,
+    confirmWorkerAssignment,
     resetShiftToExtracted,
     addManualShift,
   } = useSchedule()
@@ -85,7 +92,7 @@ export function WarningsPage() {
             to="/upload"
             className="mt-4 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            Upload CSV Schedule
+            Upload Schedule
           </Link>
         </div>
       ) : isCalculationStale ? (
@@ -374,6 +381,11 @@ export function WarningsPage() {
               <div className="space-y-2.5">
                 {detailIssueShifts.map((shift) => {
                   const missingBreak = shift.current.break_minutes.trim() === ''
+                  const requiresWorkerAssignment =
+                    shift.is_ai_extracted &&
+                    shift.ai_metadata?.worker_attribution_status ===
+                      'ambiguous_or_unverified' &&
+                    !shift.ai_metadata?.worker_assignment_confirmed_by_user
                   const canQuickConfirm =
                     shift.confirmation_status !== 'confirmed' &&
                     shift.calculated?.validation_status !== 'invalid' &&
@@ -396,6 +408,20 @@ export function WarningsPage() {
                             {shift.current.end_time || '??:??'})
                           </div>
                           <div className="flex flex-wrap gap-1.5">
+                            {shift.is_ai_extracted && (
+                              <AiExtractionBadge
+                                confidence={shift.ai_metadata?.confidence}
+                                provider={shift.ai_metadata?.provider}
+                              />
+                            )}
+                            {shift.ai_metadata?.worker_attribution_status && (
+                              <WorkerAttributionBadge
+                                status={
+                                  shift.ai_metadata.worker_attribution_status
+                                }
+                                workerName={shift.ai_metadata.worker_name}
+                              />
+                            )}
                             {shift.calculated?.flags.map((flag, idx) => (
                               <FlagBadge
                                 key={`${flag.code}-${idx}`}
@@ -427,21 +453,35 @@ export function WarningsPage() {
                               Confirm 0 min break
                             </button>
                           )}
-                          {canQuickConfirm && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setShiftConfirmation(
-                                  shift.shift_id,
-                                  'confirmed',
-                                )
-                              }
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Confirm Shift
-                            </button>
-                          )}
+                          {canQuickConfirm &&
+                            (requiresWorkerAssignment ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  confirmWorkerAssignment(shift.shift_id)
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Assign to{' '}
+                                {workers.find((w) => w.worker_id === workerId)
+                                  ?.worker_name ?? 'Selected Worker'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShiftConfirmation(
+                                    shift.shift_id,
+                                    'confirmed',
+                                  )
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                                Confirm Shift
+                              </button>
+                            ))}
                           <button
                             type="button"
                             onClick={() => setEditingShift(shift)}

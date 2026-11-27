@@ -1,5 +1,8 @@
 # WorkClarity Frontend — Test & Verification Report
 
+> **V1 update (25 November 2026):** This is a **historical test report from 19 November** (33 frontend tests on an earlier branch). Subsequent integrated V1 review on commit `a48d241` reported **40 frontend** and **211 Python** tests passing. The section 5 observations about missing CORS, duplicate-overlap double reporting, and non-finite numeric validation are **superseded** by later fixes; retain them as dated findings, not current blockers. See [technical architecture](../docs/technical_architecture.md).
+
+
 **Branch:** `feature/earnings-ux-refinements`  
 **Base Main Commit:** `24c8e9c`  
 **Backend Under Test:** FastAPI `0.162.5` + Uvicorn `0.54.0` (`http://127.0.0.1:8000`, unmodified)  

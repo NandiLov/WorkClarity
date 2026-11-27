@@ -13,9 +13,11 @@ import {
 import { Link } from 'react-router-dom'
 import { DiffPill } from '../components/shifts/DiffPill'
 import {
+  AiExtractionBadge,
   ConfirmationBadge,
   EarningsStatusBadge,
   FlagBadge,
+  WorkerAttributionBadge,
 } from '../components/shifts/FlagBadge'
 import { ShiftEditModal } from '../components/shifts/ShiftEditModal'
 import { TechnicalDetailsDisclosure } from '../components/shifts/TechnicalDetailsDisclosure'
@@ -33,6 +35,8 @@ type ReviewFilter = 'attention' | 'counted' | 'cancelled' | 'rejected' | 'all'
 export function ReviewPage() {
   const {
     shifts,
+    workerId,
+    workers,
     backendStatus,
     isRecalculating,
     isCalculationStale,
@@ -40,6 +44,7 @@ export function ReviewPage() {
     canBulkConfirm,
     updateShift,
     setShiftConfirmation,
+    confirmWorkerAssignment,
     confirmReadyShifts,
     resetShiftToExtracted,
     addManualShift,
@@ -118,7 +123,12 @@ export function ReviewPage() {
       : isRecalculating || isCalculationStale
         ? 'Waiting for latest validation results…'
         : readyToConfirmCount === 0
-          ? 'No validated unconfirmed shifts are ready.'
+          ? shifts.some(
+              (s) =>
+                s.is_ai_extracted && s.confirmation_status === 'needs_review',
+            )
+            ? 'AI-extracted shifts require individual review and confirmation.'
+            : 'No validated unconfirmed shifts are ready.'
           : undefined
 
   return (
@@ -289,6 +299,18 @@ export function ReviewPage() {
                             status={calc?.earnings_status}
                             stale={isCalculationStale}
                           />
+                          {shift.is_ai_extracted && (
+                          <AiExtractionBadge
+                              confidence={shift.ai_metadata?.confidence}
+                              provider={shift.ai_metadata?.provider}
+                            />
+                          )}
+                          {shift.ai_metadata?.worker_attribution_status && (
+                            <WorkerAttributionBadge
+                              status={shift.ai_metadata.worker_attribution_status}
+                              workerName={shift.ai_metadata.worker_name}
+                            />
+                          )}
                           {overnight && (
                             <span className="inline-flex items-center gap-1 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-800">
                               <Moon className="h-3 w-3" />
@@ -453,22 +475,35 @@ export function ReviewPage() {
                           Edit Details
                         </button>
 
-                        {shift.confirmation_status !== 'confirmed' &&
-                          shift.confirmation_status !== 'rejected' && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setShiftConfirmation(
-                                  shift.shift_id,
-                                  'confirmed',
-                                )
-                              }
-                              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              Confirm Shift
-                            </button>
-                          )}
+{shift.confirmation_status !== 'confirmed' &&
+  shift.confirmation_status !== 'rejected' && (
+    <>
+      {shift.is_ai_extracted &&
+      shift.ai_metadata?.worker_attribution_status ===
+        'ambiguous_or_unverified' &&
+      !shift.ai_metadata?.worker_assignment_confirmed_by_user ? (
+        <button
+          type="button"
+          onClick={() => confirmWorkerAssignment(shift.shift_id)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Assign to {workers.find((w) => w.worker_id === workerId)?.worker_name ?? 'Selected Worker'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() =>
+            setShiftConfirmation(shift.shift_id, 'confirmed')
+          }
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+        >
+          <Check className="h-3.5 w-3.5" />
+          Confirm Shift
+        </button>
+      )}
+    </>
+  )}
 
                         {shift.confirmation_status !== 'rejected' ? (
                           <button

@@ -10,6 +10,7 @@ import {
   ApiClientError,
   calculateShifts,
   checkHealth,
+  extractScheduleFile,
 } from '../api/shiftsApi'
 import { DEMO_WORKERS, SCHEDULE_PRESETS } from '../data/syntheticSchedules'
 import type {
@@ -18,13 +19,15 @@ import type {
   ConfirmationStatus,
   CsvParseResult,
   EditableShiftValues,
+  ExtractionIntegrationResult,
   HealthResponse,
   ShiftConflict,
+  ShiftExtractionResponse,
   ShiftRecord,
   UploadMode,
   WeeklySummaryItem,
 } from '../types/shift'
-import { parseScheduleCsv } from '../utils/csvParser'
+import { createScheduleId, parseScheduleCsv } from '../utils/csvParser'
 import {
   ScheduleContext,
   type BackendConnectionStatus,
@@ -67,6 +70,13 @@ function haveShiftValuesChanged(
 
 function isShiftReadyForBulkConfirm(rec: ShiftRecord): boolean {
   if (rec.confirmation_status !== 'unconfirmed') return false
+  if (
+    rec.is_ai_extracted ||
+    rec.ai_metadata?.eligible_for_bulk_confirmation === false ||
+    rec.ai_metadata?.requires_individual_review
+  ) {
+    return false
+  }
   if (!rec.calculated) return false
   if (rec.calculated.validation_status === 'invalid') return false
   const hasBlockingFlag = rec.calculated.flags.some(
@@ -432,6 +442,221 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     [workerId],
   )
 
+  const uploadExtractionResult = useCallback(
+    (
+      extraction: ShiftExtractionResponse,
+      options?: { mode?: UploadMode },
+    ): ExtractionIntegrationResult => {
+      const existingShifts = shiftsSnapshotRef.current
+      const mode: UploadMode =
+        existingShifts.length === 0 ? 'replace' : (options?.mode ?? 'append')
+      const existingScheduleIds =
+        mode === 'append'
+          ? new Set(existingShifts.map((s) => s.schedule_id))
+          : undefined
+
+      const scheduleId = createScheduleId(
+        extraction.file_name,
+        undefined,
+        existingScheduleIds,
+      )
+
+      const errors: string[] = []
+      const warnings: string[] = []
+
+      if (extraction.shifts.length === 0) {
+        if (!extraction.succeeded) {
+          errors.push(
+            extraction.manual_entry_reason ||
+              'Schedule extraction could not extract shifts from the provided document.',
+          )
+        } else if (extraction.is_empty_schedule) {
+          errors.push(
+            extraction.manual_entry_reason ||
+              'The uploaded document contains no scheduled shifts for this period. Please verify or enter shifts manually.',
+          )
+        } else {
+          errors.push(
+            'No valid shifts could be extracted from this document. Manual entry is required.',
+          )
+        }
+
+        return {
+          ok: false,
+          scheduleId,
+          fileName: extraction.file_name,
+          shifts: [],
+          extraction,
+          errors,
+          warnings,
+        }
+      }
+
+      if (extraction.is_partial) {
+        warnings.push(
+          extraction.manual_entry_reason ||
+            'Only part of the schedule could be extracted. Please review every shift and enter any missing shifts manually.',
+        )
+      }
+
+      if (extraction.fallback_triggered && extraction.active_provider) {
+        warnings.push(
+          `Primary provider was unavailable. Shifts were extracted using fallback provider (${extraction.active_provider}).`,
+        )
+      }
+
+      const nowIso = new Date().toISOString()
+      const convertedShifts: ShiftRecord[] = extraction.shifts.map(
+        (item, index) => {
+          const lineNo = item.source_row ?? index + 1
+          const shiftId = `${scheduleId}-AI${String(index + 1).padStart(2, '0')}`
+
+          const extractedValues: EditableShiftValues = {
+            shift_date: item.normalised.shift_date ?? '',
+            start_time: item.normalised.start_time ?? '',
+            end_time: item.normalised.end_time ?? '',
+            end_date: '',
+            break_minutes: item.normalised.break_minutes != null ? String(item.normalised.break_minutes) : '',
+            employer_name: item.normalised.employer_name ?? '',
+            location: item.normalised.location ?? '',
+            department: item.normalised.department ?? '',
+            hourly_rate: item.normalised.hourly_rate != null ? String(item.normalised.hourly_rate) : '',
+            currency: item.normalised.currency ?? '',
+            shift_status: item.normalised.shift_status ?? 'scheduled',
+            stated_hours: '',
+          }
+
+          // Individual confirmation is mandatory for all AI-extracted shifts
+          const record: ShiftRecord = {
+            shift_id: shiftId,
+            worker_id: workerId,
+            schedule_id: scheduleId,
+            line_no: lineNo,
+            source_line: item.raw_values
+              ? JSON.stringify(item.raw_values)
+              : JSON.stringify(item.normalised),
+            extracted: { ...extractedValues },
+            current: { ...extractedValues },
+            confirmation_status: 'needs_review',
+            calculated: null,
+            updated_at: nowIso,
+            is_ai_extracted: true,
+            ai_metadata: {
+              confidence: item.confidence,
+              provider: extraction.active_provider,
+              model_id: extraction.active_model_id,
+              worker_name: item.worker_name,
+              worker_attribution_status: item.worker_attribution_status,
+              source_page: item.source_page,
+              source_row: item.source_row,
+              requires_individual_review: true,
+              eligible_for_bulk_confirmation: false,
+              review_reasons: item.review_reasons ?? [],
+              uncertain_fields: item.uncertain_fields ?? [],
+              validation_warnings: item.validation_warnings ?? [],
+            },
+          }
+
+          return record
+        },
+      )
+
+      if (
+        convertedShifts.some(
+          (s) =>
+            s.ai_metadata?.worker_attribution_status ===
+            'ambiguous_or_unverified',
+        )
+      ) {
+        warnings.push(
+          'One or more shifts have ambiguous worker attribution. Please verify worker names before confirming.',
+        )
+      }
+
+      if (mode === 'append' && existingShifts.length > 0) {
+        const existingKeys = new Set(
+          existingShifts
+            .filter((s) => s.confirmation_status !== 'rejected')
+            .map((s) => shiftDuplicateKey(s.current)),
+        )
+        const matchingDuplicates = convertedShifts.filter((s) =>
+          existingKeys.has(shiftDuplicateKey(s.current)),
+        ).length
+        if (matchingDuplicates > 0) {
+          warnings.push(
+            `${matchingDuplicates} extracted shift(s) match existing shifts (same date, times, and location) and will be held for review so earnings are never double-counted.`,
+          )
+        }
+
+        const nextFiles = [
+          ...uploadedFilesSnapshotRef.current,
+          extraction.file_name,
+        ]
+        setIsCalculationStale(true)
+        setUploadedFiles(nextFiles)
+        setActiveFileName(formatUploadedFilesSummary(nextFiles))
+        setShifts((prev) => [...prev, ...convertedShifts])
+      } else {
+        const nextFiles = [extraction.file_name]
+        setIsCalculationStale(true)
+        setUploadedFiles(nextFiles)
+        setActiveFileName(extraction.file_name)
+        setShifts(convertedShifts)
+        setSelectedWeek(null)
+        setWeeklySummary([])
+        setConflicts([])
+        setCommuteNotAssessed([])
+      }
+
+      return {
+        ok: errors.length === 0,
+        scheduleId,
+        fileName: extraction.file_name,
+        shifts: convertedShifts,
+        extraction,
+        errors,
+        warnings,
+      }
+    },
+    [workerId],
+  )
+
+  const extractAndUploadFile = useCallback(
+    async (
+      file: File,
+      options?: {
+        mode?: UploadMode
+        targetWorker?: string
+      },
+    ): Promise<ExtractionIntegrationResult> => {
+      try {
+        const activeWorkerName =
+          DEMO_WORKERS.find((w) => w.worker_id === workerId)?.worker_name ??
+          workerId
+        const targetWorker = options?.targetWorker ?? activeWorkerName
+
+        const extraction = await extractScheduleFile(file, { targetWorker })
+        return uploadExtractionResult(extraction, { mode: options?.mode })
+      } catch (err) {
+        const errorMsg =
+          err instanceof ApiClientError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : 'Failed to extract shifts from the uploaded document.'
+        return {
+          ok: false,
+          scheduleId: '',
+          fileName: file.name,
+          shifts: [],
+          errors: [errorMsg],
+          warnings: [],
+        }
+      }
+    },
+    [workerId, uploadExtractionResult],
+  )
+
   const loadPresetSchedule = useCallback(
     (presetId: string): CsvParseResult | null => {
       const preset = SCHEDULE_PRESETS.find((p) => p.id === presetId)
@@ -472,12 +697,22 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           const nextCurrent: EditableShiftValues = { ...rec.current, ...changes }
           const detailChanged = haveShiftValuesChanged(rec.current, nextCurrent)
 
+          const requiresWorkerAssignment =
+            rec.is_ai_extracted &&
+            rec.ai_metadata?.worker_attribution_status ===
+              'ambiguous_or_unverified' &&
+            !rec.ai_metadata?.worker_assignment_confirmed_by_user
+
           let nextStatus: ConfirmationStatus
           if (explicitConfirmationStatus !== undefined) {
-            nextStatus = explicitConfirmationStatus
+            nextStatus =
+              explicitConfirmationStatus === 'confirmed' &&
+              requiresWorkerAssignment
+                ? rec.confirmation_status
+                : explicitConfirmationStatus
           } else if (detailChanged && rec.confirmation_status === 'confirmed') {
             // Any edit to details of a previously confirmed shift requires renewed confirmation
-            nextStatus = 'unconfirmed'
+            nextStatus = rec.is_ai_extracted ? 'needs_review' : 'unconfirmed'
           } else {
             nextStatus = rec.confirmation_status
           }
@@ -497,20 +732,70 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const setShiftConfirmation = useCallback(
-    (shiftId: string, status: ConfirmationStatus) => {
-      setIsCalculationStale(true)
+const setShiftConfirmation = useCallback(
+  (shiftId: string, status: ConfirmationStatus) => {
+    const now = new Date().toISOString()
+
+    setShifts((prev) =>
+      prev.map((rec) => {
+        if (rec.shift_id !== shiftId) return rec
+
+        // Do not confirm an AI-extracted shift until its worker
+        // attribution has been verified or explicitly assigned.
+        if (
+          status === 'confirmed' &&
+          rec.is_ai_extracted &&
+          rec.ai_metadata?.worker_attribution_status ===
+            'ambiguous_or_unverified' &&
+          !rec.ai_metadata?.worker_assignment_confirmed_by_user
+        ) {
+          return rec
+        }
+
+        return {
+          ...rec,
+          confirmation_status: status,
+          updated_at: now,
+        }
+      }),
+    )
+
+    setIsCalculationStale(true)
+  },
+  [],
+)
+
+  const confirmWorkerAssignment = useCallback(
+    (shiftId: string) => {
       const now = new Date().toISOString()
+
       setShifts((prev) =>
-        prev.map((rec) =>
-          rec.shift_id === shiftId
-            ? { ...rec, confirmation_status: status, updated_at: now }
-            : rec,
-        ),
-      )
-    },
-    [],
-  )
+        prev.map((rec) => {
+          if (
+            rec.shift_id !== shiftId ||
+            !rec.is_ai_extracted ||
+            !rec.ai_metadata ||
+            rec.ai_metadata.worker_attribution_status !==
+              'ambiguous_or_unverified' ||
+            rec.ai_metadata.worker_assignment_confirmed_by_user ||
+            rec.confirmation_status !== 'needs_review'
+          ) {
+            return rec
+          }
+
+        return {
+          ...rec,
+          ai_metadata: {
+            ...rec.ai_metadata,
+            worker_assignment_confirmed_by_user: true,
+          },
+          updated_at: now,
+        }
+      }),
+    )
+  },
+  [],
+)
 
   const readyToConfirmCount = useMemo(
     () => shifts.filter(isShiftReadyForBulkConfirm).length,
@@ -558,7 +843,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
               ...rec,
               previous_current: undefined,
               current: { ...rec.extracted },
-              confirmation_status: 'unconfirmed',
+              confirmation_status: rec.is_ai_extracted
+                ? 'needs_review'
+                : 'unconfirmed',
               updated_at: now,
             }
           : rec,
@@ -678,9 +965,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     canBulkConfirm,
     selectWorker,
     uploadCsvText,
+    uploadExtractionResult,
+    extractAndUploadFile,
     loadPresetSchedule,
     updateShift,
     setShiftConfirmation,
+    confirmWorkerAssignment,
     confirmReadyShifts,
     resetShiftToExtracted,
     addManualShift,

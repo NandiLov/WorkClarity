@@ -2,6 +2,7 @@ import type {
   HealthResponse,
   ShiftCalculationRequestPayload,
   ShiftCalculationResponse,
+  ShiftExtractionResponse,
   ShiftRecord,
 } from '../types/shift'
 
@@ -154,4 +155,52 @@ export async function calculateShifts(
   }
 
   return (await response.json()) as ShiftCalculationResponse
+}
+
+export interface ExtractScheduleFileOptions {
+  targetWorker?: string
+  signal?: AbortSignal
+}
+
+/**
+ * Send an unstructured schedule document (PDF, PNG, JPEG, WebP) to POST /api/v1/shifts/extract.
+ * Uses FormData without manual Content-Type header so the browser sets the multipart boundary.
+ */
+export async function extractScheduleFile(
+  file: File,
+  options?: ExtractScheduleFileOptions,
+): Promise<ShiftExtractionResponse> {
+  const url = `${getApiBaseUrl()}/api/v1/shifts/extract`
+  const formData = new FormData()
+  formData.append('file', file)
+  if (options?.targetWorker && options.targetWorker.trim()) {
+    formData.append('target_worker', options.targetWorker.trim())
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
+      body: formData,
+      signal: options?.signal,
+    })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    throw new ApiClientError(
+      'Unable to connect to the WorkClarity extraction service. Ensure the FastAPI backend is running.',
+      undefined,
+      true,
+    )
+  }
+
+  if (!response.ok) {
+    throw new ApiClientError(await parseErrorDetail(response), response.status)
+  }
+
+  return (await response.json()) as ShiftExtractionResponse
 }

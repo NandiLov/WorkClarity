@@ -25,3 +25,17 @@ htmlcov/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# AI extraction temporary benchmark outputs and backups
+ai_extraction/benchmark_output/
+benchmark_output/
+*benchmark_backup*/
+*v1_baseline*/
+extracted.csv
+extracted_review_queue.csv
+differences.csv
+
+# Historical NVIDIA benchmark backup
+/ai_extraction/benchmark_output_nvidia_v1/
+
+.firebase/

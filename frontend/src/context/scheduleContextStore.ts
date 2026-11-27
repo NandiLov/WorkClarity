@@ -5,8 +5,10 @@ import type {
   ConfirmationStatus,
   CsvParseResult,
   EditableShiftValues,
+  ExtractionIntegrationResult,
   HealthResponse,
   ShiftConflict,
+  ShiftExtractionResponse,
   ShiftRecord,
   UploadMode,
   WeeklySummaryItem,
@@ -55,6 +57,17 @@ export interface ScheduleContextValue {
       useCsvConfirmationColumn?: boolean
     },
   ) => CsvParseResult
+  uploadExtractionResult: (
+    extraction: ShiftExtractionResponse,
+    options?: { mode?: UploadMode },
+  ) => ExtractionIntegrationResult
+  extractAndUploadFile: (
+    file: File,
+    options?: {
+      mode?: UploadMode
+      targetWorker?: string
+    },
+  ) => Promise<ExtractionIntegrationResult>
   loadPresetSchedule: (presetId: string) => CsvParseResult | null
   updateShift: (
     shiftId: string,
@@ -62,6 +75,7 @@ export interface ScheduleContextValue {
     confirmationStatus?: ConfirmationStatus,
   ) => void
   setShiftConfirmation: (shiftId: string, status: ConfirmationStatus) => void
+  confirmWorkerAssignment: (shiftId: string) => void
   confirmReadyShifts: () => number
   resetShiftToExtracted: (shiftId: string) => void
   addManualShift: (values: EditableShiftValues) => void

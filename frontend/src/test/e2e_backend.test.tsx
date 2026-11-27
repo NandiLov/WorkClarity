@@ -1196,12 +1196,12 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       screen.getByRole('radio', { name: /Replace existing schedule/i }),
     )
 
-    // Warning is displayed and Select CSV File is disabled until checkbox is confirmed
+    // Warning is displayed and Select Schedule File is disabled until checkbox is confirmed
     expect(
       screen.getByText(/Warning: Replacing will permanently remove 3 existing shift/i),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: /Select CSV File/i }),
+      screen.getByRole('button', { name: /Select Schedule File/i }),
     ).toBeDisabled()
 
     await user.click(
@@ -1210,7 +1210,7 @@ describe('WorkClarity E2E integration against live FastAPI backend', () => {
       }),
     )
     expect(
-      screen.getByRole('button', { name: /Select CSV File/i }),
+      screen.getByRole('button', { name: /Select Schedule File/i }),
     ).toBeEnabled()
 
     await uploadCsvFileInUi(user, 'S004_schedule.csv', s004Csv)

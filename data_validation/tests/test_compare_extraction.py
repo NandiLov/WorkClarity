@@ -186,3 +186,144 @@ def test_the_csv_report_labels_invented_and_dropped_details(tmp_path):
     tool.write_report_csv(tool.compare(key, got), str(out))
     kinds = [r["problem"] for r in tool.read_csv(str(out))]
     assert "invented_detail" in kinds and "dropped_detail" in kinds
+
+
+def test_opt_in_attribution_mode_separates_raw_shift_detection_from_target_attribution():
+    # Synthetic multi-worker rota with two Adas (Ada Okoye = target, Ada Lovelace = ambiguous, Ben Carter = other)
+    # plus one target shift whose printed name was blank (ambiguous target match).
+    def _shift(date, start, end, worker_name="", attribution=""):
+        row = {
+            "file_name": "synthetic_two_adas.jpg",
+            "shift_date": date,
+            "start_time": start,
+            "end_time": end,
+            "break_minutes": "30",
+            "employer_name": "Grand Hotel",
+            "location": "Hotel Front",
+            "department": "Banquets",
+            "hourly_rate": "16.00",
+            "currency": "USD",
+            "shift_status": "scheduled",
+        }
+        if worker_name != "":
+            row["worker_name"] = worker_name
+        if attribution != "":
+            row["worker_attribution_status"] = attribution
+        return row
+
+    target_key = [
+        _shift("2026-11-09", "08:00", "16:00", worker_name="Ada Okoye"),
+        _shift("2026-11-10", "08:00", "16:00", worker_name="Ada Okoye"),
+    ]
+    all_shifts_key = [
+        *target_key,
+        _shift("2026-11-11", "09:00", "17:00", worker_name="Ada Lovelace"),
+        _shift("2026-11-12", "10:00", "18:00", worker_name="Ben Carter"),
+    ]
+    got_all = [
+        _shift("2026-11-09", "08:00", "16:00", worker_name="Ada Okoye", attribution="verified_target_worker"),
+        _shift("2026-11-10", "08:00", "16:00", worker_name="", attribution="ambiguous_or_unverified"),
+        _shift("2026-11-11", "09:00", "17:00", worker_name="Ada Lovelace", attribution="ambiguous_or_unverified"),
+        _shift("2026-11-12", "10:00", "18:00", worker_name="Ben Carter", attribution="other_worker"),
+    ]
+
+    result = tool.compare_with_attribution(target_key, got_all, all_shifts_key=all_shifts_key)
+
+    # Raw shift detection across ALL 4 visible shifts is 100% (4/4 found, 0 missed, 0 invented).
+    raw_summary = result["raw_all_shifts"]["summary"]
+    assert raw_summary["expected"] == 4
+    assert raw_summary["matched"] == 4
+    assert raw_summary["missed"] == 0
+    assert raw_summary["invented"] == 0
+    assert raw_summary["earnings_critical_ok"] == 4
+
+    # Target-worker verified-only evaluation: 1 verified TP, 0 FP, 1 FN (the unnamed target shift held as ambiguous).
+    tv = result["target_verified"]["summary"]
+    assert tv["true_positives"] == 1
+    assert tv["false_positives"] == 0
+    assert tv["false_negatives"] == 1
+
+    # Attribution breakdown cleanly separates the 2 ambiguous rows instead of calling Ada Lovelace "invented".
+    att = result["attribution"]
+    assert att["status_counts"]["verified_target_worker"] == 1
+    assert att["status_counts"]["ambiguous_or_unverified"] == 2
+    assert att["status_counts"]["other_worker"] == 1
+    assert att["ambiguous_target_matches"] == 1
+    assert att["ambiguous_non_target_held"] == 1
+    # 3 of 4 worker_name values matched exactly (blank name on 2026-11-10 did not match "Ada Okoye").
+    assert att["worker_name_checked"] == 4
+    assert att["worker_name_ok"] == 3
+
+    # Legacy combined (verified + ambiguous) view still matches prior behavior for comparison.
+    vpa = result["target_verified_plus_ambiguous"]["summary"]
+    assert vpa["true_positives"] == 2
+    assert vpa["false_positives"] == 1
+    assert vpa["false_negatives"] == 0
+
+    text = tool.report_attribution(result)
+    assert "Raw shift detection (all visible shifts):" in text
+    assert "Target-worker attribution accuracy:" in text
+    assert "non-target held for review: 1" in text
+
+
+def test_opt_in_attribution_cli_and_dataset_relative_difficulty(tmp_path, capsys):
+    # Write a synthetic dataset directory with its own files.csv, answer_key.csv, all_shifts_key.csv, and got.csv
+    ds_dir = tmp_path / "synthetic_unseen"
+    ds_dir.mkdir()
+    with (ds_dir / "files.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["file_name", "difficulty"])
+        w.writeheader()
+        w.writerow({"file_name": "unseen_synth.jpg", "difficulty": "hard"})
+
+    cols = ["file_name", *tool.FIELDS, "worker_name", "worker_attribution_status"]
+    base = {
+        "file_name": "unseen_synth.jpg",
+        "shift_date": "2026-11-09",
+        "start_time": "08:00",
+        "end_time": "16:00",
+        "break_minutes": "30",
+        "employer_name": "Grand Hotel",
+        "location": "Hotel Front",
+        "department": "Banquets",
+        "hourly_rate": "16.00",
+        "currency": "USD",
+        "shift_status": "scheduled",
+    }
+    target_row = {**base, "worker_name": "Ada Okoye", "worker_attribution_status": "verified_target_worker"}
+    other_row = {
+        **base,
+        "shift_date": "2026-11-10",
+        "worker_name": "Ada Lovelace",
+        "worker_attribution_status": "ambiguous_or_unverified",
+    }
+
+    target_key_path = ds_dir / "answer_key.csv"
+    all_key_path = ds_dir / "all_shifts_key.csv"
+    got_path = ds_dir / "extracted_review_queue.csv"
+
+    for path, rows in (
+        (target_key_path, [target_row]),
+        (all_key_path, [target_row, other_row]),
+        (got_path, [target_row, other_row]),
+    ):
+        with path.open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=cols)
+            w.writeheader()
+            w.writerows(rows)
+
+    exit_code = tool.main(
+        [
+            "compare_extraction.py",
+            "--attribution",
+            "--all-shifts-key",
+            str(all_key_path),
+            str(got_path),
+            str(target_key_path),
+        ]
+    )
+    assert exit_code == 0
+    out = capsys.readouterr().out
+    assert "Raw shift detection (all visible shifts):" in out
+    assert "Expected: 2, Found: 2 (100.0%)" in out
+    assert "Verified target shifts: TP=1, FP=0, FN=0" in out
+    assert "hard       1 shifts" in out

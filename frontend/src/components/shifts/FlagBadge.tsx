@@ -2,15 +2,19 @@ import {
   AlertCircle,
   AlertTriangle,
   Ban,
+  Bot,
   CheckCircle2,
   Clock,
   Copy,
   Info,
+  UserCheck,
 } from 'lucide-react'
 import type {
   ConfirmationStatus,
   EarningsStatus,
+  ExtractionConfidence,
   ShiftFlag,
+  WorkerAttributionStatus,
 } from '../../types/shift'
 import { getFriendlyFlagLabel } from '../../utils/formatters'
 
@@ -142,4 +146,62 @@ export function FlagBadge({ flag }: { flag: ShiftFlag }) {
       <span>{friendlyLabel}</span>
     </span>
   )
+}
+
+export function AiExtractionBadge({
+  confidence = 'medium',
+  provider,
+}: {
+  confidence?: ExtractionConfidence
+  provider?: string | null
+}) {
+  const providerLabel = provider ? ` (${provider})` : ''
+  if (confidence === 'high') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+        <Bot className="h-3 w-3 text-emerald-600" />
+        <span>AI{providerLabel}: High confidence</span>
+      </span>
+    )
+  }
+  if (confidence === 'medium') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+        <Bot className="h-3 w-3 text-amber-600" />
+        <span>AI{providerLabel}: Medium confidence</span>
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-800">
+      <Bot className="h-3 w-3 text-rose-600" />
+      <span>AI{providerLabel}: Low confidence — review details</span>
+    </span>
+  )
+}
+
+export function WorkerAttributionBadge({
+  status,
+  workerName,
+}: {
+  status: WorkerAttributionStatus
+  workerName?: string | null
+}) {
+  if (status === 'verified_target_worker') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800">
+        <UserCheck className="h-3 w-3 text-teal-600" />
+        <span>Target worker: {workerName || 'verified'}</span>
+      </span>
+    )
+  }
+  if (status === 'ambiguous_or_unverified') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+        <AlertTriangle className="h-3 w-3 text-amber-600" />
+        <span>Worker match uncertain: {workerName || 'unverified'}</span>
+      </span>
+    )
+  }
+  return null
 }

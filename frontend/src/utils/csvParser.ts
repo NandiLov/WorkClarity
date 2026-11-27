@@ -227,7 +227,7 @@ function normalizeConfirmationStatus(raw: string): ConfirmationStatus {
   return 'unconfirmed'
 }
 
-function createScheduleId(
+export function createScheduleId(
   fileName: string,
   overrideId?: string,
   existingScheduleIds?: Set<string>,
