@@ -3071,7 +3071,10 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             }
 
         cfg = ExtractionServiceConfig(
-            primary_max_retries=2, fallback_max_retries=1, retry_backoff_seconds=0.5
+            fallback_enabled=True,
+            primary_max_retries=2,
+            fallback_max_retries=1,
+            retry_backoff_seconds=0.5,
         )
         orchestrator = ExtractionOrchestrator(
             cfg,
@@ -3138,7 +3141,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             }
 
         orchestrator = ExtractionOrchestrator(
-            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            ExtractionServiceConfig( fallback_enabled=True, primary_max_retries=1, retry_backoff_seconds=0.0),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_sender
             ),
@@ -3176,7 +3179,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
 
         orchestrator = ExtractionOrchestrator(
             ExtractionServiceConfig(
-                primary_max_retries=1, fallback_max_retries=1, retry_backoff_seconds=0.0
+                 fallback_enabled=True, primary_max_retries=1, fallback_max_retries=1, retry_backoff_seconds=0.0
             ),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_sender
@@ -3237,7 +3240,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             side_effect=lambda p: False if p.name == ".env" else orig_is_file(p),
         ):
             orchestrator_missing = ExtractionOrchestrator(
-                ExtractionServiceConfig(primary_max_retries=2, retry_backoff_seconds=2.0),
+                ExtractionServiceConfig(fallback_enabled=True, primary_max_retries=2, retry_backoff_seconds=2.0),
                 primary_adapter=GeminiExtractionAdapter(api_key=None),
                 fallback_adapter=NvidiaExtractionAdapter(
                     api_key="fallback-fixture-key", http_sender=fallback_sender
@@ -3269,7 +3272,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
 
         sleeps.clear()
         orchestrator_401 = ExtractionOrchestrator(
-            ExtractionServiceConfig(primary_max_retries=2, retry_backoff_seconds=2.0),
+            ExtractionServiceConfig(fallback_enabled=True, primary_max_retries=2, retry_backoff_seconds=2.0),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="bad-gem-fixture", http_sender=primary_401
             ),
@@ -3342,6 +3345,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
         ):
             orchestrator = ExtractionOrchestrator(
                 ExtractionServiceConfig(
+                    fallback_enabled=True,
                     primary_max_retries=1,
                     fallback_max_retries=2,
                     retry_backoff_seconds=0.0,
@@ -3476,7 +3480,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             }
 
         orchestrator = ExtractionOrchestrator(
-            ExtractionServiceConfig(primary_max_retries=0, retry_backoff_seconds=0.0),
+            ExtractionServiceConfig(fallback_enabled=True, primary_max_retries=0, retry_backoff_seconds=0.0),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_sender
             ),
@@ -3648,6 +3652,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             )
 
         cfg = ExtractionServiceConfig(
+            fallback_enabled=True,
             primary_max_retries=2,
             fallback_max_retries=1,
             retry_backoff_seconds=1.5,
@@ -3740,7 +3745,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             }
 
         orchestrator = ExtractionOrchestrator(
-            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            ExtractionServiceConfig(fallback_enabled=True, primary_max_retries=1, retry_backoff_seconds=0.0),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_sender
             ),
@@ -3789,7 +3794,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
 
         orchestrator = ExtractionOrchestrator(
             ExtractionServiceConfig(
-                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+                fallback_enabled=True, primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
             ),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_sender
@@ -3937,7 +3942,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
             }
 
         orch_a = ExtractionOrchestrator(
-            ExtractionServiceConfig(primary_max_retries=1, retry_backoff_seconds=0.0),
+            ExtractionServiceConfig(primary_max_retries=1, fallback_enabled=True, retry_backoff_seconds=0.0),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=prim_empty_a
             ),
@@ -4034,7 +4039,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
 
         orch_c = ExtractionOrchestrator(
             ExtractionServiceConfig(
-                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+                primary_max_retries=0, fallback_enabled=True, fallback_max_retries=0, retry_backoff_seconds=0.0
             ),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=prim_corroborated_c
@@ -4088,7 +4093,7 @@ class Phase4AutomaticFailoverOrchestrationTests(unittest.TestCase):
 
         orch = ExtractionOrchestrator(
             ExtractionServiceConfig(
-                primary_max_retries=0, fallback_max_retries=0, retry_backoff_seconds=0.0
+                primary_max_retries=0, fallback_max_retries=0, fallback_enabled=True, retry_backoff_seconds=0.0
             ),
             primary_adapter=GeminiExtractionAdapter(
                 api_key="test-gem", http_sender=primary_mixed
