@@ -39,7 +39,7 @@ AI extraction is not a payroll calculator. The Python service, rather than the A
 The following resources provide an overview of WorkClarity and demonstrate the V1 MVP workflow.
 
 - **Presentation Deck:** [View WorkClarity Presentation](https://docs.google.com/presentation/d/1dr2kxVFOMI8prMQl-USqAvN6wGwQuQqD-49nhLssaek/edit?usp=drive_link)
-- **Product Demo Video:** [Watch WorkClarity Demo](https://drive.google.com/file/d/1nDgNlAL2JiLfFszZSIZFZwxLqqiqWP7J/view?usp=drive_link)
+- **Product Demo Video:** [Watch WorkClarity Demo](https://drive.google.com/file/d/1Crlf2ZMuThotwXg4QmxCb5ElkR8xvo_T/view?usp=drive_link)
 
 The presentation and walkthrough cover the problem WorkClarity addresses, its alignment with SDG 8: Decent Work and Economic Growth, the technology architecture, and the core workflow:
 
